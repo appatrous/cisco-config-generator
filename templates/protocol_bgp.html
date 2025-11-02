@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}BGP Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">BGP Configuration</h2>
+    <span class="text-muted">Neighbors and networks</span>
+  </div>
+  <p class="mb-4">Configure BGP by specifying the local AS number, router ID, neighbors and networks to advertise.</p>
+  <form action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+
+    <div class="mb-4 border p-3 rounded">
+      <h5>Global Settings</h5>
+      <div class="row g-2 mb-2">
+        <div class="col-md-4">
+          <label class="form-label">Local AS</label>
+          <input type="text" name="bgp_local_as" class="form-control" placeholder="e.g. 65000">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Router ID</label>
+          <input type="text" name="bgp_router_id" class="form-control" placeholder="e.g. 1.1.1.1">
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-4 border p-3 rounded">
+      <h5>Neighbors</h5>
+      <div id="bgpNeighborsContainer" class="dynamic-container">
+        <div class="bgp-neighbor-entry row g-2 align-items-end mb-2">
+          <div class="col-md-4">
+            <input type="text" name="bgp_neighbor_ip" class="form-control" placeholder="Neighbor IP">
+          </div>
+          <div class="col-md-4">
+            <input type="text" name="bgp_neighbor_as" class="form-control" placeholder="Remote AS">
+          </div>
+          <div class="col-md-3">
+            <input type="text" name="bgp_neighbor_desc" class="form-control" placeholder="Description (optional)">
+          </div>
+          <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addBgpNeighbor" class="btn btn-secondary">Add Neighbor</button>
+    </div>
+
+    <div class="mb-4 border p-3 rounded">
+      <h5>Networks to Advertise</h5>
+      <div id="bgpNetworksContainer" class="dynamic-container">
+        <div class="bgp-network-entry row g-2 align-items-end mb-2">
+          <div class="col-md-10">
+            <input type="text" name="bgp_network_prefix" class="form-control" placeholder="Network/prefix (e.g. 10.0.0.0/24)">
+          </div>
+          <div class="col-md-2 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addBgpNetwork" class="btn btn-secondary">Add Network</button>
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

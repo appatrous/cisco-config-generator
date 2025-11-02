@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}VLAN Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">VLAN Configuration</h2>
+    <span class="text-muted">Create VLANs with IDs and optional names</span>
+  </div>
+  <p class="mb-4">Define VLANs on your switch by entering the VLAN ID and an optional descriptive name.  Use the "Add VLAN" button to create multiple VLAN entries.</p>
+  <form id="vlanForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div id="vlanContainer" class="dynamic-container">
+      <div class="vlan-entry row g-2 align-items-end mb-2">
+        <div class="col-md-5">
+          <label class="form-label">VLAN ID</label>
+          <input type="number" name="vlan_id" class="form-control" placeholder="e.g. 10" min="1" max="4094" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">VLAN Name</label>
+          <input type="text" name="vlan_name" class="form-control" placeholder="optional name">
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addVlan" class="btn btn-secondary mb-3">Add VLAN</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

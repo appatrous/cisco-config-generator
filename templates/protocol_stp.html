@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}Spanning Tree Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Spanning Tree Configuration</h2>
+    <span class="text-muted">Configure STP modes and priority</span>
+  </div>
+  <p class="mb-4">Select the spanning tree protocol mode and optionally set the bridge priority.  Lower priorities cause a switch to be elected root.</p>
+  <form id="stpForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">STP Mode</label>
+        <select name="stp_mode" class="form-select">
+          <option value="pvst">PVST+</option>
+          <option value="rapid-pvst">Rapid PVST+</option>
+          <option value="mst">MST</option>
+          <option value="stp">STP (IEEE 802.1D)</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Bridge Priority (optional)</label>
+        <input type="number" name="stp_priority" class="form-control" min="0" max="61440" step="4096" placeholder="e.g. 4096">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

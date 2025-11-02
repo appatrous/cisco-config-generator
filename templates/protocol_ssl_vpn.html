@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}SSL VPN Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">SSL VPN</h2>
+    <span class="text-muted">Configure a basic SSL VPN service</span>
+  </div>
+  <p class="mb-4">Enter details to set up an SSL VPN.  This typically involves the public IP address/hostname of the device, the port for the portal, the tunnel group name and the authentication method.  Note that full SSL VPN configuration involves many additional parameters; this form captures the basics.</p>
+  <form id="sslVpnForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3">
+      <label class="form-label">Public IP or Hostname</label>
+      <input type="text" name="ssl_public_ip" class="form-control" placeholder="e.g. vpn.example.com" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Port</label>
+      <input type="number" name="ssl_port" class="form-control" min="1" max="65535" value="443">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Tunnel Group Name</label>
+      <input type="text" name="ssl_tunnel_group" class="form-control" placeholder="e.g. SSL_TG">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Authentication Method</label>
+      <select name="ssl_auth_method" class="form-select">
+        <option value="local">Local</option>
+        <option value="tacacs">TACACS+</option>
+        <option value="radius">RADIUS</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

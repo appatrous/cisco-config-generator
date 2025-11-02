@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuration Generator{% endblock %}
+
+{% block content %}
+  <h1 class="mb-3">Generate Cisco Device Configurations</h1>
+  <p class="lead">Fill in the form to create configuration files for IOS, NX‑OS or ASA devices.</p>
+  <form id="configForm" method="post" action="{{ url_for('generate') }}" novalidate>
+    <!-- Platform selection -->
+    <div class="mb-4">
+      <label for="platform" class="form-label"><strong>Device Platform</strong></label>
+      <select name="platform" id="platform" class="form-select" required>
+        {% for platform in platforms %}
+          <option value="{{ platform }}">{{ platform|upper }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Static routes -->
+    <div class="mb-4 border p-3 rounded">
+      <h3>Static Routes</h3>
+      <p>Add one or more static routes.</p>
+      <div id="staticRoutesContainer" class="dynamic-container">
+        <div class="route-entry row g-2 align-items-end mb-2">
+          <div class="col-md-5">
+            <input type="text" name="static_dest_network" class="form-control" placeholder="Destination network (e.g. 192.168.1.0/24)" required>
+          </div>
+          <div class="col-md-5">
+            <input type="text" name="static_next_hop" class="form-control" placeholder="Next hop (e.g. 10.0.0.1)" required>
+          </div>
+          <div class="col-md-1">
+            <input type="number" name="static_distance" class="form-control" placeholder="AD" min="1" max="255">
+          </div>
+          <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addStaticRoute" class="btn btn-secondary">Add Route</button>
+    </div>
+
+    <!-- OSPF configuration -->
+    <div class="mb-4 border p-3 rounded">
+      <h3>OSPF</h3>
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="ospf_enable" name="ospf_enable">
+        <label class="form-check-label" for="ospf_enable">Enable OSPF</label>
+      </div>
+      <div id="ospfFields" class="nested-section hidden">
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <label for="ospf_version" class="form-label">Version</label>
+            <select name="ospf_version" id="ospf_version" class="form-select">
+              <option value="v2">OSPFv2 (IPv4)</option>
+              <option value="v3">OSPFv3 (IPv6)</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="ospf_process_id" class="form-label">Process ID</label>
+            <input type="number" id="ospf_process_id" name="ospf_process_id" class="form-control" min="1" placeholder="Process ID">
+          </div>
+          <div class="col-md-4">
+            <label for="ospf_router_id" class="form-label">Router ID (optional)</label>
+            <input type="text" id="ospf_router_id" name="ospf_router_id" class="form-control" placeholder="e.g. 1.1.1.1">
+          </div>
+        </div>
+        <h4>Networks</h4>
+        <div id="ospfNetworksContainer" class="dynamic-container">
+          <div class="network-entry row g-2 align-items-end mb-2">
+            <div class="col-md-5">
+              <input type="text" name="ospf_network" class="form-control" placeholder="Network (e.g. 10.0.0.0/24)" required>
+            </div>
+            <div class="col-md-5">
+              <input type="text" name="ospf_area" class="form-control" placeholder="Area (e.g. 0)" required>
+            </div>
+            <div class="col-md-2 text-end">
+              <button type="button" class="btn btn-danger remove-btn">&times;</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="addOspfNetwork" class="btn btn-secondary">Add Network</button>
+      </div>
+    </div>
+
+    <!-- VLANs -->
+    <div class="mb-4 border p-3 rounded">
+      <h3>VLANs</h3>
+      <p>Define VLAN IDs and optional names.</p>
+      <div id="vlanContainer" class="dynamic-container">
+        <div class="vlan-entry row g-2 align-items-end mb-2">
+          <div class="col-md-5">
+            <input type="number" name="vlan_id" class="form-control" placeholder="VLAN ID" min="1" max="4094" required>
+          </div>
+          <div class="col-md-5">
+            <input type="text" name="vlan_name" class="form-control" placeholder="VLAN Name (optional)">
+          </div>
+          <div class="col-md-2 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addVlan" class="btn btn-secondary">Add VLAN</button>
+    </div>
+
+    <!-- NTP servers -->
+    <div class="mb-4 border p-3 rounded">
+      <h3>NTP Servers</h3>
+      <p>Add one or more NTP servers.</p>
+      <div id="ntpContainer" class="dynamic-container">
+        <div class="ntp-entry row g-2 align-items-end mb-2">
+          <div class="col-md-10">
+            <input type="text" name="ntp_server" class="form-control" placeholder="NTP server (e.g. 192.0.2.10)" required>
+          </div>
+          <div class="col-md-2 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addNtpServer" class="btn btn-secondary">Add NTP Server</button>
+    </div>
+
+    <!-- AAA -->
+    <div class="mb-4 border p-3 rounded">
+      <h3>AAA (Auth/Nac)</h3>
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="aaa_enable" name="aaa_enable">
+        <label class="form-check-label" for="aaa_enable">Enable AAA</label>
+      </div>
+      <div id="aaaFields" class="nested-section hidden">
+        <div class="subsection border-start ps-3 mb-3">
+          <h5>TACACS+ Servers</h5>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="aaa_use_tacacs" name="aaa_use_tacacs">
+            <label class="form-check-label" for="aaa_use_tacacs">Use TACACS+</label>
+          </div>
+          <div id="tacacsContainer" class="dynamic-container">
+            <div class="tacacs-entry row g-2 align-items-end mb-2">
+              <div class="col-md-10">
+                <input type="text" name="tacacs_server" class="form-control" placeholder="TACACS server IP" required>
+              </div>
+              <div class="col-md-2 text-end">
+                <button type="button" class="btn btn-danger remove-btn">&times;</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="addTacacsServer" class="btn btn-secondary">Add TACACS Server</button>
+        </div>
+        <div class="subsection border-start ps-3 mb-3">
+          <h5>RADIUS Servers</h5>
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="aaa_use_radius" name="aaa_use_radius">
+            <label class="form-check-label" for="aaa_use_radius">Use RADIUS</label>
+          </div>
+          <div id="radiusContainer" class="dynamic-container">
+            <div class="radius-entry row g-2 align-items-end mb-2">
+              <div class="col-md-10">
+                <input type="text" name="radius_server" class="form-control" placeholder="RADIUS server IP" required>
+              </div>
+              <div class="col-md-2 text-end">
+                <button type="button" class="btn btn-danger remove-btn">&times;</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="addRadiusServer" class="btn btn-secondary">Add RADIUS Server</button>
+        </div>
+        <div class="subsection border-start ps-3">
+          <h5>Local Users</h5>
+          <div id="localUsersContainer" class="dynamic-container">
+            <div class="user-entry row g-2 align-items-end mb-2">
+              <div class="col-md-4">
+                <input type="text" name="local_user_name" class="form-control" placeholder="Username" required>
+              </div>
+              <div class="col-md-4">
+                <input type="password" name="local_user_password" class="form-control" placeholder="Password" required>
+              </div>
+              <div class="col-md-3">
+                <input type="number" name="local_user_priv" class="form-control" placeholder="Priv (e.g. 15)" min="0" max="15">
+              </div>
+              <div class="col-md-1 text-end">
+                <button type="button" class="btn btn-danger remove-btn">&times;</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="addLocalUser" class="btn btn-secondary">Add User</button>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary mb-5">Generate Configuration</button>
+  </form>
+{% endblock %}

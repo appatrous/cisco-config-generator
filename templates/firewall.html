@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Firewall{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Network Firewall</h2>
+    <span class="text-muted">Security &amp; VPN</span>
+  </div>
+
+  <!-- Access Control & Rule Management -->
+  <div class="feature-category">
+    <div class="category-title">Access Control &amp; Rule Management</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='acl', device='firewall') }}" class="feature-box box-blue check">ACL<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='object-groups', device='firewall') }}" class="feature-box box-purple check">Object Groups<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='zone-based-firewall', device='firewall') }}" class="feature-box box-pink">Zone‑Based Firewall</a>
+      <a href="{{ url_for('protocol_page', slug='zone-based-firewall', device='firewall') }}" class="feature-box box-green">Zone Based Firewall</a>
+      <a href="{{ url_for('protocol_page', slug='pat', device='firewall') }}" class="feature-box box-orange check">PAT<span class="status-icon">&#10003;</span></a>
+    </div>
+  </div>
+
+  <!-- VPN & Tunnels -->
+  <div class="feature-category">
+    <div class="category-title">VPN &amp; Tunnels</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='ipsec-vpn', device='firewall') }}" class="feature-box box-purple">IPsec VPN</a>
+      <a href="{{ url_for('protocol_page', slug='ssl-vpn', device='firewall') }}" class="feature-box box-red">SSL VPN</a>
+      <a href="{{ url_for('protocol_page', slug='anyconnect', device='firewall') }}" class="feature-box box-yellow">AnyConnect</a>
+      <a href="{{ url_for('protocol_page', slug='anyconnect', device='firewall') }}" class="feature-box box-green">AnyConnect</a>
+      <a href="{{ url_for('protocol_page', slug='asa-failover-clustering', device='firewall') }}" class="feature-box box-blue">ASA Failover/Clustering</a>
+    </div>
+  </div>
+
+  <!-- Network Address Translation -->
+  <div class="feature-category">
+    <div class="category-title">Network Address Translation</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='static-nat', device='firewall') }}" class="feature-box box-green check">Static NAT<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='dynamic-nat', device='firewall') }}" class="feature-box box-blue">Dynamic NAT</a>
+      <a href="{{ url_for('protocol_page', slug='pat', device='firewall') }}" class="feature-box box-purple minus">PAT<span class="status-icon">&#8722;</span></a>
+    </div>
+  </div>
+
+  <!-- Threat Protection & Inspection -->
+  <div class="feature-category">
+    <div class="category-title">Threat Protection &amp; Inspection</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='ids-ips', device='firewall') }}" class="feature-box box-blue check">IDS/IPS<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='ssl-tls-inspection', device='firewall') }}" class="feature-box box-green">SSL/TLS Inspection</a>
+      <a href="{{ url_for('protocol_page', slug='gnoc', device='firewall') }}" class="feature-box box-yellow check">Gnoc<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='threat-detection', device='firewall') }}" class="feature-box box-blue">Threat Detection</a>
+      <a href="{{ url_for('protocol_page', slug='unicast-rpf', device='firewall') }}" class="feature-box box-purple">Unicast RPF</a>
+      <a href="{{ url_for('protocol_page', slug='embedded-event-manager', device='firewall') }}" class="feature-box box-green">Embedded Event Manager</a>
+    </div>
+  </div>
+
+  <!-- View generated configurations -->
+  <div class="d-flex justify-content-center my-5">
+    <a href="{{ url_for('show_generated_config', device='firewall') }}" class="btn btn-outline-dark btn-lg">Configuration générée</a>
+  </div>
+
+
+
+{% endblock %}

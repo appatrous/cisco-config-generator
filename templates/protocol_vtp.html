@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}VTP Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">VTP Configuration</h2>
+    <span class="text-muted">Configure VLAN Trunking Protocol settings</span>
+  </div>
+  <p class="mb-4">Select the VTP mode and enter optional domain name and password.  Ensure the mode aligns with your VLAN management strategy.</p>
+  <form id="vtpForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">VTP Mode</label>
+        <select name="vtp_mode" class="form-select">
+          <option value="server">Server</option>
+          <option value="client">Client</option>
+          <option value="transparent">Transparent</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">VTP Domain</label>
+        <input type="text" name="vtp_domain" class="form-control" placeholder="e.g. PROD">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">VTP Password (optional)</label>
+        <input type="text" name="vtp_password" class="form-control" placeholder="secret">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

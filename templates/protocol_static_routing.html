@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}Static Routing Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Static Routing</h2>
+    <span class="text-muted">Define one or more static routes</span>
+  </div>
+  <p class="mb-4">Enter the destination network, next hop and optionally an administrative distance for each static route.  You can click the "Add Route" button to define additional routes.</p>
+
+  <form id="staticRoutingForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div id="staticRoutesContainer" class="dynamic-container">
+      <div class="route-entry row g-2 align-items-end mb-2">
+        <div class="col-md-5">
+          <label class="form-label">Destination network</label>
+          <input type="text" name="static_dest_network" class="form-control" placeholder="e.g. 192.168.1.0/24" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Next hop</label>
+          <input type="text" name="static_next_hop" class="form-control" placeholder="e.g. 10.0.0.1" required>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label">AD</label>
+          <input type="number" name="static_distance" class="form-control" placeholder="Administrative distance" min="1" max="255">
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addStaticRoute" class="btn btn-secondary mb-3">Add Route</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

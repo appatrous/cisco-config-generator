@@ -1,0 +1,14 @@
+{#
+  IOS VLAN configuration fragment.
+
+  Defines VLANs and names based on ``config.vlans``.
+#}
+
+{% if config.vlans %}
+! VLANs
+{% for vlan in config.vlans %}
+vlan {{ vlan.id }}
+{% if vlan.name %} name {{ vlan.name }}{% endif %}
+ exit
+{% endfor %}
+{% endif %}

@@ -1,0 +1,25 @@
+{#
+  Modular Jinja2 template for IOS routing configuration.
+
+  This template can be imported into larger CLI templates to include
+  routing statements such as static routes and OSPF.  It expects a
+  ``config`` dictionary in the parent scope.
+#}
+
+{# Static routes #}
+{% if config.static_routes %}
+! Static routes
+{% for route in config.static_routes %}
+ip route {{ route.destination }} {{ route.next_hop }}{% if route.distance %} {{ route.distance }}{% endif %}
+{% endfor %}
+{% endif %}
+
+{# OSPF #}
+{% if config.ospf %}
+! OSPF
+router ospf {{ config.ospf.process_id }}
+{% for net in config.ospf.networks %}
+ network {{ net.network }} area {{ net.area }}
+{% endfor %}
+ exit
+{% endif %}

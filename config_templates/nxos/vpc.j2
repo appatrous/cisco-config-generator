@@ -1,0 +1,16 @@
+{#
+  NX‑OS vPC configuration fragment (placeholder).
+
+  This file illustrates where the vPC domain and peer-link configuration
+  would be defined.  Implement actual logic based on your data model.
+#}
+
+{% if config.vpc %}
+! vPC configuration
+feature vpc
+vpc domain {{ config.vpc.domain_id }}
+ peer-keepalive destination {{ config.vpc.keepalive_dest }} source {{ config.vpc.keepalive_source }}
+ interface port-channel{{ config.vpc.peer_link.id }}
+  vpc peer-link
+ exit
+{% endif %}

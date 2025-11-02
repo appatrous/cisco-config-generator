@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}AnyConnect Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">AnyConnect VPN</h2>
+    <span class="text-muted">Configure Cisco AnyConnect remote access VPN</span>
+  </div>
+  <p class="mb-4">Provide details for the AnyConnect VPN, including the portal address/hostname, the group policy name and the underlying protocol.  This form captures the key parameters for a basic AnyConnect setup.</p>
+  <form id="anyconnectForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3">
+      <label class="form-label">Portal Address or Hostname</label>
+      <input type="text" name="anyconnect_portal_address" class="form-control" placeholder="e.g. vpn.company.com" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Group Policy Name</label>
+      <input type="text" name="anyconnect_group_policy" class="form-control" placeholder="e.g. ANYCONNECT_GP">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Protocol</label>
+      <select name="anyconnect_protocol" class="form-select">
+        <option value="ssl">SSL</option>
+        <option value="ipsec">IPsec/IKEv2</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

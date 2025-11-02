@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Generated Configurations{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Generated Configurations</h2>
+    <span class="text-muted">Saved protocol entries</span>
+  </div>
+  {% if content %}
+    <pre class="border p-3 bg-light">{{ content }}</pre>
+    <!-- Action buttons to download or clear the configuration -->
+    <div class="mt-4 d-flex gap-3">
+      <!-- Download config (Restore) -->
+      <a href="{{ url_for('download_config', device=device) }}" class="btn btn-primary">Restaurer</a>
+      <!-- Clear config -->
+      <form action="{{ url_for('clear_config', device=device) }}" method="post" class="d-inline">
+        <button type="submit" class="btn btn-danger">Vider</button>
+      </form>
+    </div>
+  {% else %}
+    <p>No configurations have been saved yet.  Use the "Add" button on a protocol page to save a configuration.</p>
+  {% endif %}
+{% endblock %}

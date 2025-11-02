@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Cisco Config Generator{% endblock %}</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{{ body_class|default('') }}">
+  <!-- Top navigation bar -->
+  <nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <!-- Brand/logo linking back to home page -->
+      <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" width="30" height="30" class="d-inline-block align-top me-2">
+        <span class="fw-bold">Cisco Config&nbsp;Generator</span>
+      </a>
+      <!-- Placeholder for optional user/profile icon -->
+      <span class="text-white"></span>
+    </div>
+  </nav>
+  <div class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info" role="alert">
+          {% for message in messages %}
+            {{ message }}<br>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+
+  <!-- Bootstrap JS (bundled) -->
+  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+  <!-- Custom JS -->
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

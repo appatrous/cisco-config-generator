@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}PAT Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Port Address Translation (PAT)</h2>
+    <span class="text-muted">Map internal ports to external ports</span>
+  </div>
+  <p class="mb-4">Set up PAT rules by specifying an inside local address and port and the corresponding inside global address and port.  This allows multiple private hosts to share a single public IP by using different ports.</p>
+  <form id="patForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3 row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Inside Local IP</label>
+        <input type="text" name="inside_local_ip" class="form-control" placeholder="e.g. 192.168.1.10" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Inside Local Port</label>
+        <input type="number" name="inside_local_port" class="form-control" placeholder="e.g. 80" min="1" max="65535" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Inside Global IP</label>
+        <input type="text" name="inside_global_ip" class="form-control" placeholder="e.g. 203.0.113.5" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Inside Global Port</label>
+        <input type="number" name="inside_global_port" class="form-control" placeholder="e.g. 8080" min="1" max="65535" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

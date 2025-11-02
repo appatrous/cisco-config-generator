@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}OSPF Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">OSPF Configuration</h2>
+    <span class="text-muted">Configure OSPF routing protocol</span>
+  </div>
+  <p class="mb-4">Enable OSPF routing and specify the process ID, router ID and the networks/areas to advertise.</p>
+  <form id="ospfForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3 form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="ospf_enable" name="ospf_enable">
+      <label class="form-check-label" for="ospf_enable">Enable OSPF</label>
+    </div>
+    <div id="ospfFields" class="nested-section hidden">
+      <div class="row g-2 mb-3">
+        <div class="col-md-4">
+          <label for="ospf_version" class="form-label">Version</label>
+          <select name="ospf_version" id="ospf_version" class="form-select">
+            <option value="v2">OSPFv2 (IPv4)</option>
+            <option value="v3">OSPFv3 (IPv6)</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="ospf_process_id" class="form-label">Process ID</label>
+          <input type="number" id="ospf_process_id" name="ospf_process_id" class="form-control" placeholder="e.g. 1" min="1">
+        </div>
+        <div class="col-md-4">
+          <label for="ospf_router_id" class="form-label">Router ID</label>
+          <input type="text" id="ospf_router_id" name="ospf_router_id" class="form-control" placeholder="e.g. 1.1.1.1">
+        </div>
+      </div>
+      <h5>Networks</h5>
+      <div id="ospfNetworksContainer" class="dynamic-container">
+        <div class="network-entry row g-2 align-items-end mb-2">
+          <div class="col-md-5">
+            <label class="form-label">Network</label>
+            <input type="text" name="ospf_network" class="form-control" placeholder="e.g. 10.0.0.0/24" required>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Area</label>
+            <input type="text" name="ospf_area" class="form-control" placeholder="e.g. 0" required>
+          </div>
+          <div class="col-md-2 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addOspfNetwork" class="btn btn-secondary mb-3">Add Network</button>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

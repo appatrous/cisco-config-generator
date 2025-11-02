@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}QoS Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Quality of Service (QoS)</h2>
+    <span class="text-muted">Define traffic classes and QoS actions</span>
+  </div>
+  <p class="mb-4">Use this form to create traffic classes with associated actions such as bandwidth guarantees, priority queuing and DSCP marking.  Each entry defines a class map and its associated policy.
+  You can add multiple classes.</p>
+  <form id="qosForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div id="qosContainer" class="dynamic-container">
+      <div class="qos-entry row g-2 align-items-end mb-2">
+        <div class="col-md-3">
+          <label class="form-label">Class Name</label>
+          <input type="text" name="qos_class_name" class="form-control" placeholder="e.g. VOICE" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Bandwidth (kbps)</label>
+          <input type="number" name="qos_bandwidth" class="form-control" placeholder="e.g. 1000">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Priority Queue?</label>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="qos_priority">
+            <label class="form-check-label">Yes</label>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">DSCP Marking</label>
+          <input type="text" name="qos_dscp" class="form-control" placeholder="e.g. EF">
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addQosClass" class="btn btn-secondary mb-3">Add Class</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

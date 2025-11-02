@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}DHCP Snooping Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">DHCP Snooping</h2>
+    <span class="text-muted">Protect against rogue DHCP servers</span>
+  </div>
+  <p class="mb-4">Enable DHCP Snooping on specific VLANs and designate trusted uplink interfaces.  Optionally set a rate limit for DHCP packets on untrusted ports.</p>
+  <form id="dhcpSnoopForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3">
+      <label class="form-label">VLANs (comma separated)</label>
+      <input type="text" name="dhcp_snoop_vlans" class="form-control" placeholder="e.g. 10,20" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Trusted Interfaces (comma separated)</label>
+      <input type="text" name="dhcp_snoop_trusted_interfaces" class="form-control" placeholder="e.g. Gig0/1,Gig0/2">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Rate Limit (pps) (optional)</label>
+      <input type="number" name="dhcp_snoop_rate_limit" class="form-control" placeholder="e.g. 100">
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

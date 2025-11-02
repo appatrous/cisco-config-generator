@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}GNOC Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">GNOC Feature</h2>
+    <span class="text-muted">Generic configuration placeholder</span>
+  </div>
+  <p class="mb-4">This page serves as a placeholder for a generic network operations center (GNOC) or other custom feature.  Enter custom parameters as needed.  Adjust these fields to match your environment's requirements.</p>
+  <form id="gnocForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3">
+      <label class="form-label">Parameter 1</label>
+      <input type="text" name="gnoc_param1" class="form-control" placeholder="Custom value">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Parameter 2</label>
+      <input type="text" name="gnoc_param2" class="form-control" placeholder="Custom value">
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

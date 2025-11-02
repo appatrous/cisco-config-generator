@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}DHCP Server/Relay Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">DHCP Server / Relay Configuration</h2>
+    <span class="text-muted">Configure DHCP pools or relay helper addresses</span>
+  </div>
+  <p class="mb-4">Define DHCP scopes to serve addresses, or specify relay interfaces and helper addresses for DHCP forwarding.</p>
+  <form id="dhcpForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <h5>DHCP Pools</h5>
+    <div id="dhcpPoolsContainer" class="dynamic-container">
+      <div class="dhcp-pool-entry row g-2 align-items-end mb-2">
+        <div class="col-md-3">
+          <label class="form-label">Pool Name</label>
+          <input type="text" name="dhcp_pool_name" class="form-control" placeholder="e.g. LAN1" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Network</label>
+          <input type="text" name="dhcp_pool_network" class="form-control" placeholder="e.g. 192.168.1.0/24" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Default Router</label>
+          <input type="text" name="dhcp_pool_router" class="form-control" placeholder="192.168.1.1">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">DNS Servers</label>
+          <input type="text" name="dhcp_pool_dns" class="form-control" placeholder="8.8.8.8,8.8.4.4">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Exclude Start IP</label>
+          <input type="text" name="dhcp_exclude_start" class="form-control" placeholder="192.168.1.1">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Exclude End IP</label>
+          <input type="text" name="dhcp_exclude_end" class="form-control" placeholder="192.168.1.10">
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addDhcpPool" class="btn btn-secondary mb-3">Add Pool</button>
+    <h5>DHCP Relays</h5>
+    <div id="dhcpRelaysContainer" class="dynamic-container">
+      <div class="dhcp-relay-entry row g-2 align-items-end mb-2">
+        <div class="col-md-4">
+          <label class="form-label">Interface</label>
+          <input type="text" name="dhcp_relay_interface" class="form-control" placeholder="e.g. Gig0/1">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Helper Address</label>
+          <input type="text" name="dhcp_relay_address" class="form-control" placeholder="e.g. 203.0.113.10">
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addDhcpRelay" class="btn btn-secondary mb-3">Add Relay</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

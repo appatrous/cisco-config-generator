@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}RIP Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">RIP Configuration</h2>
+    <span class="text-muted">Configure RIP routing protocol</span>
+  </div>
+  <p class="mb-4">Select the RIP version and specify the networks to advertise. Use the "Add Network" button to define additional network statements.</p>
+  <form id="ripForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label for="rip_version" class="form-label">RIP Version</label>
+        <select name="rip_version" id="rip_version" class="form-select">
+          <option value="1">RIPv1</option>
+          <option value="2" selected>RIPv2</option>
+        </select>
+      </div>
+    </div>
+    <h5>Networks</h5>
+    <div id="ripNetworksContainer" class="dynamic-container">
+      <div class="rip-network-entry row g-2 align-items-end mb-2">
+        <div class="col-md-10">
+          <label class="form-label">Network</label>
+          <input type="text" name="rip_network" class="form-control" placeholder="e.g. 192.168.0.0" required>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addRipNetwork" class="btn btn-secondary mb-3">Add Network</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

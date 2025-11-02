@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}Embedded Event Manager Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Embedded Event Manager (EEM)</h2>
+    <span class="text-muted">Create EEM applets for automation</span>
+  </div>
+  <p class="mb-4">Define EEM applets by specifying a name, the event that triggers the applet and the actions to perform when triggered.  Use the "Add Applet" button to configure multiple applets.</p>
+  <form id="eemForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div id="eemContainer" class="dynamic-container">
+      <div class="eem-entry row g-2 align-items-end mb-2">
+        <div class="col-md-3">
+          <label class="form-label">Applet Name</label>
+          <input type="text" name="eem_name" class="form-control" placeholder="e.g. AlertOnLinkDown" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Event Type</label>
+          <select name="eem_event_type" class="form-select">
+            <option value="syslog">Syslog</option>
+            <option value="timer">Timer</option>
+            <option value="cli">CLI</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Event Data</label>
+          <input type="text" name="eem_event_data" class="form-control" placeholder="e.g. LINK-5-CHANGED">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Actions (CLI)</label>
+          <textarea name="eem_action_cli" class="form-control" rows="1" placeholder="e.g. send log alert"></textarea>
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addEemPolicy" class="btn btn-secondary mb-3">Add Applet</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

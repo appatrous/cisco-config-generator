@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}IP Source Guard Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">IP Source Guard</h2>
+    <span class="text-muted">Enable IP Source Guard on access ports</span>
+  </div>
+  <p class="mb-4">Configure IP Source Guard to prevent spoofing by restricting traffic to learned IP/MAC bindings.  Specify the interface and the guard mode for each entry.  Modes can be <strong>ip</strong> (validate IP address), <strong>ip-mac</strong> (validate IP and MAC), or <strong>mac</strong> (validate MAC only).</p>
+  <form id="ipsgForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div id="ipsgContainer" class="dynamic-container">
+      <div class="ipsg-entry row g-2 align-items-end mb-2">
+        <div class="col-md-5">
+          <label class="form-label">Interface</label>
+          <input type="text" name="ipsg_interface" class="form-control" placeholder="e.g. Fa0/2" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Mode</label>
+          <select name="ipsg_mode" class="form-select">
+            <option value="ip">IP only</option>
+            <option value="ip-mac">IP &amp; MAC</option>
+            <option value="mac">MAC only</option>
+          </select>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addIpSourceGuard" class="btn btn-secondary mb-3">Add Interface</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

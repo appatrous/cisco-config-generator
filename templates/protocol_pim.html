@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}PIM Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">PIM Configuration</h2>
+    <span class="text-muted">Configure Protocol Independent Multicast (PIM)</span>
+  </div>
+  <p class="mb-4">Specify the PIM mode, interfaces on which PIM should run, and optionally configure a rendezvous point and group range for sparse modes.</p>
+  <form id="pimForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="mb-3">
+      <label class="form-label">PIM Mode</label>
+      <select name="pim_mode" class="form-select">
+        <option value="sparse-mode">Sparse Mode</option>
+        <option value="dense-mode">Dense Mode</option>
+        <option value="sparse-dense-mode">Sparse‑Dense Mode</option>
+      </select>
+    </div>
+    <h5>Interfaces</h5>
+    <div id="pimInterfacesContainer" class="dynamic-container">
+      <div class="pim-interface-entry row g-2 align-items-end mb-2">
+        <div class="col-md-10">
+          <label class="form-label">Interface</label>
+          <input type="text" name="pim_interface" class="form-control" placeholder="e.g. Gig0/1" required>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addPimInterface" class="btn btn-secondary mb-3">Add Interface</button>
+    <div class="row g-2 mb-3">
+      <div class="col-md-6">
+        <label class="form-label">Rendezvous Point (RP) Address</label>
+        <input type="text" name="pim_rp_address" class="form-control" placeholder="e.g. 192.0.2.1">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Group Range (optional)</label>
+        <input type="text" name="pim_group_range" class="form-control" placeholder="e.g. 239.0.0.0/8">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

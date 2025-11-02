@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}ASA Failover Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">ASA Failover / Clustering Configuration</h2>
+    <span class="text-muted">Configure high availability for ASA firewalls</span>
+  </div>
+  <p class="mb-4">Define the failover mode and specify the failover interface and IP addresses for the primary and secondary units.  Optionally set a shared key.</p>
+  <form id="asaFailoverForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Failover Mode</label>
+        <select name="failover_mode" class="form-select">
+          <option value="active-standby">Active/Standby</option>
+          <option value="active-active">Active/Active</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Failover Interface</label>
+        <input type="text" name="failover_interface" class="form-control" placeholder="e.g. GigabitEthernet0/3">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Shared Secret (optional)</label>
+        <input type="text" name="failover_key" class="form-control" placeholder="secret">
+      </div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-md-3">
+        <label class="form-label">Primary IP</label>
+        <input type="text" name="failover_primary_ip" class="form-control" placeholder="e.g. 192.0.2.1">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Secondary IP</label>
+        <input type="text" name="failover_secondary_ip" class="form-control" placeholder="e.g. 192.0.2.2">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Subnet Mask</label>
+        <input type="text" name="failover_netmask" class="form-control" placeholder="e.g. 255.255.255.0">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Config Results{% endblock %}
+
+{% block content %}
+  <h1 class="mb-3">Generated Configuration</h1>
+  <p class="mb-4">Below are the configuration outputs for platform <strong>{{ platform|upper }}</strong>.  Use the tabs to switch between CLI, JSON and YAML views.</p>
+  <div class="mb-3">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">&larr; Back to Form</a>
+  </div>
+  <div class="output-tabs btn-group mb-2" role="group" aria-label="Output format">
+    <button type="button" class="tab-btn btn btn-outline-primary active" data-target="cli">CLI</button>
+    <button type="button" class="tab-btn btn btn-outline-primary" data-target="json">JSON</button>
+    <button type="button" class="tab-btn btn btn-outline-primary" data-target="yaml">YAML</button>
+  </div>
+  <div id="cli" class="output-content active">
+    <pre class="border p-3 bg-light">{{ cli_config | e }}</pre>
+  </div>
+  <div id="json" class="output-content">
+    <pre class="border p-3 bg-light">{{ json_config | e }}</pre>
+  </div>
+  <div id="yaml" class="output-content">
+    <pre class="border p-3 bg-light">{{ yaml_config | e }}</pre>
+  </div>
+  <script>
+    // Inline script to handle tab switching on result page
+    document.addEventListener('DOMContentLoaded', function () {
+      const buttons = document.querySelectorAll('.tab-btn');
+      const contents = document.querySelectorAll('.output-content');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          buttons.forEach(b => b.classList.remove('active'));
+          contents.forEach(c => c.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.target).classList.add('active');
+        });
+      });
+    });
+  </script>
+{% endblock %}

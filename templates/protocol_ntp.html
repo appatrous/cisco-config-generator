@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}NTP/PTP Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">NTP / PTP Configuration</h2>
+    <span class="text-muted">Configure time synchronization</span>
+  </div>
+  <p class="mb-4">Define one or more NTP servers to synchronise time.  Optionally specify a master stratum if this device should act as a time server.</p>
+  <form id="ntpForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <h5>NTP Servers</h5>
+    <div id="ntpContainer" class="dynamic-container">
+      <div class="ntp-entry row g-2 align-items-end mb-2">
+        <div class="col-md-10">
+          <label class="form-label">Server IP</label>
+          <input type="text" name="ntp_server" class="form-control" placeholder="e.g. 192.0.2.1" required>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addNtpServer" class="btn btn-secondary mb-3">Add Server</button>
+    <div class="mb-3">
+      <label class="form-label">Master Stratum (optional)</label>
+      <input type="number" name="ntp_master_stratum" class="form-control" min="1" max="15" placeholder="e.g. 5">
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

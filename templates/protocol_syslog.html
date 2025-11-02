@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}Syslog Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Syslog Configuration</h2>
+    <span class="text-muted">Logging destinations and levels</span>
+  </div>
+  <p class="mb-4">Configure remote syslog servers and logging severity levels for console, buffered and monitor destinations.</p>
+  <form action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+
+    <!-- Remote syslog servers -->
+    <div class="mb-4 border p-3 rounded">
+      <h5>Remote Syslog Servers</h5>
+      <div id="syslogServersContainer" class="dynamic-container">
+        <div class="syslog-server-entry row g-2 align-items-end mb-2">
+          <div class="col-md-4">
+            <input type="text" name="syslog_server_ip" class="form-control" placeholder="Server IP">
+          </div>
+          <div class="col-md-3">
+            <input type="number" name="syslog_server_port" class="form-control" placeholder="Port (optional)" min="1" max="65535">
+          </div>
+          <div class="col-md-3">
+            <select name="syslog_server_level" class="form-select">
+              <option value="debug">Debug</option>
+              <option value="informational">Informational</option>
+              <option value="notice">Notice</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+              <option value="critical">Critical</option>
+              <option value="alert">Alert</option>
+              <option value="emergency">Emergency</option>
+            </select>
+          </div>
+          <div class="col-md-2 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addSyslogServer" class="btn btn-secondary">Add Syslog Server</button>
+    </div>
+
+    <!-- Console logging -->
+    <div class="mb-4 border p-3 rounded">
+      <h5>Console Logging</h5>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="syslog_console_enable" name="syslog_console_enable">
+        <label class="form-check-label" for="syslog_console_enable">Enable console logging</label>
+      </div>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label">Console level</label>
+          <select name="syslog_console_level" class="form-select">
+            <option value="debug">Debug</option>
+            <option value="informational">Informational</option>
+            <option value="notice">Notice</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="critical">Critical</option>
+            <option value="alert">Alert</option>
+            <option value="emergency">Emergency</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buffered logging -->
+    <div class="mb-4 border p-3 rounded">
+      <h5>Buffered Logging</h5>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="syslog_buffer_enable" name="syslog_buffer_enable">
+        <label class="form-check-label" for="syslog_buffer_enable">Enable buffered logging</label>
+      </div>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label">Buffered level</label>
+          <select name="syslog_buffer_level" class="form-select">
+            <option value="debug">Debug</option>
+            <option value="informational">Informational</option>
+            <option value="notice">Notice</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="critical">Critical</option>
+            <option value="alert">Alert</option>
+            <option value="emergency">Emergency</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Buffer size (bytes)</label>
+          <input type="number" name="syslog_buffer_size" class="form-control" placeholder="4096" min="1024" step="1024">
+        </div>
+      </div>
+    </div>
+
+    <!-- Monitor logging -->
+    <div class="mb-4 border p-3 rounded">
+      <h5>Monitor Logging</h5>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="syslog_monitor_enable" name="syslog_monitor_enable">
+        <label class="form-check-label" for="syslog_monitor_enable">Enable monitor logging</label>
+      </div>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label">Monitor level</label>
+          <select name="syslog_monitor_level" class="form-select">
+            <option value="debug">Debug</option>
+            <option value="informational">Informational</option>
+            <option value="notice">Notice</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="critical">Critical</option>
+            <option value="alert">Alert</option>
+            <option value="emergency">Emergency</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

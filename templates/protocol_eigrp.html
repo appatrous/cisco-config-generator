@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}EIGRP Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">EIGRP Configuration</h2>
+    <span class="text-muted">Configure EIGRP routing protocol</span>
+  </div>
+  <p class="mb-4">Specify the EIGRP autonomous system number and optionally a router ID.  Add one or more network statements to define which networks participate in EIGRP.</p>
+  <form id="eigrpForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label for="eigrp_as_number" class="form-label">AS Number</label>
+        <input type="number" id="eigrp_as_number" name="eigrp_as_number" class="form-control" placeholder="e.g. 100" required>
+      </div>
+      <div class="col-md-4">
+        <label for="eigrp_router_id" class="form-label">Router ID</label>
+        <input type="text" id="eigrp_router_id" name="eigrp_router_id" class="form-control" placeholder="e.g. 1.1.1.1">
+      </div>
+      <div class="col-md-4">
+        <label for="eigrp_variance" class="form-label">Variance (optional)</label>
+        <input type="number" id="eigrp_variance" name="eigrp_variance" class="form-control" min="1" placeholder="e.g. 2">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label for="eigrp_passive_interfaces" class="form-label">Passive Interfaces (comma‑separated)</label>
+      <input type="text" id="eigrp_passive_interfaces" name="eigrp_passive_interfaces" class="form-control" placeholder="e.g. Gig1/0, Gig1/1">
+    </div>
+    <h5>Networks</h5>
+    <div id="eigrpNetworksContainer" class="dynamic-container">
+      <div class="eigrp-network-entry row g-2 align-items-end mb-2">
+        <div class="col-md-5">
+          <label class="form-label">Network</label>
+          <input type="text" name="eigrp_network" class="form-control" placeholder="e.g. 10.0.0.0" required>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Wildcard Mask</label>
+          <input type="text" name="eigrp_wildcard" class="form-control" placeholder="e.g. 0.0.0.255">
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addEigrpNetwork" class="btn btn-secondary mb-3">Add Network</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

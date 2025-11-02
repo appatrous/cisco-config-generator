@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}AAA Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">AAA Configuration</h2>
+    <span class="text-muted">Authentication, Authorization & Accounting</span>
+  </div>
+  <p class="mb-4">Configure TACACS+, RADIUS and local user accounts for device access control.</p>
+  <form action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+
+    <!-- TACACS+ section -->
+    <div class="mb-4 border p-3 rounded">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="aaa_use_tacacs" name="aaa_use_tacacs">
+        <label class="form-check-label" for="aaa_use_tacacs">Use TACACS+</label>
+      </div>
+      <div class="nested-section">
+        <h5>TACACS+ Servers</h5>
+        <div id="tacacsContainer" class="dynamic-container">
+          <div class="tacacs-entry row g-2 align-items-end mb-2">
+            <div class="col-md-10">
+              <input type="text" name="tacacs_server" class="form-control" placeholder="TACACS server IP">
+            </div>
+            <div class="col-md-2 text-end">
+              <button type="button" class="btn btn-danger remove-btn">&times;</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="addTacacsServer" class="btn btn-secondary">Add TACACS Server</button>
+      </div>
+    </div>
+
+    <!-- RADIUS section -->
+    <div class="mb-4 border p-3 rounded">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="aaa_use_radius" name="aaa_use_radius">
+        <label class="form-check-label" for="aaa_use_radius">Use RADIUS</label>
+      </div>
+      <div class="nested-section">
+        <h5>RADIUS Servers</h5>
+        <div id="radiusContainer" class="dynamic-container">
+          <div class="radius-entry row g-2 align-items-end mb-2">
+            <div class="col-md-10">
+              <input type="text" name="radius_server" class="form-control" placeholder="RADIUS server IP">
+            </div>
+            <div class="col-md-2 text-end">
+              <button type="button" class="btn btn-danger remove-btn">&times;</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="addRadiusServer" class="btn btn-secondary">Add RADIUS Server</button>
+      </div>
+    </div>
+
+    <!-- Local users section -->
+    <div class="mb-4 border p-3 rounded">
+      <h5>Local Users</h5>
+      <div id="localUsersContainer" class="dynamic-container">
+        <div class="user-entry row g-2 align-items-end mb-2">
+          <div class="col-md-4">
+            <input type="text" name="local_user_name" class="form-control" placeholder="Username">
+          </div>
+          <div class="col-md-4">
+            <input type="password" name="local_user_password" class="form-control" placeholder="Password">
+          </div>
+          <div class="col-md-3">
+            <input type="number" name="local_user_priv" class="form-control" placeholder="Privilege (0-15)" min="0" max="15">
+          </div>
+          <div class="col-md-1 text-end">
+            <button type="button" class="btn btn-danger remove-btn">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button type="button" id="addLocalUser" class="btn btn-secondary">Add Local User</button>
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}SPAN Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">SPAN / RSPAN / ERSPAN Configuration</h2>
+    <span class="text-muted">Configure port mirroring sessions</span>
+  </div>
+  <p class="mb-4">Define one or more monitoring sessions by specifying a session ID, source interface and direction, and destination interface.  Use the "Add Session" button to configure additional sessions.</p>
+  <form id="spanForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <h5>SPAN Sessions</h5>
+    <div id="spanContainer" class="dynamic-container">
+      <div class="span-entry row g-2 align-items-end mb-2">
+        <div class="col-md-2">
+          <label class="form-label">Session ID</label>
+          <input type="number" name="span_session_id" class="form-control" min="1" placeholder="1" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Source Interface</label>
+          <input type="text" name="span_source_interface" class="form-control" placeholder="e.g. Gi0/1" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Direction</label>
+          <select name="span_direction" class="form-select">
+            <option value="both">Both</option>
+            <option value="rx">Ingress</option>
+            <option value="tx">Egress</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Destination Interface</label>
+          <input type="text" name="span_dest_interface" class="form-control" placeholder="e.g. Gi0/2" required>
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addSpanSession" class="btn btn-secondary mb-3">Add Session</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

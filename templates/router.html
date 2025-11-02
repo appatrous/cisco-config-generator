@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Router{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Network Router</h2>
+    <span class="text-muted">Layer&nbsp;3 Protocols</span>
+  </div>
+
+  <!-- Routing Protocols -->
+  <div class="feature-category">
+    <div class="category-title">Routing Protocols</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='static-routing', device='router') }}" class="feature-box box-blue check">Static Routing<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='ospf', device='router') }}" class="feature-box box-purple check">OSPF<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='eigrp', device='router') }}" class="feature-box box-pink">EIGRP</a>
+      <a href="{{ url_for('protocol_page', slug='rip', device='router') }}" class="feature-box box-green">RIP</a>
+      <a href="{{ url_for('protocol_page', slug='rip', device='router') }}" class="feature-box box-red">RIP</a>
+      <a href="{{ url_for('protocol_page', slug='vrf', device='router') }}" class="feature-box box-green minus">VRF<span class="status-icon">&#8722;</span></a>
+    </div>
+  </div>
+
+  <!-- WAN & VPN -->
+  <div class="feature-category">
+    <div class="category-title">WAN &amp; VPN</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='gre', device='router') }}" class="feature-box box-purple check">GRE<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='ipsec', device='router') }}" class="feature-box box-red">IPsec</a>
+      <a href="{{ url_for('protocol_page', slug='mpls', device='router') }}" class="feature-box box-yellow check">MPLS<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='ntp-ptp', device='router') }}" class="feature-box box-green">NTP/PTP</a>
+      <a href="{{ url_for('protocol_page', slug='dhcp-server-relay', device='router') }}" class="feature-box box-blue check">DHCP Server/Relay<span class="status-icon">&#10003;</span></a>
+    </div>
+  </div>
+
+  <!-- IPv6 Support -->
+  <div class="feature-category">
+    <div class="category-title">IPv6 Support</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='ospfv3', device='router') }}" class="feature-box box-green">OSPFv3</a>
+      <a href="{{ url_for('protocol_page', slug='eigrpv6', device='router') }}" class="feature-box box-blue">EIGRPv6</a>
+      <a href="{{ url_for('protocol_page', slug='bgp4-plus', device='router') }}" class="feature-box box-purple">BGP4+</a>
+    </div>
+  </div>
+
+  <!-- Multicast & Traffic Control -->
+  <div class="feature-category">
+    <div class="category-title">Multicast &amp; Traffic Control</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='igmp', device='router') }}" class="feature-box box-green check">IGMP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='pim', device='router') }}" class="feature-box box-blue">PIM</a>
+      <a href="{{ url_for('protocol_page', slug='multicast-routing', device='router') }}" class="feature-box box-purple">Multicast Routing</a>
+    </div>
+  </div>
+
+  <!-- Management & Services -->
+  <div class="feature-category">
+    <div class="category-title">Management &amp; Services</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='aaa', device='router') }}" class="feature-box box-blue check">AAA<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='snmp', device='router') }}" class="feature-box box-green">SNMP</a>
+      <a href="{{ url_for('protocol_page', slug='syslog', device='router') }}" class="feature-box box-red">Syslog</a>
+      <a href="{{ url_for('protocol_page', slug='netflow', device='router') }}" class="feature-box box-purple">NetFlow</a>
+      <a href="{{ url_for('protocol_page', slug='qos', device='router') }}" class="feature-box box-yellow check">QoS<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='vrrp', device='router') }}" class="feature-box box-yellow check">VRRP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='hsrp', device='router') }}" class="feature-box box-green">HSRP</a>
+      <a href="{{ url_for('protocol_page', slug='glbp', device='router') }}" class="feature-box box-blue">GLBP</a>
+    </div>
+  </div>
+
+  <!-- View generated configurations -->
+  <div class="d-flex justify-content-center my-5">
+    <a href="{{ url_for('show_generated_config', device='router') }}" class="btn btn-outline-dark btn-lg">Configuration générée</a>
+  </div>
+
+
+
+{% endblock %}

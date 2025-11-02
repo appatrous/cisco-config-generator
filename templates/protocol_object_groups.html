@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}Object Groups Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Object Groups Configuration</h2>
+    <span class="text-muted">Define network or service object groups</span>
+  </div>
+  <p class="mb-4">Create reusable object groups for ACLs and NAT.  Specify a group name, select the type (network or service) and list the members separated by commas.</p>
+  <form id="objectGroupForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <h5>Object Groups</h5>
+    <div id="objectGroupContainer" class="dynamic-container">
+      <div class="object-group-entry row g-2 align-items-end mb-2">
+        <div class="col-md-3">
+          <label class="form-label">Group Name</label>
+          <input type="text" name="og_name" class="form-control" placeholder="e.g. WEB_SERVERS" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Type</label>
+          <select name="og_type" class="form-select">
+            <option value="network">Network</option>
+            <option value="service">Service</option>
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Members (comma separated)</label>
+          <input type="text" name="og_members" class="form-control" placeholder="e.g. 10.0.0.0/24, 10.0.1.0/24" required>
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addObjectGroup" class="btn btn-secondary mb-3">Add Group</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

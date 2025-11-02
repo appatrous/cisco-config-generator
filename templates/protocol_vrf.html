@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}VRF / MPLS Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">VRF / MPLS Configuration</h2>
+    <span class="text-muted">Configure VRFs and basic MPLS L3 VPN parameters</span>
+  </div>
+  <p class="mb-4">Define VRFs with route distinguishers and route targets.  Use the "Add VRF" button to add more VRFs.</p>
+  <form id="vrfForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <h5>VRFs</h5>
+    <div id="vrfContainer" class="dynamic-container">
+      <div class="vrf-entry row g-2 align-items-end mb-2">
+        <div class="col-md-4">
+          <label class="form-label">VRF Name</label>
+          <input type="text" name="vrf_name" class="form-control" placeholder="e.g. CUST1" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Route Distinguisher (RD)</label>
+          <input type="text" name="vrf_rd" class="form-control" placeholder="e.g. 65000:1">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Route Target (RT)</label>
+          <input type="text" name="vrf_rt" class="form-control" placeholder="e.g. export/import">
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addVrf" class="btn btn-secondary mb-3">Add VRF</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

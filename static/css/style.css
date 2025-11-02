@@ -1,0 +1,130 @@
+/*
+ * Custom styles for the Cisco Configuration Generator UI.
+ *
+ * This stylesheet defines colours and layout helpers for the main
+ * dashboard and feature selection pages.  It works alongside
+ * Bootstrap’s utility classes to provide a modern look.
+ */
+
+/* Colour palette classes for feature boxes */
+.box-blue { background-color: #0d6efd; color: #fff; }
+.box-purple { background-color: #6f42c1; color: #fff; }
+.box-pink { background-color: #d63384; color: #fff; }
+.box-red { background-color: #dc3545; color: #fff; }
+.box-orange { background-color: #fd7e14; color: #fff; }
+.box-yellow { background-color: #ffc107; color: #212529; }
+.box-green { background-color: #198754; color: #fff; }
+.box-cyan { background-color: #0dcaf0; color: #212529; }
+
+/* Feature selection layout */
+.feature-category {
+  margin-bottom: 2rem;
+}
+.category-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.feature-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.feature-box {
+  position: relative;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  flex: 1 1 150px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+.feature-box .status-icon {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+.feature-box.check .status-icon {
+  background-color: #28a745;
+  color: #fff;
+}
+.feature-box.minus .status-icon {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+/* Device selector cards on the home page */
+.device-selection {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+.device-card {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  width: 200px;
+  padding: 1rem;
+  text-align: center;
+  text-decoration: none;
+  color: #212529;
+  transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+}
+.device-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+.device-card img {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.5rem;
+}
+
+/* Protocol Page Card Layout */
+/* Apply to body when a protocol page sets body_class = "protocol-page". */
+.protocol-page {
+  background-color: #f0f5ff;
+  min-height: 100vh;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.protocol-page .container {
+  max-width: 680px;
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 2rem 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.protocol-page h2 {
+  font-size: 1.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.protocol-page .form-control {
+  border-radius: 8px;
+  background-color: #f7faff;
+  border: 1px solid #dee2e6;
+}
+
+.protocol-page .btn {
+  border-radius: 8px;
+  font-size: 1rem;
+  padding: 0.5rem 1.5rem;
+}
+
+.protocol-page .remove-btn {
+  padding: 0.25rem 0.75rem;
+  font-size: 1rem;
+  border-radius: 50%;
+}

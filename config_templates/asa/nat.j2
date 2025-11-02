@@ -1,0 +1,14 @@
+{#
+  ASA NAT configuration fragment (placeholder).
+
+  Use this template to generate NAT rules for ASA devices.  The
+  ``config.nat_rules`` list should contain dictionaries describing
+  static or dynamic NAT.  Extend as needed.
+#}
+
+{% if config.nat_rules %}
+! NAT rules
+{% for rule in config.nat_rules %}
+nat (inside,outside) {{ rule.type }} {{ rule.source }} {{ rule.destination }}
+{% endfor %}
+{% endif %}

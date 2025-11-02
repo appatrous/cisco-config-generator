@@ -1,0 +1,17 @@
+{#
+  Partial Jinja2 template for form fields.
+
+  Use this macro to standardise the rendering of individual form inputs.
+  It accepts parameters for label, input type, name, value and
+  additional attributes.  Example usage:
+
+    {% import '_partials/form_field.j2' as ff %}
+    {{ ff.field('Username', 'text', name='username', required=true) }}
+#}
+
+{% macro field(label, field_type='text', name='', value='', **kwargs) %}
+  <div class="mb-2">
+    <label class="form-label">{{ label }}</label>
+    <input type="{{ field_type }}" name="{{ name }}" value="{{ value }}" class="form-control" {% for attr, val in kwargs.items() %} {{ attr }}="{{ val }}"{% endfor %}>
+  </div>
+{% endmacro %}

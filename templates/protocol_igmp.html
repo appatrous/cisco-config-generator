@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}IGMP Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">IGMP Configuration</h2>
+    <span class="text-muted">Configure IGMP version per interface</span>
+  </div>
+  <p class="mb-4">Define IGMP settings for each interface. Use the "Add Interface" button to add additional interfaces and specify the IGMP version to run.</p>
+  <form id="igmpForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div id="igmpContainer" class="dynamic-container">
+      <div class="igmp-entry row g-2 align-items-end mb-2">
+        <div class="col-md-6">
+          <label class="form-label">Interface</label>
+          <input type="text" name="igmp_interface" class="form-control" placeholder="e.g. Gig0/1" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">IGMP Version</label>
+          <select name="igmp_version" class="form-select">
+            <option value="2" selected>v2</option>
+            <option value="3">v3</option>
+            <option value="1">v1</option>
+          </select>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-danger remove-btn">&times;</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addIgmp" class="btn btn-secondary mb-3">Add Interface</button>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

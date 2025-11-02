@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Network Switch{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Network Switch</h2>
+    <span class="text-muted">Layer&nbsp;2</span>
+  </div>
+
+  <!-- VLAN Management -->
+  <div class="feature-category">
+    <div class="category-title">VLAN Management</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='vlan', device='switch') }}" class="feature-box box-blue check">VLAN<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='vtp', device='switch') }}" class="feature-box box-purple check">VTP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='private-vlan', device='switch') }}" class="feature-box box-pink">Private VLAN</a>
+      <a href="{{ url_for('protocol_page', slug='voice-vlan', device='switch') }}" class="feature-box box-yellow">Voice VLAN</a>
+    </div>
+  </div>
+
+  <!-- Spanning Tree & Redundancy -->
+  <div class="feature-category">
+    <div class="category-title">Spanning Tree &amp; Redundancy</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='stp', device='switch') }}" class="feature-box box-blue check">STP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='pvst-plus', device='switch') }}" class="feature-box box-red">PVST+</a>
+      <a href="{{ url_for('protocol_page', slug='voice-vlan', device='switch') }}" class="feature-box box-yellow">Voice VLAN</a>
+      <a href="{{ url_for('protocol_page', slug='etherchannel', device='switch') }}" class="feature-box box-green">EtherChannel</a>
+      <a href="{{ url_for('protocol_page', slug='lacp', device='switch') }}" class="feature-box box-orange">LACP</a>
+      <a href="{{ url_for('protocol_page', slug='stackwise', device='switch') }}" class="feature-box box-blue">StackWise</a>
+    </div>
+  </div>
+
+  <!-- Interface & Port Functions -->
+  <div class="feature-category">
+    <div class="category-title">Interface &amp; Port Functions</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='cdp', device='switch') }}" class="feature-box box-blue check">CDP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='lldp', device='switch') }}" class="feature-box box-blue check">LLDP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='span', device='switch') }}" class="feature-box box-purple">SPAN</a>
+      <a href="{{ url_for('protocol_page', slug='rspan', device='switch') }}" class="feature-box box-green">RSPAN</a>
+      <a href="{{ url_for('protocol_page', slug='erspan', device='switch') }}" class="feature-box box-orange">ERSPAN</a>
+    </div>
+  </div>
+
+  <!-- Security & Validation -->
+  <div class="feature-category">
+    <div class="category-title">Security &amp; Validation</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='cdp', device='switch') }}" class="feature-box box-green check">CDP<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='lldp', device='switch') }}" class="feature-box box-blue">LLDP</a>
+      <a href="{{ url_for('protocol_page', slug='ip-source-guard', device='switch') }}" class="feature-box box-orange">IP Source Guard</a>
+      <a href="{{ url_for('protocol_page', slug='span', device='switch') }}" class="feature-box box-blue">SPAN</a>
+      <a href="{{ url_for('protocol_page', slug='rspan', device='switch') }}" class="feature-box box-green">RSPAN</a>
+    </div>
+  </div>
+
+  <!-- Monitoring & Discovery -->
+  <div class="feature-category">
+    <div class="category-title">Monitoring &amp; Discovery</div>
+    <div class="feature-grid">
+      <a href="{{ url_for('protocol_page', slug='dynamic-arp-inspection', device='switch') }}" class="feature-box box-green check">Dynamic ARP Inspection<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='dhcp-snooping', device='switch') }}" class="feature-box box-blue">DHCP Snooping</a>
+      <a href="{{ url_for('protocol_page', slug='ip-source-guard', device='switch') }}" class="feature-box box-purple check">IP Source Guard<span class="status-icon">&#10003;</span></a>
+      <a href="{{ url_for('protocol_page', slug='igmp-snooping', device='switch') }}" class="feature-box box-blue">IGMP Snooping</a>
+    </div>
+  </div>
+
+  <!-- View generated configurations -->
+  <div class="d-flex justify-content-center my-5">
+    <a href="{{ url_for('show_generated_config', device='switch') }}" class="btn btn-outline-dark btn-lg">Configuration générée</a>
+  </div>
+
+
+
+{% endblock %}

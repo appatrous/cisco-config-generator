@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}IPsec VPN Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">IPsec VPN Configuration</h2>
+    <span class="text-muted">Configure a simple site‑to‑site IPsec VPN</span>
+  </div>
+  <p class="mb-4">Enter the remote peer address and key parameters for an IPsec VPN.  The generated configuration will include a basic IKE policy and IPsec transform set.</p>
+  <form id="ipsecForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Remote Peer IP</label>
+        <input type="text" name="ipsec_peer_ip" class="form-control" placeholder="e.g. 203.0.113.1" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Pre‑shared Key</label>
+        <input type="text" name="ipsec_psk" class="form-control" placeholder="shared secret" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">IKE Version</label>
+        <select name="ipsec_ike_version" class="form-select">
+          <option value="1">IKEv1</option>
+          <option value="2">IKEv2</option>
+        </select>
+      </div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Encryption Algorithm</label>
+        <select name="ipsec_encryption" class="form-select">
+          <option value="aes-256">AES‑256</option>
+          <option value="aes-128">AES‑128</option>
+          <option value="3des">3DES</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Integrity Algorithm</label>
+        <select name="ipsec_hash" class="form-select">
+          <option value="sha256">SHA‑256</option>
+          <option value="sha1">SHA‑1</option>
+          <option value="md5">MD5</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">DH Group</label>
+        <select name="ipsec_dh_group" class="form-select">
+          <option value="14">Group 14</option>
+          <option value="5">Group 5</option>
+          <option value="2">Group 2</option>
+        </select>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Local Interface (optional)</label>
+      <input type="text" name="ipsec_local_interface" class="form-control" placeholder="e.g. GigabitEthernet0/0">
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}

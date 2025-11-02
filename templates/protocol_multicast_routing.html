@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% set body_class = "protocol-page" %}
+
+{% block title %}Multicast Routing Configuration{% endblock %}
+
+{% block content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Multicast Routing</h2>
+    <span class="text-muted">Enable IP multicast routing and related options</span>
+  </div>
+  <p class="mb-4">Use this form to enable IP multicast routing globally and configure optional settings such as Source Specific Multicast (SSM) range or rendezvous point.  For more advanced PIM and IGMP configuration, use the dedicated PIM and IGMP pages.</p>
+  <form id="multicastForm" action="{{ url_for('protocol_page', slug=slug, device=device) }}" method="post">
+    <input type="hidden" name="device" value="{{ device }}">
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="multicast_enable" id="multicast_enable" checked>
+      <label class="form-check-label" for="multicast_enable">Enable IP multicast routing</label>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">SSM Range (optional)</label>
+      <input type="text" name="multicast_ssm_range" class="form-control" placeholder="e.g. 232.0.0.0/8">
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="multicast_rp_enable" id="multicast_rp_enable">
+      <label class="form-check-label" for="multicast_rp_enable">Configure Static RP</label>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">RP Address (if Static RP enabled)</label>
+      <input type="text" name="multicast_rp_address" class="form-control" placeholder="e.g. 192.0.2.1">
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" name="multicast_bsr_enable" id="multicast_bsr_enable">
+      <label class="form-check-label" for="multicast_bsr_enable">Enable Bootstrap Router (BSR)</label>
+    </div>
+    <button type="submit" class="btn btn-primary me-2">Add</button>
+    <a href="{{ url_for('show_generated_config', device=device) }}" class="btn btn-outline-dark">Configuration générée</a>
+    <a href="{{ url_for('troubleshoot', slug=slug, device=device) }}" class="btn btn-info">Troubleshoot</a>
+  </form>
+{% endblock %}
