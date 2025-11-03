@@ -9,9 +9,11 @@ same data to JSON and YAML for programmatic consumption.
 from __future__ import annotations
 
 import json
-import yaml
 import os
-from typing import Tuple, Dict, Any
+from functools import lru_cache
+from typing import Any, Dict, Tuple
+
+import yaml
 from jinja2 import Environment, FileSystemLoader
 
 # Determine path to the templates directory relative to this file
@@ -26,6 +28,23 @@ PLATFORM_TEMPLATES = {
 }
 
 
+@lru_cache(maxsize=None)
+def _jinja_environment() -> Environment:
+    """Return a cached Jinja2 environment for CLI template rendering."""
+    return Environment(
+        loader=FileSystemLoader(TEMPLATE_DIR),
+        autoescape=False,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+
+
+@lru_cache(maxsize=None)
+def _get_template(template_name: str):
+    """Lookup and cache compiled Jinja2 templates by filename."""
+    return _jinja_environment().get_template(template_name)
+
+
 def render_cli_config(platform: str, config: Dict[str, Any]) -> str:
     """Render CLI configuration for the given platform.
 
@@ -36,12 +55,8 @@ def render_cli_config(platform: str, config: Dict[str, Any]) -> str:
     Returns:
         String containing the rendered CLI configuration.
     """
-    # Ensure we have a valid template mapping; default to IOS if unknown
     template_file = PLATFORM_TEMPLATES.get(platform, PLATFORM_TEMPLATES['ios'])
-    # Create Jinja2 environment each call (thread‑safe).  Autoescape is
-    # disabled because CLI syntax is not HTML.
-    env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=False, trim_blocks=True, lstrip_blocks=True)
-    template = env.get_template(template_file)
+    template = _get_template(template_file)
     return template.render(config=config)
 
 

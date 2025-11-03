@@ -28,7 +28,7 @@ Use the tabs to switch between these formats.  A back button returns you to the 
 
 ## Using the API
 
-The application provides a REST endpoint at `/api/generate`.  Send a `POST` request with a JSON body that includes at least a `platform` field (``ios``, ``nxos`` or ``asa``) and any other configuration keys.  The response will contain the CLI configuration and the same model in JSON and YAML forms.
+The application provides a REST endpoint at `/api/generate`.  Send a `POST` request with a JSON body that includes at least a `platform` field (``ios``, ``nxos`` or ``asa``) and any other configuration keys.  The request payload is validated server-side: IPv4 addresses, networks, VLAN IDs and AAA user privileges must all be well-formed.  If validation fails, the API responds with HTTP 400 and an `errors` array describing each issue.  A successful response contains the CLI configuration and the same model in JSON and YAML forms.
 
 Example request via `curl`:
 
@@ -46,13 +46,21 @@ curl -X POST http://127.0.0.1:5000/api/generate \
   }'
 ```
 
-The server will respond with a JSON object containing `cli`, `json` and `yaml` fields.
+The server will respond with a JSON object containing `cli`, `json` and `yaml` fields.  When the payload is invalid you will receive:
+
+```json
+{
+  "errors": [
+    "Static route #1 has invalid destination '192.168.300.0/24'."
+  ]
+}
+```
 
 ## Troubleshooting
 
 * If the server does not start, ensure that the dependencies listed in `requirements.txt` are installed.
 * When adding new sections, be sure to update both the form template and the back‑end parser to avoid missing or misnamed keys.
-* Validation is minimal in this prototype; invalid inputs (e.g. malformed IP addresses) may result in incorrect output or device errors.  Implement stricter checks in `utils/validators.py` as needed.
+* The form enforces basic validation (IPv4 formats, VLAN ranges, privilege levels) and the API performs the same checks.  Ensure your automation honours these requirements to avoid validation errors.
 
 ## Further reading
 
