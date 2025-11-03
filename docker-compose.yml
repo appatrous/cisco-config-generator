@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: cisco-config-db
+    environment:
+      POSTGRES_DB: cisco_config
+      POSTGRES_USER: cisco_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - cisco-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cisco_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: cisco-config-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - cisco-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Flask Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cisco-config-web
+    environment:
+      # Flask
+      FLASK_ENV: development
+      FLASK_DEBUG: "True"
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+
+      # Database
+      DATABASE_URL: postgresql://cisco_admin:${DB_PASSWORD:-changeme}@db:5432/cisco_config
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+
+      # Security
+      SESSION_COOKIE_SECURE: "False"
+      SESSION_COOKIE_HTTPONLY: "True"
+
+      # API
+      API_RATE_LIMIT: "100/hour"
+
+      # Logging
+      LOG_LEVEL: INFO
+      LOG_FILE: /app/logs/app.log
+    volumes:
+      - .:/app
+      - logs_data:/app/logs
+      - upload_data:/app/uploads
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - cisco-network
+    command: python app.py
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: cisco-config-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html/static:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+    networks:
+      - cisco-network
+    restart: unless-stopped
+
+  # Adminer for database management (development only)
+  adminer:
+    image: adminer:latest
+    container_name: cisco-config-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - cisco-network
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: nette
+
+networks:
+  cisco-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  logs_data:
+    driver: local
+  upload_data:
+    driver: local
