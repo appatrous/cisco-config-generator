@@ -20,16 +20,20 @@
     <div class="mb-4 border p-3 rounded">
       <h3>Static Routes</h3>
       <p>Add one or more static routes.</p>
+      <p class="form-text text-muted">Use IPv4 prefixes in CIDR notation for destinations (e.g. <code>192.168.1.0/24</code>) and IPv4 addresses for next hops.</p>
       <div id="staticRoutesContainer" class="dynamic-container">
         <div class="route-entry row g-2 align-items-end mb-2">
           <div class="col-md-5">
-            <input type="text" name="static_dest_network" class="form-control" placeholder="Destination network (e.g. 192.168.1.0/24)" required>
+            <input type="text" name="static_dest_network" class="form-control" placeholder="Destination network (e.g. 192.168.1.0/24)" required pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)/(3[0-2]|[12]?\d)$" title="Enter an IPv4 network in CIDR notation.">
+            <div class="invalid-feedback">Provide a destination network in IPv4 CIDR format.</div>
           </div>
           <div class="col-md-5">
-            <input type="text" name="static_next_hop" class="form-control" placeholder="Next hop (e.g. 10.0.0.1)" required>
+            <input type="text" name="static_next_hop" class="form-control" placeholder="Next hop (e.g. 10.0.0.1)" required pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$" title="Enter a valid IPv4 address for the next hop.">
+            <div class="invalid-feedback">Provide a valid IPv4 address for the next hop.</div>
           </div>
           <div class="col-md-1">
             <input type="number" name="static_distance" class="form-control" placeholder="AD" min="1" max="255">
+            <div class="invalid-feedback">Administrative distance must be between 1 and 255.</div>
           </div>
           <div class="col-md-1 text-end">
             <button type="button" class="btn btn-danger remove-btn">&times;</button>
@@ -57,21 +61,25 @@
           </div>
           <div class="col-md-4">
             <label for="ospf_process_id" class="form-label">Process ID</label>
-            <input type="number" id="ospf_process_id" name="ospf_process_id" class="form-control" min="1" placeholder="Process ID">
+            <input type="number" id="ospf_process_id" name="ospf_process_id" class="form-control" min="1" placeholder="Process ID" required>
+            <div class="invalid-feedback">Enter a positive process ID for OSPF.</div>
           </div>
           <div class="col-md-4">
             <label for="ospf_router_id" class="form-label">Router ID (optional)</label>
-            <input type="text" id="ospf_router_id" name="ospf_router_id" class="form-control" placeholder="e.g. 1.1.1.1">
+            <input type="text" id="ospf_router_id" name="ospf_router_id" class="form-control" placeholder="e.g. 1.1.1.1" pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$" title="Optional IPv4 address to use as the router ID.">
+            <div class="invalid-feedback">Router ID must be a valid IPv4 address.</div>
           </div>
         </div>
         <h4>Networks</h4>
         <div id="ospfNetworksContainer" class="dynamic-container">
           <div class="network-entry row g-2 align-items-end mb-2">
             <div class="col-md-5">
-              <input type="text" name="ospf_network" class="form-control" placeholder="Network (e.g. 10.0.0.0/24)" required>
+              <input type="text" name="ospf_network" class="form-control" placeholder="Network (e.g. 10.0.0.0/24)" required pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)/(3[0-2]|[12]?\d)$" title="Enter an IPv4 network in CIDR format.">
+            <div class="invalid-feedback">Provide a valid IPv4 network.</div>
             </div>
             <div class="col-md-5">
-              <input type="text" name="ospf_area" class="form-control" placeholder="Area (e.g. 0)" required>
+              <input type="text" name="ospf_area" class="form-control" placeholder="Area (e.g. 0)" required pattern="^\d+$" title="Enter the numeric area ID.">
+            <div class="invalid-feedback">Area must be a numeric value.</div>
             </div>
             <div class="col-md-2 text-end">
               <button type="button" class="btn btn-danger remove-btn">&times;</button>
@@ -90,6 +98,7 @@
         <div class="vlan-entry row g-2 align-items-end mb-2">
           <div class="col-md-5">
             <input type="number" name="vlan_id" class="form-control" placeholder="VLAN ID" min="1" max="4094" required>
+            <div class="invalid-feedback">VLAN ID must be between 1 and 4094.</div>
           </div>
           <div class="col-md-5">
             <input type="text" name="vlan_name" class="form-control" placeholder="VLAN Name (optional)">
@@ -109,7 +118,8 @@
       <div id="ntpContainer" class="dynamic-container">
         <div class="ntp-entry row g-2 align-items-end mb-2">
           <div class="col-md-10">
-            <input type="text" name="ntp_server" class="form-control" placeholder="NTP server (e.g. 192.0.2.10)" required>
+            <input type="text" name="ntp_server" class="form-control" placeholder="NTP server (e.g. 192.0.2.10)" required pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$" title="Enter the IPv4 address of the NTP server.">
+            <div class="invalid-feedback">Provide a valid IPv4 address.</div>
           </div>
           <div class="col-md-2 text-end">
             <button type="button" class="btn btn-danger remove-btn">&times;</button>
@@ -136,7 +146,8 @@
           <div id="tacacsContainer" class="dynamic-container">
             <div class="tacacs-entry row g-2 align-items-end mb-2">
               <div class="col-md-10">
-                <input type="text" name="tacacs_server" class="form-control" placeholder="TACACS server IP" required>
+                <input type="text" name="tacacs_server" class="form-control" placeholder="TACACS server IP" required pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$" title="Enter the IPv4 address of the TACACS+ server.">
+                <div class="invalid-feedback">Provide a valid IPv4 address.</div>
               </div>
               <div class="col-md-2 text-end">
                 <button type="button" class="btn btn-danger remove-btn">&times;</button>
@@ -154,7 +165,8 @@
           <div id="radiusContainer" class="dynamic-container">
             <div class="radius-entry row g-2 align-items-end mb-2">
               <div class="col-md-10">
-                <input type="text" name="radius_server" class="form-control" placeholder="RADIUS server IP" required>
+                <input type="text" name="radius_server" class="form-control" placeholder="RADIUS server IP" required pattern="^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)$" title="Enter the IPv4 address of the RADIUS server.">
+                <div class="invalid-feedback">Provide a valid IPv4 address.</div>
               </div>
               <div class="col-md-2 text-end">
                 <button type="button" class="btn btn-danger remove-btn">&times;</button>
@@ -168,13 +180,16 @@
           <div id="localUsersContainer" class="dynamic-container">
             <div class="user-entry row g-2 align-items-end mb-2">
               <div class="col-md-4">
-                <input type="text" name="local_user_name" class="form-control" placeholder="Username" required>
+                <input type="text" name="local_user_name" class="form-control" placeholder="Username" required minlength="1" maxlength="64">
+              <div class="invalid-feedback">Username is required.</div>
               </div>
               <div class="col-md-4">
-                <input type="password" name="local_user_password" class="form-control" placeholder="Password" required>
+                <input type="password" name="local_user_password" class="form-control" placeholder="Password" required minlength="4">
+              <div class="invalid-feedback">Password must contain at least 4 characters.</div>
               </div>
               <div class="col-md-3">
                 <input type="number" name="local_user_priv" class="form-control" placeholder="Priv (e.g. 15)" min="0" max="15">
+              <div class="invalid-feedback">Privilege level must be between 0 and 15.</div>
               </div>
               <div class="col-md-1 text-end">
                 <button type="button" class="btn btn-danger remove-btn">&times;</button>

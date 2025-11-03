@@ -6,6 +6,11 @@
  * Bootstrap’s utility classes to provide a modern look.
  */
 
+/* Generic helper class used by JavaScript toggles */
+.hidden {
+  display: none !important;
+}
+
 /* Colour palette classes for feature boxes */
 .box-blue { background-color: #0d6efd; color: #fff; }
 .box-purple { background-color: #6f42c1; color: #fff; }

@@ -12,8 +12,10 @@ from flask import Blueprint, request, jsonify
 from typing import Any, Dict
 
 from utils.config_export import render_cli_config, serialize_config
+from utils.payload_validation import validate_api_payload
 
 api_bp = Blueprint('api', __name__)
+
 
 @api_bp.route('/generate', methods=['POST'])
 def api_generate() -> Any:
@@ -25,14 +27,15 @@ def api_generate() -> Any:
     containing the respective outputs.
     """
     if not request.is_json:
-        return jsonify({'error': 'Expected JSON payload'}), 400
+        return jsonify({'errors': ['Expected JSON payload']}), 400
+
     data: Dict[str, Any] = request.get_json() or {}
-    platform = data.get('platform', 'ios')
-    # Use the same helpers as the web form handler; simply pass the
-    # incoming JSON through without modification.  The templates will
-    # handle missing keys gracefully.
-    cli_output = render_cli_config(platform, data)
-    json_output, yaml_output = serialize_config(data)
+    sanitised, errors = validate_api_payload(data)
+    if errors:
+        return jsonify({'errors': errors}), 400
+
+    cli_output = render_cli_config(sanitised['platform'], sanitised)
+    json_output, yaml_output = serialize_config(sanitised)
     return jsonify({
         'cli': cli_output,
         'json': json_output,
