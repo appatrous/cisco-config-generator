@@ -1686,6 +1686,43 @@ def create_app() -> Flask:
                 if len(cli_lines) <= 1:
                     cli_lines.append('! no syslog entries provided')
                 entry = "\n".join(cli_lines)
+            elif slug == 'bgp4-plus':
+                # Generate CLI configuration for BGP
+                local_as = get_single('bgp_local_as') or ''
+                router_id = get_single('bgp_router_id') or ''
+                neighbor_ips = form_data.get('bgp_neighbor_ip', [])
+                neighbor_asns = form_data.get('bgp_neighbor_as', [])
+                neighbor_descs = form_data.get('bgp_neighbor_desc', [])
+                prefixes = [p for p in form_data.get('bgp_network_prefix', []) if p]
+                cli_lines = []
+                cli_lines.append('! BGP configuration')
+                if local_as:
+                    cli_lines.append(f'router bgp {local_as}')
+                    if router_id:
+                        cli_lines.append(f' bgp router-id {router_id}')
+                    max_len = max(len(neighbor_ips), len(neighbor_asns), len(neighbor_descs)) if (neighbor_ips or neighbor_asns or neighbor_descs) else 0
+                    neighbor_added = False
+                    for i in range(max_len):
+                        ip = neighbor_ips[i] if i < len(neighbor_ips) else ''
+                        remote_as = neighbor_asns[i] if i < len(neighbor_asns) else ''
+                        desc = neighbor_descs[i] if i < len(neighbor_descs) else ''
+                        if ip and remote_as:
+                            neighbor_added = True
+                            cli_lines.append(f' neighbor {ip} remote-as {remote_as}')
+                            if desc:
+                                cli_lines.append(f' neighbor {ip} description {desc}')
+                        elif ip or remote_as or desc:
+                            cli_lines.append('! incomplete neighbor entry (IP and remote-as required)')
+                    if prefixes:
+                        for prefix in prefixes:
+                            cli_lines.append(f' network {prefix}')
+                    else:
+                        cli_lines.append('! no BGP networks provided')
+                    if not neighbor_added and max_len:
+                        cli_lines.append('! no complete BGP neighbor entries provided')
+                else:
+                    cli_lines.append('! missing BGP local AS number')
+                entry = "\n".join(cli_lines)
             else:
                 # Default case: just dump form key/values
                 kvs = [f"{k}={v}" for k, v in form_data.items()]
