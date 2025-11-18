@@ -269,3 +269,8 @@ interface {{ port }}
 {% if l2.get('mlag') and l2.mlag.get('enabled') %}
 {% include '_mlag.j2' %}
 {% endif %}
+
+{# Layer 2 Advanced (LACP Advanced, MST, UDLD, Storm Control, FlexLinks, STP Protection) #}
+{% if l2.get('lacp_advanced') or l2.get('mst') or l2.get('udld') or l2.get('storm_control') or l2.get('flexlinks') or l2.get('stp_protection') %}
+{% include '_l2_advanced.j2' %}
+{% endif %}

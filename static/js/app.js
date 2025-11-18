@@ -72,6 +72,42 @@ const protocols = {
                 icon: '📡',
                 description: 'LLDP / CDP',
                 fields: ['discovery']
+            },
+            lacp_advanced: {
+                name: 'LACP Advanced',
+                icon: '🔗',
+                description: 'Advanced LACP configuration (min-links, load-balance)',
+                fields: ['lacp_advanced']
+            },
+            mst: {
+                name: 'MST',
+                icon: '🌲',
+                description: 'Multiple Spanning Tree (802.1s)',
+                fields: ['mst']
+            },
+            udld: {
+                name: 'UDLD',
+                icon: '🔍',
+                description: 'UniDirectional Link Detection',
+                fields: ['udld']
+            },
+            storm_control: {
+                name: 'Storm Control',
+                icon: '⛈️',
+                description: 'Broadcast/Multicast/Unicast storm control',
+                fields: ['storm_control']
+            },
+            flexlinks: {
+                name: 'FlexLinks',
+                icon: '🔄',
+                description: 'Layer 2 backup links',
+                fields: ['flexlinks']
+            },
+            stp_protection: {
+                name: 'STP Protection',
+                icon: '🛡️',
+                description: 'PortFast, BPDU Guard, Root Guard, Loop Guard',
+                fields: ['stp_protection']
             }
         }
     },
@@ -120,6 +156,36 @@ const protocols = {
                 icon: '📻',
                 description: 'PIM, IGMP/MLD, MSDP',
                 fields: ['multicast']
+            },
+            route_maps: {
+                name: 'Route Maps',
+                icon: '🗺️',
+                description: 'Route-map match/set conditions',
+                fields: ['route_maps']
+            },
+            prefix_lists: {
+                name: 'Prefix Lists',
+                icon: '📋',
+                description: 'IP/IPv6 prefix filtering',
+                fields: ['prefix_lists']
+            },
+            vrf_lite: {
+                name: 'VRF-Lite',
+                icon: '🔀',
+                description: 'VRF without MPLS, route leaking',
+                fields: ['vrf_lite']
+            },
+            ipv6_advanced: {
+                name: 'IPv6 Advanced',
+                icon: '🌐',
+                description: 'DHCPv6, SLAAC, ND, First-Hop Security',
+                fields: ['ipv6_advanced']
+            },
+            route_filtering: {
+                name: 'Route Filtering',
+                icon: '🚦',
+                description: 'Distribute-lists for OSPF/EIGRP/BGP',
+                fields: ['route_filtering']
             }
         }
     },
@@ -189,6 +255,124 @@ const protocols = {
                 icon: '💓',
                 description: 'Bidirectional Forwarding Detection',
                 fields: ['bfd']
+            },
+            flexvpn: {
+                name: 'FlexVPN',
+                icon: '🔐',
+                description: 'IKEv2-based VPN (Hub-Spoke)',
+                fields: ['flexvpn'],
+                supported: ['ios']
+            },
+            getvpn: {
+                name: 'GET VPN',
+                icon: '🔒',
+                description: 'Group Encrypted Transport VPN',
+                fields: ['getvpn'],
+                supported: ['ios']
+            },
+            l2tpv3: {
+                name: 'L2TPv3',
+                icon: '🌐',
+                description: 'Layer 2 Tunneling Protocol v3',
+                fields: ['l2tpv3']
+            },
+            otv: {
+                name: 'OTV',
+                icon: '☁️',
+                description: 'Overlay Transport Virtualization',
+                fields: ['otv'],
+                supported: ['nxos']
+            },
+            sdwan: {
+                name: 'SD-WAN',
+                icon: '🛰️',
+                description: 'SD-WAN (Viptela/Meraki)',
+                fields: ['sdwan']
+            }
+        }
+    },
+    security: {
+        title: 'Security',
+        protocols: {
+            copp: {
+                name: 'Control Plane Policing',
+                icon: '🛡️',
+                description: 'CoPP for DoS protection',
+                fields: ['copp']
+            },
+            iacls: {
+                name: 'Infrastructure ACLs',
+                icon: '🔐',
+                description: 'Management plane protection (iACLs)',
+                fields: ['iacls']
+            },
+            ipv6_acls: {
+                name: 'IPv6 ACLs',
+                icon: '🌐',
+                description: 'IPv6 Access Control Lists',
+                fields: ['ipv6_acls']
+            },
+            time_based_acls: {
+                name: 'Time-based ACLs',
+                icon: '⏰',
+                description: 'Time-range based access control',
+                fields: ['time_based_acls']
+            },
+            trustsec: {
+                name: 'TrustSec',
+                icon: '🏷️',
+                description: 'CTS/SGT Software-Defined Segmentation',
+                fields: ['trustsec'],
+                supported: ['ios', 'nxos']
+            },
+            nbar: {
+                name: 'NBAR2 / AVC',
+                icon: '🔍',
+                description: 'Application Visibility and Control',
+                fields: ['nbar'],
+                supported: ['ios']
+            }
+        }
+    },
+    management: {
+        title: 'Management',
+        protocols: {
+            ssh: {
+                name: 'SSH Configuration',
+                icon: '🔑',
+                description: 'SSH server settings and algorithms',
+                fields: ['ssh']
+            },
+            lines: {
+                name: 'Console / VTY',
+                icon: '💻',
+                description: 'Console and VTY line configuration',
+                fields: ['lines']
+            },
+            banners: {
+                name: 'Banners',
+                icon: '📢',
+                description: 'Login, MOTD, Exec banners',
+                fields: ['banners']
+            },
+            archive: {
+                name: 'Archive / Rollback',
+                icon: '💾',
+                description: 'Configuration archive and rollback',
+                fields: ['archive']
+            },
+            smart_licensing: {
+                name: 'Smart Licensing',
+                icon: '📜',
+                description: 'Cisco Smart Licensing',
+                fields: ['smart_licensing'],
+                supported: ['ios', 'nxos']
+            },
+            dns: {
+                name: 'DNS Client',
+                icon: '🌐',
+                description: 'DNS client configuration',
+                fields: ['dns']
             }
         }
     },

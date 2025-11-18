@@ -1,0 +1,477 @@
+{# Advanced Security Configuration for Cisco IOS/IOS-XE/NX-OS #}
+
+{# Control Plane Policing (CoPP) #}
+{% if security.get('copp') and security.copp.get('enabled') %}
+! ========================================
+! Control Plane Policing (CoPP)
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# CoPP Class-Maps #}
+{% if security.copp.get('class_maps') %}
+{% for class_map in security.copp.class_maps %}
+{# Match Protocol-based Classes #}
+class-map match-{{ class_map.match_type | default('any') }} {{ class_map.name }}
+  description {{ class_map.description | default('CoPP Class - ' ~ class_map.name) }}
+{% if class_map.match_protocols %}
+{% for protocol in class_map.match_protocols %}
+  match protocol {{ protocol }}
+{% endfor %}
+{% endif %}
+{% if class_map.match_access_group %}
+  match access-group name {{ class_map.match_access_group }}
+{% endif %}
+{% if class_map.match_dscp %}
+  match dscp {{ class_map.match_dscp }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# CoPP Policy-Map #}
+{% if security.copp.get('policy_map') %}
+policy-map {{ security.copp.policy_map.name | default('COPP-POLICY') }}
+  description {{ security.copp.policy_map.description | default('Control Plane Protection Policy') }}
+{% for class_config in security.copp.policy_map.classes | default([]) %}
+  class {{ class_config.class_name }}
+{% if class_config.police %}
+    police {{ class_config.police.rate }} {{ class_config.police.burst }} {% if class_config.police.exceed_action %}{{ class_config.police.exceed_action }}{% else %}drop{% endif %}
+
+{% endif %}
+{% if class_config.set_dscp %}
+    set dscp {{ class_config.set_dscp }}
+{% endif %}
+{% if class_config.bandwidth %}
+    bandwidth {{ class_config.bandwidth }}
+{% endif %}
+!
+{% endfor %}
+!
+{% endif %}
+
+{# Apply CoPP to Control Plane #}
+control-plane
+  service-policy input {{ security.copp.policy_map.name | default('COPP-POLICY') }}
+!
+
+{# CoPP ACLs for Matching Traffic #}
+{% if security.copp.get('acls') %}
+{% for acl in security.copp.acls %}
+ip access-list extended {{ acl.name }}
+  remark {{ acl.description | default('CoPP ACL') }}
+{% for ace in acl.entries %}
+  {{ ace.action }} {{ ace.protocol }} {% if ace.source %}{{ ace.source }}{% else %}any{% endif %} {% if ace.destination %}{{ ace.destination }}{% else %}any{% endif %}{% if ace.port %} eq {{ ace.port }}{% endif %}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# CoPP Logging #}
+{% if security.copp.get('logging') and security.copp.logging %}
+logging rate-limit console {{ security.copp.logging.console_rate | default(10) }} except errors
+logging rate-limit all {{ security.copp.logging.all_rate | default(100) }}
+{% endif %}
+
+{% endif %}{# end copp #}
+
+{# Infrastructure ACLs (iACLs) #}
+{% if security.get('iacls') and security.iacls.get('enabled') %}
+! ========================================
+! Infrastructure ACLs (iACLs)
+! Management Plane Protection
+! ========================================
+
+{# Standard iACL Template #}
+{% if security.iacls.get('acls') %}
+{% for acl in security.iacls.acls %}
+{% if acl.type == 'standard' %}
+ip access-list standard {{ acl.name }}
+  remark {{ acl.description | default('Infrastructure Protection ACL') }}
+{% for entry in acl.entries %}
+  {{ entry.action }} {{ entry.source }}{% if entry.log %} log{% endif %}
+{% endfor %}
+!
+{% elif acl.type == 'extended' %}
+ip access-list extended {{ acl.name }}
+  remark {{ acl.description | default('Infrastructure Protection ACL') }}
+{% for entry in acl.entries %}
+  {{ entry.action }} {{ entry.protocol }} {{ entry.source }} {{ entry.destination }}{% if entry.port %} eq {{ entry.port }}{% endif %}{% if entry.established %} established{% endif %}{% if entry.log %} log{% endif %}
+{% endfor %}
+!
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Apply iACLs to Management Interfaces #}
+{% if security.iacls.get('interface_application') %}
+{% for iface in security.iacls.interface_application %}
+interface {{ iface.interface }}
+  ip access-group {{ iface.acl_in }} in
+{% if iface.acl_out %}
+  ip access-group {{ iface.acl_out }} out
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# VTY Line Protection #}
+{% if security.iacls.get('vty_protection') %}
+{% for vty in security.iacls.vty_protection %}
+line vty {{ vty.start | default(0) }} {{ vty.end | default(15) }}
+  access-class {{ vty.access_class }} in{% if vty.vrf_also %} vrf-also{% endif %}
+{% if vty.ipv6_access_class %}
+  ipv6 access-class {{ vty.ipv6_access_class }} in
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Receive ACL (rACL) for NX-OS #}
+{% if security.iacls.get('receive_acl') and security.iacls.receive_acl.enabled %}
+ip access-list {{ security.iacls.receive_acl.name }}
+{% for entry in security.iacls.receive_acl.entries %}
+  {{ entry.sequence }} {{ entry.action }} {{ entry.protocol }} {{ entry.source }} {{ entry.destination }}{% if entry.port %} eq {{ entry.port }}{% endif %}
+{% endfor %}
+!
+
+{# Apply rACL globally #}
+control-plane
+  ip access-group {{ security.iacls.receive_acl.name }} in
+!
+{% endif %}
+
+{% endif %}{# end iacls #}
+
+{# IPv6 ACLs #}
+{% if security.get('ipv6_acls') and security.ipv6_acls.get('enabled') %}
+! ========================================
+! IPv6 Access Control Lists
+! ========================================
+
+{% if security.ipv6_acls.get('acls') %}
+{% for acl in security.ipv6_acls.acls %}
+ipv6 access-list {{ acl.name }}
+  remark {{ acl.description | default('IPv6 ACL') }}
+{% for entry in acl.entries %}
+  {{ entry.action }} {{ entry.protocol }}{% if entry.source %} {{ entry.source }}{% else %} any{% endif %}{% if entry.destination %} {{ entry.destination }}{% else %} any{% endif %}{% if entry.port %} eq {{ entry.port }}{% endif %}{% if entry.dscp %} dscp {{ entry.dscp }}{% endif %}{% if entry.flow_label %} flow-label {{ entry.flow_label }}{% endif %}{% if entry.routing %} routing{% endif %}{% if entry.routing_type %} routing-type {{ entry.routing_type }}{% endif %}{% if entry.fragments %} fragments{% endif %}{% if entry.log %} log{% endif %}
+
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# Apply IPv6 ACLs to Interfaces #}
+{% if security.ipv6_acls.get('interface_application') %}
+{% for iface in security.ipv6_acls.interface_application %}
+interface {{ iface.interface }}
+  ipv6 traffic-filter {{ iface.acl_in }} in
+{% if iface.acl_out %}
+  ipv6 traffic-filter {{ iface.acl_out }} out
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# IPv6 VTY Protection #}
+{% if security.ipv6_acls.get('vty_protection') %}
+line vty 0 15
+  ipv6 access-class {{ security.ipv6_acls.vty_protection.access_class }} in
+!
+{% endif %}
+
+{% endif %}{# end ipv6_acls #}
+
+{# Time-based ACLs #}
+{% if security.get('time_based_acls') and security.time_based_acls.get('enabled') %}
+! ========================================
+! Time-based Access Control Lists
+! ========================================
+
+{# Time Ranges #}
+{% if security.time_based_acls.get('time_ranges') %}
+{% for time_range in security.time_based_acls.time_ranges %}
+time-range {{ time_range.name }}
+{% if time_range.description %}
+  description {{ time_range.description }}
+{% endif %}
+{% if time_range.absolute %}
+{% if time_range.absolute.start %}
+  absolute start {{ time_range.absolute.start }}{% if time_range.absolute.end %} end {{ time_range.absolute.end }}{% endif %}
+
+{% endif %}
+{% endif %}
+{% if time_range.periodic %}
+{% for period in time_range.periodic %}
+  periodic {{ period.days }} {{ period.start_time }} to {{ period.end_time }}
+{% endfor %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Time-based ACLs #}
+{% if security.time_based_acls.get('acls') %}
+{% for acl in security.time_based_acls.acls %}
+ip access-list extended {{ acl.name }}
+  remark {{ acl.description | default('Time-based ACL') }}
+{% for entry in acl.entries %}
+  {{ entry.action }} {{ entry.protocol }} {{ entry.source }} {{ entry.destination }}{% if entry.port %} eq {{ entry.port }}{% endif %}{% if entry.time_range %} time-range {{ entry.time_range }}{% endif %}{% if entry.log %} log{% endif %}
+
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# Apply Time-based ACLs #}
+{% if security.time_based_acls.get('interface_application') %}
+{% for iface in security.time_based_acls.interface_application %}
+interface {{ iface.interface }}
+  ip access-group {{ iface.acl }} {{ iface.direction }}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end time_based_acls #}
+
+{# CTS / TrustSec / SGT (Security Group Tags) #}
+{% if security.get('trustsec') and security.trustsec.get('enabled') %}
+! ========================================
+! Cisco TrustSec / Security Group Tags (SGT)
+! Software Defined Segmentation
+! ========================================
+
+{# Enable CTS globally #}
+cts authorization list {{ security.trustsec.authorization_list | default('CTS-AUTH-LIST') }}
+cts role-based enforcement
+{% if security.trustsec.get('sgt_caching') %}
+cts role-based sgt-caching
+{% endif %}
+{% if security.trustsec.get('sgt_propagation') %}
+cts role-based sgt-map {{ security.trustsec.sgt_propagation.vlan_list }} sgt {{ security.trustsec.sgt_propagation.sgt }}
+{% endif %}
+
+{# CTS AAA Configuration #}
+{% if security.trustsec.get('aaa') %}
+aaa new-model
+aaa authorization network {{ security.trustsec.aaa.authorization_list | default('CTS-AUTH-LIST') }} group {{ security.trustsec.aaa.server_group | default('radius') }}
+{% if security.trustsec.aaa.accounting %}
+aaa accounting update newinfo periodic {{ security.trustsec.aaa.accounting.interval | default(2880) }}
+{% endif %}
+{% endif %}
+
+{# RADIUS Server for CTS #}
+{% if security.trustsec.get('radius_server') %}
+radius server {{ security.trustsec.radius_server.name }}
+  address ipv4 {{ security.trustsec.radius_server.address }} auth-port {{ security.trustsec.radius_server.auth_port | default(1812) }} acct-port {{ security.trustsec.radius_server.acct_port | default(1813) }}
+  pac key {{ security.trustsec.radius_server.pac_key }}
+  cts authorization list {{ security.trustsec.authorization_list | default('CTS-AUTH-LIST') }}
+!
+{% endif %}
+
+{# Security Group Tags (SGT) #}
+{% if security.trustsec.get('sgt_assignments') %}
+{% for sgt in security.trustsec.sgt_assignments %}
+cts role-based sgt-map {{ sgt.ip_address }}{% if sgt.subnet_mask %}/{{ sgt.subnet_mask }}{% endif %} sgt {{ sgt.sgt_value }}
+{% endfor %}
+{% endif %}
+
+{# SGT Manual Configuration #}
+{% if security.trustsec.get('manual_sgt') %}
+{% for manual in security.trustsec.manual_sgt %}
+interface {{ manual.interface }}
+  cts manual
+    propagate sgt
+    policy static sgt {{ manual.sgt }} trusted
+!
+{% endfor %}
+{% endif %}
+
+{# SGACLs (Security Group ACLs) #}
+{% if security.trustsec.get('sgacls') %}
+{% for sgacl in security.trustsec.sgacls %}
+cts role-based access-list {{ sgacl.name }}
+{% for ace in sgacl.entries %}
+  {{ ace.action }} {{ ace.protocol }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# SGT Policies #}
+{% if security.trustsec.get('sgt_policies') %}
+{% for policy in security.trustsec.sgt_policies %}
+cts role-based policy from {{ policy.source_sgt }} to {{ policy.destination_sgt }} {{ policy.sgacl }}
+{% endfor %}
+{% endif %}
+
+{# CTS on Interfaces #}
+{% if security.trustsec.get('interfaces') %}
+{% for iface in security.trustsec.interfaces %}
+interface {{ iface.interface }}
+  description {{ iface.description | default('CTS Enabled Interface') }}
+  cts role-based enforcement
+{% if iface.sgt_inline_tagging %}
+  cts role-based sgt-inline
+{% endif %}
+{% if iface.l2_sgt_enforcement %}
+  cts role-based l2-sgt
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# SXP (SGT Exchange Protocol) #}
+{% if security.trustsec.get('sxp') and security.trustsec.sxp.enabled %}
+cts sxp enable
+cts sxp default source-ip {{ security.trustsec.sxp.source_ip }}
+cts sxp default password {{ security.trustsec.sxp.password }}
+{% if security.trustsec.sxp.connections %}
+{% for conn in security.trustsec.sxp.connections %}
+cts sxp connection peer {{ conn.peer_ip }} source {{ security.trustsec.sxp.source_ip }} password default mode {{ conn.mode }} {% if conn.vrf %}vrf {{ conn.vrf }}{% endif %}
+
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end trustsec #}
+
+{# NBAR2 / AVC (Application Visibility and Control) #}
+{% if security.get('nbar') and security.nbar.get('enabled') %}
+! ========================================
+! NBAR2 / Application Visibility and Control
+! ========================================
+
+{# Enable NBAR2 #}
+ip nbar protocol-discovery
+{% if security.nbar.get('performance_monitor') %}
+ip nbar performance-monitor
+{% endif %}
+
+{# Custom NBAR2 Applications #}
+{% if security.nbar.get('custom_applications') %}
+{% for app in security.nbar.custom_applications %}
+ip nbar custom {{ app.name }} {{ app.id }}
+{% for attribute in app.attributes | default([]) %}
+  {{ attribute.type }} {{ attribute.value }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# NBAR2 Protocol Packs #}
+{% if security.nbar.get('protocol_pack') %}
+ip nbar protocol-pack {{ security.nbar.protocol_pack.name }}
+{% endif %}
+
+{# NBAR2 Class-Maps #}
+{% if security.nbar.get('class_maps') %}
+{% for class_map in security.nbar.class_maps %}
+class-map match-{{ class_map.match_type | default('any') }} {{ class_map.name }}
+  description {{ class_map.description | default('NBAR2 Class') }}
+{% if class_map.match_protocol %}
+{% for protocol in class_map.match_protocol %}
+  match protocol {{ protocol }}
+{% endfor %}
+{% endif %}
+{% if class_map.match_application %}
+  match protocol attribute category {{ class_map.match_application.category }}
+{% endif %}
+{% if class_map.match_traffic_class %}
+  match protocol attribute traffic-class {{ class_map.match_traffic_class }}
+{% endif %}
+{% if class_map.match_business_relevance %}
+  match protocol attribute business-relevance {{ class_map.match_business_relevance }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# NBAR2 Policy-Maps #}
+{% if security.nbar.get('policy_maps') %}
+{% for policy in security.nbar.policy_maps %}
+policy-map {{ policy.name }}
+  description {{ policy.description | default('NBAR2 Policy') }}
+{% for class_config in policy.classes | default([]) %}
+  class {{ class_config.class_name }}
+{% if class_config.bandwidth %}
+    bandwidth {{ class_config.bandwidth }}
+{% endif %}
+{% if class_config.priority %}
+    priority {{ class_config.priority }}
+{% endif %}
+{% if class_config.police %}
+    police {{ class_config.police.rate }} {{ class_config.police.burst }}
+{% endif %}
+{% if class_config.drop %}
+    drop
+{% endif %}
+{% if class_config.set_dscp %}
+    set dscp {{ class_config.set_dscp }}
+{% endif %}
+{% if class_config.shape %}
+    shape average {{ class_config.shape.average }}
+{% endif %}
+!
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# Apply NBAR2 to Interfaces #}
+{% if security.nbar.get('interface_application') %}
+{% for iface in security.nbar.interface_application %}
+interface {{ iface.interface }}
+  ip nbar protocol-discovery
+{% if iface.policy_map %}
+  service-policy {{ iface.direction | default('output') }} {{ iface.policy_map }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# NBAR2 Application Recognition #}
+{% if security.nbar.get('application_recognition') %}
+{% for app_rec in security.nbar.application_recognition %}
+ip nbar attribute-set {{ app_rec.name }}
+  description {{ app_rec.description }}
+{% for attr in app_rec.attributes %}
+  {{ attr.key }} {{ attr.value }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# Flexible NetFlow for NBAR2 #}
+{% if security.nbar.get('netflow_monitor') %}
+flow monitor {{ security.nbar.netflow_monitor.name }}
+  description {{ security.nbar.netflow_monitor.description | default('NBAR2 NetFlow Monitor') }}
+  record {{ security.nbar.netflow_monitor.record | default('netflow-original') }}
+  exporter {{ security.nbar.netflow_monitor.exporter }}
+!
+
+flow exporter {{ security.nbar.netflow_monitor.exporter }}
+  destination {{ security.nbar.netflow_monitor.exporter_destination }}
+  source {{ security.nbar.netflow_monitor.exporter_source }}
+  transport udp {{ security.nbar.netflow_monitor.exporter_port | default(9995) }}
+!
+
+{% for iface in security.nbar.netflow_monitor.interfaces | default([]) %}
+interface {{ iface }}
+  ip flow monitor {{ security.nbar.netflow_monitor.name }} input
+!
+{% endfor %}
+{% endif %}
+
+{# AVC Profiles (for Wireless) #}
+{% if security.nbar.get('avc_profiles') %}
+{% for profile in security.nbar.avc_profiles %}
+avc-profile {{ profile.name }}
+  description {{ profile.description | default('AVC Profile') }}
+{% for rule in profile.rules %}
+  rule {{ rule.name }} {{ rule.action }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end nbar #}

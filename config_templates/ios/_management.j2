@@ -1,0 +1,472 @@
+{# Management and Administration Configuration #}
+
+{# SSH Configuration #}
+{% if management.get('ssh') and management.ssh.get('enabled') %}
+! ========================================
+! SSH Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# Enable SSH #}
+{% if management.ssh.get('version') %}
+ip ssh version {{ management.ssh.version }}
+{% endif %}
+
+{# SSH Key Generation #}
+{% if management.ssh.get('rsa_keypair') %}
+crypto key generate rsa modulus {{ management.ssh.rsa_keypair.modulus | default(2048) }}
+{% endif %}
+
+{# SSH Timeout and Authentication Retries #}
+{% if management.ssh.get('timeout') %}
+ip ssh time-out {{ management.ssh.timeout }}
+{% endif %}
+{% if management.ssh.get('authentication_retries') %}
+ip ssh authentication-retries {{ management.ssh.authentication_retries }}
+{% endif %}
+
+{# SSH Source Interface #}
+{% if management.ssh.get('source_interface') %}
+ip ssh source-interface {{ management.ssh.source_interface }}
+{% endif %}
+
+{# SSH Server Algorithm #}
+{% if management.ssh.get('server_algorithm') %}
+{% if management.ssh.server_algorithm.encryption %}
+ip ssh server algorithm encryption {{ management.ssh.server_algorithm.encryption }}
+{% endif %}
+{% if management.ssh.server_algorithm.mac %}
+ip ssh server algorithm mac {{ management.ssh.server_algorithm.mac }}
+{% endif %}
+{% if management.ssh.server_algorithm.kex %}
+ip ssh server algorithm key-exchange {{ management.ssh.server_algorithm.kex }}
+{% endif %}
+{% if management.ssh.server_algorithm.host_key %}
+ip ssh server algorithm host-key {{ management.ssh.server_algorithm.host_key }}
+{% endif %}
+{% endif %}
+
+{# SSH Key Exchange #}
+{% if management.ssh.get('pubkey_chain') %}
+ip ssh pubkey-chain
+{% for user in management.ssh.pubkey_chain.users %}
+  username {{ user.username }}
+    key-hash {{ user.key_hash }}
+  exit
+{% endfor %}
+exit
+{% endif %}
+
+{# SSH Access Control #}
+{% if management.ssh.get('access_class') %}
+ip ssh access-class {{ management.ssh.access_class }}{% if management.ssh.access_class_vrf_also %} vrf-also{% endif %}
+
+{% endif %}
+
+{# SSH Logging #}
+{% if management.ssh.get('logging') and management.ssh.logging %}
+ip ssh logging events
+{% endif %}
+
+{# SSH MaxStartups #}
+{% if management.ssh.get('maxstartups') %}
+ip ssh maxstartups {{ management.ssh.maxstartups }}
+{% endif %}
+
+{# SSH Rate Limit #}
+{% if management.ssh.get('rate_limit') %}
+ip ssh rate-limit {{ management.ssh.rate_limit }}
+{% endif %}
+
+{% endif %}{# end ssh #}
+
+{# Console and VTY Line Configuration #}
+{% if management.get('lines') and management.lines.get('enabled') %}
+! ========================================
+! Console and VTY Line Configuration
+! ========================================
+
+{# Console Line #}
+{% if management.lines.get('console') %}
+line con 0
+{% if management.lines.console.logging %}
+  logging synchronous
+{% endif %}
+{% if management.lines.console.exec_timeout %}
+  exec-timeout {{ management.lines.console.exec_timeout.minutes | default(5) }} {{ management.lines.console.exec_timeout.seconds | default(0) }}
+{% endif %}
+{% if management.lines.console.password %}
+  password {{ management.lines.console.password }}
+  login
+{% endif %}
+{% if management.lines.console.login_local %}
+  login local
+{% endif %}
+{% if management.lines.console.privilege_level %}
+  privilege level {{ management.lines.console.privilege_level }}
+{% endif %}
+{% if management.lines.console.stopbits %}
+  stopbits {{ management.lines.console.stopbits }}
+{% endif %}
+{% if management.lines.console.history %}
+  history size {{ management.lines.console.history }}
+{% endif %}
+{% if management.lines.console.escape_character %}
+  escape-character {{ management.lines.console.escape_character }}
+{% endif %}
+!
+{% endif %}
+
+{# Auxiliary Line #}
+{% if management.lines.get('aux') %}
+line aux 0
+{% if management.lines.aux.exec_timeout %}
+  exec-timeout {{ management.lines.aux.exec_timeout.minutes | default(5) }} {{ management.lines.aux.exec_timeout.seconds | default(0) }}
+{% endif %}
+{% if management.lines.aux.password %}
+  password {{ management.lines.aux.password }}
+  login
+{% endif %}
+{% if management.lines.aux.no_exec %}
+  no exec
+{% endif %}
+{% if management.lines.aux.transport_input %}
+  transport input {{ management.lines.aux.transport_input }}
+{% endif %}
+!
+{% endif %}
+
+{# VTY Lines #}
+{% if management.lines.get('vty') %}
+{% for vty_group in management.lines.vty %}
+line vty {{ vty_group.start | default(0) }} {{ vty_group.end | default(15) }}
+  description {{ vty_group.description | default('VTY Lines') }}
+{% if vty_group.logging %}
+  logging synchronous
+{% endif %}
+{% if vty_group.exec_timeout %}
+  exec-timeout {{ vty_group.exec_timeout.minutes | default(5) }} {{ vty_group.exec_timeout.seconds | default(0) }}
+{% endif %}
+{% if vty_group.password %}
+  password {{ vty_group.password }}
+  login
+{% endif %}
+{% if vty_group.login_local %}
+  login local
+{% endif %}
+{% if vty_group.login_authentication %}
+  login authentication {{ vty_group.login_authentication }}
+{% endif %}
+{% if vty_group.authorization %}
+  authorization exec {{ vty_group.authorization }}
+{% endif %}
+{% if vty_group.accounting %}
+  accounting exec {{ vty_group.accounting }}
+{% endif %}
+{% if vty_group.transport_input %}
+  transport input {{ vty_group.transport_input }}
+{% endif %}
+{% if vty_group.transport_output %}
+  transport output {{ vty_group.transport_output }}
+{% endif %}
+{% if vty_group.access_class %}
+  access-class {{ vty_group.access_class }} in{% if vty_group.access_class_vrf_also %} vrf-also{% endif %}
+
+{% endif %}
+{% if vty_group.ipv6_access_class %}
+  ipv6 access-class {{ vty_group.ipv6_access_class }} in
+{% endif %}
+{% if vty_group.session_limit %}
+  session-limit {{ vty_group.session_limit }}
+{% endif %}
+{% if vty_group.session_timeout %}
+  session-timeout {{ vty_group.session_timeout }}
+{% endif %}
+{% if vty_group.absolute_timeout %}
+  absolute-timeout {{ vty_group.absolute_timeout }}
+{% endif %}
+{% if vty_group.privilege_level %}
+  privilege level {{ vty_group.privilege_level }}
+{% endif %}
+{% if vty_group.length %}
+  length {{ vty_group.length }}
+{% endif %}
+{% if vty_group.width %}
+  width {{ vty_group.width }}
+{% endif %}
+{% if vty_group.history %}
+  history size {{ vty_group.history }}
+{% endif %}
+{% if vty_group.escape_character %}
+  escape-character {{ vty_group.escape_character }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Default Inactivity Timer #}
+{% if management.lines.get('default_exec_timeout') %}
+service tcp-keepalives-in
+service tcp-keepalives-out
+{% endif %}
+
+{% endif %}{# end lines #}
+
+{# Banners (Login, MOTD, Exec) #}
+{% if management.get('banners') and management.banners.get('enabled') %}
+! ========================================
+! Banner Configuration
+! ========================================
+
+{# Banner MOTD (Message of the Day) #}
+{% if management.banners.get('motd') %}
+banner motd ^
+{{ management.banners.motd }}
+^
+{% endif %}
+
+{# Banner Login #}
+{% if management.banners.get('login') %}
+banner login ^
+{{ management.banners.login }}
+^
+{% endif %}
+
+{# Banner Exec #}
+{% if management.banners.get('exec') %}
+banner exec ^
+{{ management.banners.exec }}
+^
+{% endif %}
+
+{# Banner Incoming #}
+{% if management.banners.get('incoming') %}
+banner incoming ^
+{{ management.banners.incoming }}
+^
+{% endif %}
+
+{# Banner SLIP-PPP #}
+{% if management.banners.get('slip_ppp') %}
+banner slip-ppp ^
+{{ management.banners.slip_ppp }}
+^
+{% endif %}
+
+{% endif %}{# end banners #}
+
+{# Archive and Configuration Rollback #}
+{% if management.get('archive') and management.archive.get('enabled') %}
+! ========================================
+! Configuration Archive and Rollback
+! ========================================
+
+archive
+{% if management.archive.get('path') %}
+  path {{ management.archive.path }}
+{% endif %}
+{% if management.archive.get('maximum') %}
+  maximum {{ management.archive.maximum }}
+{% endif %}
+{% if management.archive.get('write_memory') %}
+  write-memory
+{% endif %}
+{% if management.archive.get('time_period') %}
+  time-period {{ management.archive.time_period }}
+{% endif %}
+{% if management.archive.get('hidekeys') %}
+  hidekeys
+{% endif %}
+!
+
+{# Configuration Change Logging #}
+{% if management.archive.get('logging') %}
+archive
+  log config
+    logging enable
+{% if management.archive.logging.get('hidekeys') %}
+    hidekeys
+{% endif %}
+{% if management.archive.logging.get('notify') %}
+    notify syslog{% if management.archive.logging.notify.contenttype %} contenttype {{ management.archive.logging.notify.contenttype }}{% endif %}
+
+{% endif %}
+  !
+!
+{% endif %}
+
+{# Configuration Replace and Rollback Timer #}
+{% if management.archive.get('rollback') %}
+! Rollback Configuration (Manual)
+! configure replace <path> [force] [ignorecase] [revert timer <minutes>]
+! Example: configure replace flash:backup-config force revert timer 5
+{% endif %}
+
+{% endif %}{# end archive #}
+
+{# Smart Licensing #}
+{% if management.get('smart_licensing') and management.smart_licensing.get('enabled') %}
+! ========================================
+! Cisco Smart Licensing
+! ========================================
+
+{% if management.smart_licensing.get('transport') %}
+{# Smart Licensing Transport #}
+license smart transport {{ management.smart_licensing.transport.type | default('callhome') }}
+{% if management.smart_licensing.transport.url %}
+license smart url {{ management.smart_licensing.transport.url }}
+{% endif %}
+{% if management.smart_licensing.transport.proxy %}
+license smart proxy address {{ management.smart_licensing.transport.proxy.address }} port {{ management.smart_licensing.transport.proxy.port }}
+{% endif %}
+{% endif %}
+
+{# Smart Licensing Server #}
+{% if management.smart_licensing.get('server') %}
+call-home
+  contact-email-addr {{ management.smart_licensing.server.contact_email }}
+  profile "CiscoTAC-1"
+    destination transport-method http
+    destination address http {{ management.smart_licensing.server.url }}
+    active
+  !
+!
+{% endif %}
+
+{# Smart Licensing Features #}
+{% if management.smart_licensing.get('features') %}
+{% for feature in management.smart_licensing.features %}
+license boot level {{ feature.level }}
+{% endfor %}
+{% endif %}
+
+{# Smart Licensing Reservation (Specific License Reservation) #}
+{% if management.smart_licensing.get('reservation') and management.smart_licensing.reservation.enabled %}
+license smart reservation
+{% if management.smart_licensing.reservation.request %}
+! Step 1: Generate request code
+! license smart reservation request local
+! Step 2: Upload to CSSM and download authorization code
+! Step 3: Install authorization code
+! license smart reservation install <auth-code>
+{% endif %}
+{% endif %}
+
+{# Smart Licensing Utility (SLU) #}
+{% if management.smart_licensing.get('utility') %}
+license smart utility customer-info id {{ management.smart_licensing.utility.customer_id }}
+license smart utility customer-info city {{ management.smart_licensing.utility.city }}
+license smart utility customer-info country {{ management.smart_licensing.utility.country }}
+license smart utility customer-info postal-code {{ management.smart_licensing.utility.postal_code }}
+license smart utility customer-info state {{ management.smart_licensing.utility.state }}
+license smart utility customer-info street {{ management.smart_licensing.utility.street }}
+{% endif %}
+
+{# Throughput Levels (for ISR/ASR) #}
+{% if management.smart_licensing.get('throughput_level') %}
+platform hardware throughput level {{ management.smart_licensing.throughput_level }}
+{% endif %}
+
+{% endif %}{# end smart_licensing #}
+
+{# DNS Client Configuration #}
+{% if management.get('dns') and management.dns.get('enabled') %}
+! ========================================
+! DNS Client Configuration
+! ========================================
+
+{# Domain Name #}
+{% if management.dns.get('domain_name') %}
+ip domain name {{ management.dns.domain_name }}
+{% endif %}
+
+{# Domain List (Search Domains) #}
+{% if management.dns.get('domain_list') %}
+{% for domain in management.dns.domain_list %}
+ip domain list {{ domain }}
+{% endfor %}
+{% endif %}
+
+{# DNS Name Servers #}
+{% if management.dns.get('name_servers') %}
+{% for ns in management.dns.name_servers %}
+ip name-server {{ ns.address }}{% if ns.vrf %} vrf {{ ns.vrf }}{% endif %}
+
+{% endfor %}
+{% endif %}
+
+{# DNS Lookup #}
+{% if management.dns.get('lookup') is defined %}
+{% if management.dns.lookup %}
+ip domain lookup
+{% else %}
+no ip domain lookup
+{% endif %}
+{% endif %}
+
+{# Source Interface for DNS #}
+{% if management.dns.get('source_interface') %}
+ip domain lookup source-interface {{ management.dns.source_interface }}
+{% endif %}
+
+{# DNS Timeout and Retry #}
+{% if management.dns.get('timeout') %}
+ip domain timeout {{ management.dns.timeout }}
+{% endif %}
+{% if management.dns.get('retry') %}
+ip domain retry {{ management.dns.retry }}
+{% endif %}
+
+{# DNS Multicast #}
+{% if management.dns.get('multicast') and management.dns.multicast %}
+ip domain multicast {{ management.dns.multicast.address }}
+{% endif %}
+
+{# DNS View (for Multi-VRF) #}
+{% if management.dns.get('views') %}
+{% for view in management.dns.views %}
+ip dns view {{ view.name }}
+  domain name {{ view.domain_name }}
+{% for ns in view.name_servers %}
+  dns forwarder {{ ns }}
+{% endfor %}
+  domain list {{ view.domain_list }}
+!
+{% endfor %}
+{% endif %}
+
+{# DNS Server (Router as DNS Server) #}
+{% if management.dns.get('server') and management.dns.server.enabled %}
+ip dns server
+{% if management.dns.server.logging %}
+  logging
+{% endif %}
+{% endif %}
+
+{# Static DNS Entries #}
+{% if management.dns.get('static_entries') %}
+{% for entry in management.dns.static_entries %}
+ip host {{ entry.hostname }} {{ entry.ip_address }}
+{% endfor %}
+{% endif %}
+
+{# IPv6 DNS #}
+{% if management.dns.get('ipv6') %}
+{% if management.dns.ipv6.domain_name %}
+ipv6 domain name {{ management.dns.ipv6.domain_name }}
+{% endif %}
+{% if management.dns.ipv6.name_servers %}
+{% for ns in management.dns.ipv6.name_servers %}
+ipv6 name-server {{ ns }}
+{% endfor %}
+{% endif %}
+{% if management.dns.ipv6.lookup is defined %}
+{% if management.dns.ipv6.lookup %}
+ipv6 domain lookup
+{% else %}
+no ipv6 domain lookup
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end dns #}

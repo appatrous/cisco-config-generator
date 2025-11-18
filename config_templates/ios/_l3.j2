@@ -286,3 +286,8 @@ interface {{ iface }}
 {% if l3.get('qos') %}
 {% include '_qos.j2' %}
 {% endif %}
+
+{# Layer 3 Advanced (Route Maps, Prefix Lists, PBR, VRF-Lite, IPv6 Advanced, Route Filtering) #}
+{% if l3.get('route_maps') or l3.get('prefix_lists') or l3.get('vrf_lite') or l3.get('ipv6_advanced') or l3.get('route_filtering') %}
+{% include '_l3_advanced.j2' %}
+{% endif %}

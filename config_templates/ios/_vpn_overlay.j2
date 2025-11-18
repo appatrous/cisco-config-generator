@@ -1,0 +1,546 @@
+{# VPN and Overlay Technologies Configuration #}
+
+{# FlexVPN Configuration #}
+{% if vpn.get('flexvpn') and vpn.flexvpn.get('enabled') %}
+! ========================================
+! FlexVPN Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# IKEv2 Authorization Policy #}
+{% if vpn.flexvpn.get('ikev2_authorization') %}
+crypto ikev2 authorization policy {{ vpn.flexvpn.ikev2_authorization.name }}
+  pool {{ vpn.flexvpn.ikev2_authorization.pool }}
+{% if vpn.flexvpn.ikev2_authorization.dns %}
+  dns {{ vpn.flexvpn.ikev2_authorization.dns }}
+{% endif %}
+{% if vpn.flexvpn.ikev2_authorization.route %}
+  route set interface
+{% if vpn.flexvpn.ikev2_authorization.route_entries %}
+{% for route in vpn.flexvpn.ikev2_authorization.route_entries %}
+  route set {{ route.prefix }} {{ route.mask }}
+{% endfor %}
+{% endif %}
+{% endif %}
+{% if vpn.flexvpn.ikev2_authorization.def_domain %}
+  def-domain {{ vpn.flexvpn.ikev2_authorization.def_domain }}
+{% endif %}
+!
+{% endif %}
+
+{# IKEv2 Proposal #}
+{% if vpn.flexvpn.get('ikev2_proposal') %}
+crypto ikev2 proposal {{ vpn.flexvpn.ikev2_proposal.name }}
+  encryption {{ vpn.flexvpn.ikev2_proposal.encryption | default('aes-cbc-256') }}
+  integrity {{ vpn.flexvpn.ikev2_proposal.integrity | default('sha512') }}
+  group {{ vpn.flexvpn.ikev2_proposal.dh_group | default('14') }}
+  prf {{ vpn.flexvpn.ikev2_proposal.prf | default('sha512') }}
+!
+{% endif %}
+
+{# IKEv2 Policy #}
+{% if vpn.flexvpn.get('ikev2_policy') %}
+crypto ikev2 policy {{ vpn.flexvpn.ikev2_policy.name }}
+  proposal {{ vpn.flexvpn.ikev2_policy.proposal }}
+!
+{% endif %}
+
+{# IKEv2 Profile #}
+{% if vpn.flexvpn.get('ikev2_profile') %}
+crypto ikev2 profile {{ vpn.flexvpn.ikev2_profile.name }}
+  match identity remote {{ vpn.flexvpn.ikev2_profile.match_identity.type }} {{ vpn.flexvpn.ikev2_profile.match_identity.value }}
+{% if vpn.flexvpn.ikev2_profile.authentication %}
+  authentication remote {{ vpn.flexvpn.ikev2_profile.authentication.remote }}
+  authentication local {{ vpn.flexvpn.ikev2_profile.authentication.local }}
+{% endif %}
+{% if vpn.flexvpn.ikev2_profile.pki_trustpoint %}
+  pki trustpoint {{ vpn.flexvpn.ikev2_profile.pki_trustpoint }}
+{% endif %}
+{% if vpn.flexvpn.ikev2_profile.aaa_authorization %}
+  aaa authorization {{ vpn.flexvpn.ikev2_profile.aaa_authorization.type }} {{ vpn.flexvpn.ikev2_profile.aaa_authorization.list }} {{ vpn.flexvpn.ikev2_profile.aaa_authorization.method }}
+{% endif %}
+{% if vpn.flexvpn.ikev2_profile.virtual_template %}
+  virtual-template {{ vpn.flexvpn.ikev2_profile.virtual_template }}
+{% endif %}
+{% if vpn.flexvpn.ikev2_profile.dpd %}
+  dpd {{ vpn.flexvpn.ikev2_profile.dpd.interval }} {{ vpn.flexvpn.ikev2_profile.dpd.retry }} {{ vpn.flexvpn.ikev2_profile.dpd.action }}
+{% endif %}
+!
+{% endif %}
+
+{# IPsec Transform Set #}
+{% if vpn.flexvpn.get('transform_set') %}
+crypto ipsec transform-set {{ vpn.flexvpn.transform_set.name }} {{ vpn.flexvpn.transform_set.encryption }} {{ vpn.flexvpn.transform_set.integrity }}
+  mode {{ vpn.flexvpn.transform_set.mode | default('tunnel') }}
+!
+{% endif %}
+
+{# IPsec Profile #}
+{% if vpn.flexvpn.get('ipsec_profile') %}
+crypto ipsec profile {{ vpn.flexvpn.ipsec_profile.name }}
+  set transform-set {{ vpn.flexvpn.ipsec_profile.transform_set }}
+  set ikev2-profile {{ vpn.flexvpn.ipsec_profile.ikev2_profile }}
+{% if vpn.flexvpn.ipsec_profile.pfs_group %}
+  set pfs group{{ vpn.flexvpn.ipsec_profile.pfs_group }}
+{% endif %}
+{% if vpn.flexvpn.ipsec_profile.responder_only %}
+  responder-only
+{% endif %}
+!
+{% endif %}
+
+{# Virtual Template Interface (Hub) #}
+{% if vpn.flexvpn.get('virtual_template') %}
+interface Virtual-Template{{ vpn.flexvpn.virtual_template.id }}
+  description {{ vpn.flexvpn.virtual_template.description | default('FlexVPN Virtual Template') }}
+  ip unnumbered {{ vpn.flexvpn.virtual_template.ip_unnumbered | default('Loopback0') }}
+{% if vpn.flexvpn.virtual_template.mtu %}
+  ip mtu {{ vpn.flexvpn.virtual_template.mtu }}
+{% endif %}
+  tunnel mode ipsec ipv4
+  tunnel protection ipsec profile {{ vpn.flexvpn.virtual_template.ipsec_profile }}
+{% if vpn.flexvpn.virtual_template.tunnel_vrf %}
+  tunnel vrf {{ vpn.flexvpn.virtual_template.tunnel_vrf }}
+{% endif %}
+!
+{% endif %}
+
+{# FlexVPN Spoke Configuration #}
+{% if vpn.flexvpn.get('spoke') %}
+interface Tunnel{{ vpn.flexvpn.spoke.interface_id }}
+  description {{ vpn.flexvpn.spoke.description | default('FlexVPN Spoke Tunnel') }}
+  ip address {{ vpn.flexvpn.spoke.ip_address }}
+  tunnel source {{ vpn.flexvpn.spoke.source }}
+  tunnel destination {{ vpn.flexvpn.spoke.destination }}
+  tunnel mode ipsec ipv4
+  tunnel protection ipsec profile {{ vpn.flexvpn.spoke.ipsec_profile }}
+{% if vpn.flexvpn.spoke.vrf %}
+  tunnel vrf {{ vpn.flexvpn.spoke.vrf }}
+{% endif %}
+{% if vpn.flexvpn.spoke.keepalive %}
+  keepalive {{ vpn.flexvpn.spoke.keepalive.interval }} {{ vpn.flexvpn.spoke.keepalive.retries }}
+{% endif %}
+!
+{% endif %}
+
+{# Local Address Pool for Spoke Addressing #}
+{% if vpn.flexvpn.get('address_pool') %}
+ip local pool {{ vpn.flexvpn.address_pool.name }} {{ vpn.flexvpn.address_pool.start }} {{ vpn.flexvpn.address_pool.end }}
+{% endif %}
+
+{% endif %}{# end flexvpn #}
+
+{# GET VPN (Group Encrypted Transport VPN) #}
+{% if vpn.get('getvpn') and vpn.getvpn.get('enabled') %}
+! ========================================
+! GET VPN Configuration
+! Type: {% if vpn.getvpn.role == 'ks' %}Key Server{% elif vpn.getvpn.role == 'gm' %}Group Member{% endif %}
+
+! ========================================
+
+{# GDOI Group Configuration #}
+{% if vpn.getvpn.get('gdoi_group') %}
+crypto gdoi group {{ vpn.getvpn.gdoi_group.name }}
+  identity number {{ vpn.getvpn.gdoi_group.identity_number }}
+{% if vpn.getvpn.role == 'ks' %}
+  {# Key Server Configuration #}
+  server local
+{% if vpn.getvpn.gdoi_group.rekey %}
+    rekey lifetime seconds {{ vpn.getvpn.gdoi_group.rekey.lifetime }}
+    rekey retransmit {{ vpn.getvpn.gdoi_group.rekey.retransmit_period }} number {{ vpn.getvpn.gdoi_group.rekey.retransmit_number }}
+    rekey authentication mypubkey rsa {{ vpn.getvpn.gdoi_group.rekey.rsa_keypair }}
+    rekey transport unicast
+{% endif %}
+{% if vpn.getvpn.gdoi_group.authorization %}
+    authorization address ipv4 {{ vpn.getvpn.gdoi_group.authorization.acl }}
+{% endif %}
+    sa ipsec {{ vpn.getvpn.gdoi_group.sa_ipsec_id }}
+      profile {{ vpn.getvpn.gdoi_group.ipsec_profile }}
+      match address ipv4 {{ vpn.getvpn.gdoi_group.crypto_acl }}
+      replay time window-size {{ vpn.getvpn.gdoi_group.replay_window | default(5) }}
+    address ipv4 {{ vpn.getvpn.gdoi_group.server_address }}
+  exit
+{% elif vpn.getvpn.role == 'gm' %}
+  {# Group Member Configuration #}
+  server address ipv4 {{ vpn.getvpn.gdoi_group.server_address }}
+{% endif %}
+!
+{% endif %}
+
+{# IPsec Profile for GET VPN #}
+{% if vpn.getvpn.get('ipsec_profile') %}
+crypto ipsec profile {{ vpn.getvpn.ipsec_profile.name }}
+  set group {{ vpn.getvpn.ipsec_profile.gdoi_group }}
+  set identity {{ vpn.getvpn.ipsec_profile.identity }}
+!
+{% endif %}
+
+{# Crypto Map for GET VPN #}
+{% if vpn.getvpn.get('crypto_map') %}
+crypto map {{ vpn.getvpn.crypto_map.name }} local-address {{ vpn.getvpn.crypto_map.local_address }}
+
+crypto map {{ vpn.getvpn.crypto_map.name }} {{ vpn.getvpn.crypto_map.sequence }} gdoi
+  set group {{ vpn.getvpn.crypto_map.gdoi_group }}
+  match address {{ vpn.getvpn.crypto_map.crypto_acl }}
+!
+{% endif %}
+
+{# Apply Crypto Map to Interface #}
+{% if vpn.getvpn.get('interface') %}
+interface {{ vpn.getvpn.interface }}
+  crypto map {{ vpn.getvpn.crypto_map.name }}
+!
+{% endif %}
+
+{# GET VPN Crypto ACL #}
+{% if vpn.getvpn.get('crypto_acl') %}
+ip access-list extended {{ vpn.getvpn.crypto_acl.name }}
+{% for entry in vpn.getvpn.crypto_acl.entries %}
+  permit {{ entry.protocol }} {{ entry.source }} {{ entry.destination }}
+{% endfor %}
+!
+{% endif %}
+
+{# RSA Keypair for Key Server #}
+{% if vpn.getvpn.role == 'ks' and vpn.getvpn.get('rsa_keypair') %}
+crypto key generate rsa label {{ vpn.getvpn.rsa_keypair.label }} modulus {{ vpn.getvpn.rsa_keypair.modulus | default(2048) }}
+{% endif %}
+
+{# COOP (Cooperative) Key Servers #}
+{% if vpn.getvpn.get('coop_key_servers') %}
+crypto gdoi group {{ vpn.getvpn.gdoi_group.name }}
+  server local
+    redundancy
+      local priority {{ vpn.getvpn.coop_key_servers.local_priority }}
+{% for peer in vpn.getvpn.coop_key_servers.peers %}
+      peer address ipv4 {{ peer.address }}
+{% endfor %}
+    exit
+  exit
+!
+{% endif %}
+
+{% endif %}{# end getvpn #}
+
+{# L2TPv3 (Layer 2 Tunneling Protocol version 3) #}
+{% if vpn.get('l2tpv3') and vpn.l2tpv3.get('enabled') %}
+! ========================================
+! L2TPv3 Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# L2TP Class #}
+{% if vpn.l2tpv3.get('l2tp_class') %}
+{% for class in vpn.l2tpv3.l2tp_class %}
+l2tp-class {{ class.name }}
+{% if class.description %}
+  description {{ class.description }}
+{% endif %}
+{% if class.hello_interval %}
+  hello {{ class.hello_interval }}
+{% endif %}
+{% if class.authentication %}
+  authentication
+  password {{ class.authentication.password }}
+{% endif %}
+{% if class.ip_tos %}
+  ip tos {{ class.ip_tos.value }} {{ class.ip_tos.type }}
+{% endif %}
+{% if class.cookie %}
+  cookie size {{ class.cookie.size }}
+{% endif %}
+{% if class.digest %}
+  digest secret {{ class.digest.secret }} hash {{ class.digest.hash }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Pseudowire Class #}
+{% if vpn.l2tpv3.get('pseudowire_class') %}
+{% for pw in vpn.l2tpv3.pseudowire_class %}
+pseudowire-class {{ pw.name }}
+  encapsulation l2tpv3
+{% if pw.protocol %}
+  protocol {{ pw.protocol }}
+{% endif %}
+{% if pw.l2tp_class %}
+  ip l2tp class {{ pw.l2tp_class }}
+{% endif %}
+  ip local interface {{ pw.local_interface }}
+{% if pw.sequencing %}
+  sequencing {{ pw.sequencing }}
+{% endif %}
+{% if pw.signaling_protocol %}
+  signaling protocol {{ pw.signaling_protocol }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Xconnect Configuration #}
+{% if vpn.l2tpv3.get('xconnects') %}
+{% for xconn in vpn.l2tpv3.xconnects %}
+interface {{ xconn.interface }}
+  description {{ xconn.description | default('L2TPv3 Xconnect') }}
+{% if xconn.encapsulation %}
+  encapsulation {{ xconn.encapsulation }}
+{% endif %}
+  xconnect {{ xconn.peer_ip }} {{ xconn.vcid }} encapsulation l2tpv3
+{% if xconn.pw_class %}
+    pw-class {{ xconn.pw_class }}
+{% endif %}
+{% if xconn.manual %}
+    l2tp id {{ xconn.manual.local_session_id }} {{ xconn.manual.remote_session_id }}
+    l2tp cookie local {{ xconn.manual.local_cookie_size }} {{ xconn.manual.local_cookie }}
+    l2tp cookie remote {{ xconn.manual.remote_cookie_size }} {{ xconn.manual.remote_cookie }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# L2TPv3 Static Sessions (Manual) #}
+{% if vpn.l2tpv3.get('static_sessions') %}
+{% for session in vpn.l2tpv3.static_sessions %}
+interface {{ session.interface }}
+  no ip address
+  xconnect {{ session.peer_ip }} {{ session.vcid }} encapsulation l2tpv3 manual
+    l2tp id {{ session.local_session_id }} {{ session.remote_session_id }}
+    l2tp cookie local {{ session.local_cookie_size }} {{ session.local_cookie }}
+    l2tp cookie remote {{ session.remote_cookie_size }} {{ session.remote_cookie }}
+    l2tp hello {{ session.hello_interval | default('l2tp-default') }}
+!
+{% endfor %}
+{% endif %}
+
+{# VPLS over L2TPv3 #}
+{% if vpn.l2tpv3.get('vpls') %}
+{% for vpls in vpn.l2tpv3.vpls %}
+l2 vfi {{ vpls.name }} manual
+  vpn id {{ vpls.vpn_id }}
+{% for neighbor in vpls.neighbors %}
+  neighbor {{ neighbor.ip }} {{ neighbor.vcid }} encapsulation l2tpv3
+{% if neighbor.pw_class %}
+    pw-class {{ neighbor.pw_class }}
+{% endif %}
+{% endfor %}
+!
+
+interface {{ vpls.bdi_interface }}
+  service instance {{ vpls.service_instance_id }} ethernet
+    encapsulation default
+    bridge-domain {{ vpls.bridge_domain }}
+  !
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end l2tpv3 #}
+
+{# OTV (Overlay Transport Virtualization) #}
+{% if vpn.get('otv') and vpn.otv.get('enabled') %}
+! ========================================
+! OTV (Overlay Transport Virtualization)
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{# Enable OTV globally #}
+otv
+{% if vpn.otv.get('site_bridge_domain') %}
+  site bridge-domain {{ vpn.otv.site_bridge_domain }}
+{% endif %}
+{% if vpn.otv.get('site_identifier') %}
+  site-identifier {{ vpn.otv.site_identifier }}
+{% endif %}
+!
+
+{# OTV Overlay Interface #}
+{% if vpn.otv.get('overlay_interface') %}
+interface Overlay{{ vpn.otv.overlay_interface.id }}
+  description {{ vpn.otv.overlay_interface.description | default('OTV Overlay') }}
+  otv join-interface {{ vpn.otv.overlay_interface.join_interface }}
+  otv extend-vlan {{ vpn.otv.overlay_interface.extend_vlans }}
+{% if vpn.otv.overlay_interface.control_group %}
+  otv control-group {{ vpn.otv.overlay_interface.control_group }}
+{% endif %}
+{% if vpn.otv.overlay_interface.data_group %}
+  otv data-group {{ vpn.otv.overlay_interface.data_group }}
+{% endif %}
+{% if vpn.otv.overlay_interface.use_adjacency_server %}
+  otv use-adjacency-server {{ vpn.otv.overlay_interface.adjacency_server_address }} unicast-only
+{% endif %}
+  no shutdown
+!
+{% endif %}
+
+{# OTV Adjacency Server #}
+{% if vpn.otv.get('adjacency_server') and vpn.otv.adjacency_server.enabled %}
+otv adjacency-server enable
+otv adjacency-server unicast-only
+{% endif %}
+
+{# OTV AED (Authoritative Edge Device) #}
+{% if vpn.otv.get('aed') %}
+{% for vlan in vpn.otv.aed.vlans %}
+otv advertise-local vlan {{ vlan }}
+{% endfor %}
+{% endif %}
+
+{# OTV Suppress ARP #}
+{% if vpn.otv.get('suppress_arp') %}
+{% for vlan in vpn.otv.suppress_arp.vlans %}
+otv suppress-arp vlan {{ vlan }}
+{% endfor %}
+{% endif %}
+
+{# OTV ISIS #}
+{% if vpn.otv.get('isis') %}
+router isis {{ vpn.otv.isis.process_name | default('otv') }}
+  net {{ vpn.otv.isis.net }}
+  is-type level-1
+!
+
+interface Overlay{{ vpn.otv.overlay_interface.id }}
+  ip router isis {{ vpn.otv.isis.process_name | default('otv') }}
+!
+{% endif %}
+
+{# Join Interface Configuration #}
+{% if vpn.otv.get('join_interface_config') %}
+interface {{ vpn.otv.join_interface_config.interface }}
+  description {{ vpn.otv.join_interface_config.description | default('OTV Join Interface') }}
+  ip address {{ vpn.otv.join_interface_config.ip_address }}
+  ip pim sparse-mode
+  no shutdown
+!
+{% endif %}
+
+{# Multicast for OTV #}
+{% if vpn.otv.get('multicast') %}
+ip pim rp-address {{ vpn.otv.multicast.rp_address }}
+ip multicast-routing
+{% endif %}
+
+{% endif %}{# end otv #}
+
+{# SD-WAN (Viptela/Meraki Style Configuration) #}
+{% if vpn.get('sdwan') and vpn.sdwan.get('enabled') %}
+! ========================================
+! SD-WAN Configuration
+! Type: {{ vpn.sdwan.type | default('viptela') | upper }}
+! ========================================
+
+{% if vpn.sdwan.type == 'viptela' or not vpn.sdwan.type %}
+{# Cisco Viptela SD-WAN #}
+{# System Configuration #}
+{% if vpn.sdwan.get('system') %}
+system
+  system-ip {{ vpn.sdwan.system.system_ip }}
+  site-id {{ vpn.sdwan.system.site_id }}
+  organization-name {{ vpn.sdwan.system.organization_name }}
+{% if vpn.sdwan.system.hostname %}
+  host-name {{ vpn.sdwan.system.hostname }}
+{% endif %}
+{% if vpn.sdwan.system.location %}
+  location {{ vpn.sdwan.system.location }}
+{% endif %}
+{% if vpn.sdwan.system.device_groups %}
+{% for group in vpn.sdwan.system.device_groups %}
+  device-groups {{ group }}
+{% endfor %}
+{% endif %}
+!
+{% endif %}
+
+{# VPN Configuration #}
+{% if vpn.sdwan.get('vpns') %}
+{% for sdwan_vpn in vpn.sdwan.vpns %}
+vpn {{ sdwan_vpn.vpn_id }}
+  name {{ sdwan_vpn.name }}
+{% if sdwan_vpn.dns %}
+  dns {{ sdwan_vpn.dns.primary }}{% if sdwan_vpn.dns.secondary %} {{ sdwan_vpn.dns.secondary }}{% endif %}
+
+{% endif %}
+{% if sdwan_vpn.interfaces %}
+{% for iface in sdwan_vpn.interfaces %}
+  interface {{ iface.interface }}
+    ip address {{ iface.ip_address }}
+{% if iface.tunnel %}
+    tunnel-interface
+      encapsulation {{ iface.tunnel.encapsulation | default('ipsec') }}
+{% if iface.tunnel.color %}
+      color {{ iface.tunnel.color }}
+{% endif %}
+{% if iface.tunnel.allow_service %}
+{% for service in iface.tunnel.allow_service %}
+      allow-service {{ service }}
+{% endfor %}
+{% endif %}
+{% if iface.tunnel.group %}
+{% for group in iface.tunnel.group %}
+      group {{ group }}
+{% endfor %}
+{% endif %}
+    exit
+{% endif %}
+    no shutdown
+  exit
+{% endfor %}
+{% endif %}
+{% if sdwan_vpn.static_routes %}
+{% for route in sdwan_vpn.static_routes %}
+  ip route {{ route.prefix }} {{ route.next_hop }}
+{% endfor %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# OMP (Overlay Management Protocol) #}
+{% if vpn.sdwan.get('omp') %}
+omp
+  graceful-restart
+  advertise {{ vpn.sdwan.omp.advertise | default('connected') }}
+{% if vpn.sdwan.omp.shutdown %}
+  shutdown
+{% else %}
+  no shutdown
+{% endif %}
+!
+{% endif %}
+
+{# BFD for SD-WAN #}
+{% if vpn.sdwan.get('bfd') %}
+bfd app-route multiplier {{ vpn.sdwan.bfd.multiplier | default(6) }}
+bfd app-route poll-interval {{ vpn.sdwan.bfd.poll_interval | default(600000) }}
+{% endif %}
+
+{# Security Policies #}
+{% if vpn.sdwan.get('security_policy') %}
+security
+  ipsec
+    authentication-type {{ vpn.sdwan.security_policy.ipsec.authentication_type | default('ah-sha1-hmac') }}
+{% if vpn.sdwan.security_policy.ipsec.ipsec_rekey %}
+    rekey {{ vpn.sdwan.security_policy.ipsec.ipsec_rekey }}
+{% endif %}
+    replay-window {{ vpn.sdwan.security_policy.ipsec.replay_window | default(512) }}
+  !
+!
+{% endif %}
+
+{% elif vpn.sdwan.type == 'meraki' %}
+{# Meraki SD-WAN (AutoVPN) #}
+! Meraki SD-WAN is cloud-managed
+! Configuration via Dashboard: https://dashboard.meraki.com
+!
+! Manual settings reference:
+! - Site-to-site VPN: Security & SD-WAN > Configure > Site-to-site VPN
+! - VPN Settings:
+!   - Hub/Spoke Topology
+!   - Local Networks: {{ vpn.sdwan.meraki.local_networks | default('Configured via Dashboard') }}
+!   - Hub Priority: {{ vpn.sdwan.meraki.hub_priority | default('Primary/Secondary') }}
+!   - VPN Mode: {{ vpn.sdwan.meraki.vpn_mode | default('Hub (Mesh) / Spoke') }}
+
+{% endif %}{# end viptela/meraki #}
+
+{% endif %}{# end sdwan #}

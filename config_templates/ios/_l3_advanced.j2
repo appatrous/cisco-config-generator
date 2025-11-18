@@ -1,0 +1,438 @@
+{# Advanced Layer 3 Features for Cisco IOS/IOS-XE #}
+
+{# Route Maps #}
+{% if l3.get('route_maps') %}
+! ========================================
+! Route Maps Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{% for route_map in l3.route_maps %}
+{% for entry in route_map.entries %}
+route-map {{ route_map.name }} {{ entry.action | default('permit') }} {{ entry.sequence }}
+{% if entry.description %}
+  description {{ entry.description }}
+{% endif %}
+{# Match Conditions #}
+{% if entry.match %}
+{% if entry.match.ip_address %}
+  match ip address {% if entry.match.ip_address.acl %}{{ entry.match.ip_address.acl }}{% endif %}{% if entry.match.ip_address.prefix_list %}prefix-list {{ entry.match.ip_address.prefix_list }}{% endif %}
+{% endif %}
+{% if entry.match.ip_next_hop %}
+  match ip next-hop {% if entry.match.ip_next_hop.acl %}{{ entry.match.ip_next_hop.acl }}{% endif %}{% if entry.match.ip_next_hop.prefix_list %}prefix-list {{ entry.match.ip_next_hop.prefix_list }}{% endif %}
+{% endif %}
+{% if entry.match.ip_route_source %}
+  match ip route-source {% if entry.match.ip_route_source.acl %}{{ entry.match.ip_route_source.acl }}{% endif %}{% if entry.match.ip_route_source.prefix_list %}prefix-list {{ entry.match.ip_route_source.prefix_list }}{% endif %}
+{% endif %}
+{% if entry.match.interface %}
+  match interface {{ entry.match.interface }}
+{% endif %}
+{% if entry.match.metric %}
+  match metric {{ entry.match.metric }}
+{% endif %}
+{% if entry.match.route_type %}
+  match route-type {{ entry.match.route_type }}
+{% endif %}
+{% if entry.match.tag %}
+  match tag {{ entry.match.tag }}
+{% endif %}
+{% if entry.match.as_path %}
+  match as-path {{ entry.match.as_path }}
+{% endif %}
+{% if entry.match.community %}
+  match community {{ entry.match.community }}{% if entry.match.community_exact %} exact-match{% endif %}
+{% endif %}
+{% if entry.match.local_preference %}
+  match local-preference {{ entry.match.local_preference }}
+{% endif %}
+{% endif %}{# end match #}
+{# Set Actions #}
+{% if entry.set %}
+{% if entry.set.ip_next_hop %}
+  set ip next-hop {{ entry.set.ip_next_hop }}
+{% endif %}
+{% if entry.set.ip_default_next_hop %}
+  set ip default next-hop {{ entry.set.ip_default_next_hop }}
+{% endif %}
+{% if entry.set.interface %}
+  set interface {{ entry.set.interface }}
+{% endif %}
+{% if entry.set.metric %}
+  set metric {{ entry.set.metric }}
+{% endif %}
+{% if entry.set.metric_type %}
+  set metric-type {{ entry.set.metric_type }}
+{% endif %}
+{% if entry.set.tag %}
+  set tag {{ entry.set.tag }}
+{% endif %}
+{% if entry.set.local_preference %}
+  set local-preference {{ entry.set.local_preference }}
+{% endif %}
+{% if entry.set.weight %}
+  set weight {{ entry.set.weight }}
+{% endif %}
+{% if entry.set.as_path_prepend %}
+  set as-path prepend {{ entry.set.as_path_prepend }}
+{% endif %}
+{% if entry.set.community %}
+  set community {{ entry.set.community }}{% if entry.set.community_additive %} additive{% endif %}
+{% endif %}
+{% if entry.set.origin %}
+  set origin {{ entry.set.origin }}
+{% endif %}
+{% if entry.set.vrf %}
+  set vrf {{ entry.set.vrf }}
+{% endif %}
+{% endif %}{# end set #}
+{% if entry.continue %}
+  continue {{ entry.continue }}
+{% endif %}
+!
+{% endfor %}
+{% endfor %}
+
+{% endif %}{# end route_maps #}
+
+{# Prefix Lists #}
+{% if l3.get('prefix_lists') %}
+! ========================================
+! Prefix Lists Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{% for prefix_list in l3.prefix_lists %}
+{% if prefix_list.description %}
+ip prefix-list {{ prefix_list.name }} description {{ prefix_list.description }}
+{% endif %}
+{% for entry in prefix_list.entries %}
+ip prefix-list {{ prefix_list.name }} seq {{ entry.sequence }} {{ entry.action | default('permit') }} {{ entry.prefix }}{% if entry.ge %} ge {{ entry.ge }}{% endif %}{% if entry.le %} le {{ entry.le }}{% endif %}
+{% endfor %}
+!
+{% endfor %}
+
+{% endif %}{# end prefix_lists #}
+
+{# PBR (Policy-Based Routing) #}
+{% if l3.get('pbr') and l3.pbr.get('enabled') %}
+! ========================================
+! Policy-Based Routing (PBR)
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# PBR Route Maps are defined above in route_maps section #}
+
+{# Apply PBR to Interfaces #}
+{% if l3.pbr.interfaces %}
+{% for iface in l3.pbr.interfaces %}
+interface {{ iface.interface }}
+  description PBR Enabled
+  ip policy route-map {{ iface.route_map }}
+{% if iface.local %}
+  ip local policy route-map {{ iface.route_map }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# PBR Logging #}
+{% if l3.pbr.get('logging') %}
+ip route-cache policy
+{% endif %}
+
+{% endif %}{# end pbr #}
+
+{# VRF-Lite Complete Configuration #}
+{% if l3.get('vrf_lite') and l3.vrf_lite.get('enabled') %}
+! ========================================
+! VRF-Lite Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{% for vrf in l3.vrf_lite.vrfs %}
+{# VRF Definition #}
+{% if l3.vrf_lite.use_vrf_definition %}
+vrf definition {{ vrf.name }}
+{% if vrf.description %}
+  description {{ vrf.description }}
+{% endif %}
+{% if vrf.rd %}
+  rd {{ vrf.rd }}
+{% endif %}
+{% if vrf.route_target %}
+  route-target export {{ vrf.route_target.export | default(vrf.route_target) }}
+  route-target import {{ vrf.route_target.import | default(vrf.route_target) }}
+{% endif %}
+  !
+  address-family ipv4{% if vrf.ipv4_unicast %} unicast{% endif %}
+{% if vrf.route_target_ipv4 %}
+    route-target export {{ vrf.route_target_ipv4.export }}
+    route-target import {{ vrf.route_target_ipv4.import }}
+{% endif %}
+  exit-address-family
+{% if vrf.ipv6 %}
+  !
+  address-family ipv6{% if vrf.ipv6_unicast %} unicast{% endif %}
+{% if vrf.route_target_ipv6 %}
+    route-target export {{ vrf.route_target_ipv6.export }}
+    route-target import {{ vrf.route_target_ipv6.import }}
+{% endif %}
+  exit-address-family
+{% endif %}
+!
+{% else %}
+{# Legacy VRF (ip vrf) #}
+ip vrf {{ vrf.name }}
+{% if vrf.description %}
+  description {{ vrf.description }}
+{% endif %}
+{% if vrf.rd %}
+  rd {{ vrf.rd }}
+{% endif %}
+{% if vrf.route_target %}
+  route-target export {{ vrf.route_target.export | default(vrf.route_target) }}
+  route-target import {{ vrf.route_target.import | default(vrf.route_target) }}
+{% endif %}
+!
+{% endif %}
+
+{# VRF Interfaces #}
+{% if vrf.interfaces %}
+{% for iface in vrf.interfaces %}
+interface {{ iface.interface }}
+  description VRF {{ vrf.name }}
+{% if l3.vrf_lite.use_vrf_definition %}
+  vrf forwarding {{ vrf.name }}
+{% else %}
+  ip vrf forwarding {{ vrf.name }}
+{% endif %}
+{% if iface.ip_address %}
+  ip address {{ iface.ip_address }}
+{% endif %}
+{% if iface.ipv6_address %}
+  ipv6 address {{ iface.ipv6_address }}
+{% endif %}
+  no shutdown
+!
+{% endfor %}
+{% endif %}
+
+{# Static Routes in VRF #}
+{% if vrf.static_routes %}
+{% for route in vrf.static_routes %}
+ip route vrf {{ vrf.name }} {{ route.prefix }} {{ route.mask }} {% if route.next_hop %}{{ route.next_hop }}{% elif route.interface %}{{ route.interface }}{% endif %}{% if route.distance %} {{ route.distance }}{% endif %}{% if route.permanent %} permanent{% endif %}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+
+{# Inter-VRF Route Leaking #}
+{% if l3.vrf_lite.get('route_leaking') %}
+{% for leak in l3.vrf_lite.route_leaking %}
+! Route Leaking from {{ leak.source_vrf }} to {{ leak.target_vrf }}
+ip route vrf {{ leak.target_vrf }} {{ leak.prefix }} {{ leak.mask }} vrf {{ leak.source_vrf }} {{ leak.next_hop }}
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end vrf_lite #}
+
+{# IPv6 Advanced Configuration #}
+{% if l3.get('ipv6_advanced') and l3.ipv6_advanced.get('enabled') %}
+! ========================================
+! IPv6 Advanced Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+ipv6 unicast-routing
+{% if l3.ipv6_advanced.get('cef') %}
+ipv6 cef{% if l3.ipv6_advanced.cef == 'distributed' %} distributed{% endif %}
+{% endif %}
+
+{# DHCPv6 Server #}
+{% if l3.ipv6_advanced.get('dhcpv6_server') %}
+{% for pool in l3.ipv6_advanced.dhcpv6_server.pools %}
+ipv6 dhcp pool {{ pool.name }}
+{% if pool.prefix %}
+  address prefix {{ pool.prefix }}{% if pool.lifetime_valid %} lifetime {{ pool.lifetime_valid }}{% if pool.lifetime_preferred %} {{ pool.lifetime_preferred }}{% endif %}{% endif %}
+{% endif %}
+{% if pool.dns_server %}
+  dns-server {{ pool.dns_server }}
+{% endif %}
+{% if pool.domain_name %}
+  domain-name {{ pool.domain_name }}
+{% endif %}
+!
+{% endfor %}
+
+{# Apply DHCPv6 to interfaces #}
+{% for iface in l3.ipv6_advanced.dhcpv6_server.get('interfaces', []) %}
+interface {{ iface.interface }}
+  ipv6 dhcp server {{ iface.pool }}{% if iface.rapid_commit %} rapid-commit{% endif %}{% if iface.preference %} preference {{ iface.preference }}{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# DHCPv6 Client #}
+{% if l3.ipv6_advanced.get('dhcpv6_client') %}
+{% for iface in l3.ipv6_advanced.dhcpv6_client.interfaces %}
+interface {{ iface.interface }}
+  ipv6 address dhcp{% if iface.rapid_commit %} rapid-commit{% endif %}
+  ipv6 enable
+!
+{% endfor %}
+{% endif %}
+
+{# SLAAC (Stateless Address Autoconfiguration) #}
+{% if l3.ipv6_advanced.get('slaac') %}
+{% for iface in l3.ipv6_advanced.slaac.interfaces %}
+interface {{ iface.interface }}
+  ipv6 address autoconfig{% if iface.default %} default{% endif %}
+{% if iface.nd_ra_suppress %}
+  ipv6 nd ra suppress
+{% endif %}
+{% if iface.nd_prefix %}
+  ipv6 nd prefix {{ iface.nd_prefix.prefix }}{% if iface.nd_prefix.valid_lifetime %} {{ iface.nd_prefix.valid_lifetime }}{% endif %}{% if iface.nd_prefix.preferred_lifetime %} {{ iface.nd_prefix.preferred_lifetime }}{% endif %}{% if iface.nd_prefix.no_autoconfig %} no-autoconfig{% endif %}{% if iface.nd_prefix.off_link %} off-link{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# IPv6 Neighbor Discovery (ND) Advanced #}
+{% if l3.ipv6_advanced.get('neighbor_discovery') %}
+{% for iface in l3.ipv6_advanced.neighbor_discovery.interfaces %}
+interface {{ iface.interface }}
+{% if iface.nd_ra_interval %}
+  ipv6 nd ra interval {{ iface.nd_ra_interval }}
+{% endif %}
+{% if iface.nd_ra_lifetime %}
+  ipv6 nd ra lifetime {{ iface.nd_ra_lifetime }}
+{% endif %}
+{% if iface.nd_reachable_time %}
+  ipv6 nd reachable-time {{ iface.nd_reachable_time }}
+{% endif %}
+{% if iface.nd_ns_interval %}
+  ipv6 nd ns-interval {{ iface.nd_ns_interval }}
+{% endif %}
+{% if iface.managed_config_flag %}
+  ipv6 nd managed-config-flag
+{% endif %}
+{% if iface.other_config_flag %}
+  ipv6 nd other-config-flag
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# IPv6 First-Hop Security #}
+{% if l3.ipv6_advanced.get('first_hop_security') %}
+! IPv6 First-Hop Security
+{% if l3.ipv6_advanced.first_hop_security.get('ra_guard') %}
+ipv6 nd raguard policy {{ l3.ipv6_advanced.first_hop_security.ra_guard.policy_name }}
+{% if l3.ipv6_advanced.first_hop_security.ra_guard.device_role %}
+  device-role {{ l3.ipv6_advanced.first_hop_security.ra_guard.device_role }}
+{% endif %}
+{% if l3.ipv6_advanced.first_hop_security.ra_guard.trusted_port %}
+  trusted-port
+{% endif %}
+!
+{% for iface in l3.ipv6_advanced.first_hop_security.ra_guard.get('interfaces', []) %}
+interface {{ iface }}
+  ipv6 nd raguard attach-policy {{ l3.ipv6_advanced.first_hop_security.ra_guard.policy_name }}
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.ipv6_advanced.first_hop_security.get('source_guard') %}
+ipv6 source-guard policy {{ l3.ipv6_advanced.first_hop_security.source_guard.policy_name }}
+{% if l3.ipv6_advanced.first_hop_security.source_guard.permit_link_local %}
+  permit link-local
+{% endif %}
+{% if l3.ipv6_advanced.first_hop_security.source_guard.deny_global %}
+  deny global-autoconf
+{% endif %}
+!
+{% for iface in l3.ipv6_advanced.first_hop_security.source_guard.get('interfaces', []) %}
+interface {{ iface }}
+  ipv6 source-guard attach-policy {{ l3.ipv6_advanced.first_hop_security.source_guard.policy_name }}
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.ipv6_advanced.first_hop_security.get('nd_inspection') %}
+ipv6 nd inspection policy {{ l3.ipv6_advanced.first_hop_security.nd_inspection.policy_name }}
+{% if l3.ipv6_advanced.first_hop_security.nd_inspection.device_role %}
+  device-role {{ l3.ipv6_advanced.first_hop_security.nd_inspection.device_role }}
+{% endif %}
+{% if l3.ipv6_advanced.first_hop_security.nd_inspection.drop_unsecure %}
+  drop-unsecure
+{% endif %}
+{% if l3.ipv6_advanced.first_hop_security.nd_inspection.trusted_port %}
+  trusted-port
+{% endif %}
+!
+{% for iface in l3.ipv6_advanced.first_hop_security.nd_inspection.get('interfaces', []) %}
+interface {{ iface }}
+  ipv6 nd inspection attach-policy {{ l3.ipv6_advanced.first_hop_security.nd_inspection.policy_name }}
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.ipv6_advanced.first_hop_security.get('snooping') %}
+ipv6 snooping
+{% endif %}
+{% endif %}{# end first_hop_security #}
+
+{% endif %}{# end ipv6_advanced #}
+
+{# Route Filtering (Distribute Lists) #}
+{% if l3.get('route_filtering') %}
+! ========================================
+! Route Filtering (Distribute Lists)
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# OSPF Distribute Lists #}
+{% if l3.route_filtering.get('ospf') %}
+{% for filter in l3.route_filtering.ospf %}
+router ospf {{ filter.process_id }}
+{% if filter.distribute_list_in %}
+  distribute-list {{ filter.distribute_list_in.acl }} in{% if filter.distribute_list_in.interface %} {{ filter.distribute_list_in.interface }}{% endif %}
+{% endif %}
+{% if filter.distribute_list_out %}
+  distribute-list {{ filter.distribute_list_out.acl }} out{% if filter.distribute_list_out.protocol %} {{ filter.distribute_list_out.protocol }}{% endif %}{% if filter.distribute_list_out.process_id %} {{ filter.distribute_list_out.process_id }}{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# EIGRP Distribute Lists #}
+{% if l3.route_filtering.get('eigrp') %}
+{% for filter in l3.route_filtering.eigrp %}
+router eigrp {{ filter.asn }}
+{% if filter.distribute_list_in %}
+  distribute-list {{ filter.distribute_list_in.acl }} in{% if filter.distribute_list_in.interface %} {{ filter.distribute_list_in.interface }}{% endif %}
+{% endif %}
+{% if filter.distribute_list_out %}
+  distribute-list {{ filter.distribute_list_out.acl }} out{% if filter.distribute_list_out.interface %} {{ filter.distribute_list_out.interface }}{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# BGP Distribute Lists #}
+{% if l3.route_filtering.get('bgp') %}
+{% for filter in l3.route_filtering.bgp %}
+router bgp {{ filter.asn }}
+  address-family {{ filter.address_family | default('ipv4') }}
+{% if filter.distribute_list_in %}
+    neighbor {{ filter.neighbor }} distribute-list {{ filter.distribute_list_in }} in
+{% endif %}
+{% if filter.distribute_list_out %}
+    neighbor {{ filter.neighbor }} distribute-list {{ filter.distribute_list_out }} out
+{% endif %}
+  exit-address-family
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end route_filtering #}

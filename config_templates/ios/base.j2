@@ -80,9 +80,24 @@ ip ssh pubkey-chain
 {% include '_vxlan.j2' %}
 {% endif %}
 
+{# VPN & Overlay (FlexVPN, GET VPN, L2TPv3, OTV, SD-WAN) #}
+{% if vpn and (vpn.get('flexvpn') or vpn.get('getvpn') or vpn.get('l2tpv3') or vpn.get('otv') or vpn.get('sdwan')) %}
+{% include '_vpn_overlay.j2' %}
+{% endif %}
+
 {# ACLs #}
 {% if acls %}
 {% include '_acls.j2' %}
+{% endif %}
+
+{# Advanced Security (CoPP, iACLs, IPv6 ACLs, Time-based ACLs, TrustSec, NBAR2) #}
+{% if security and (security.get('copp') or security.get('iacls') or security.get('ipv6_acls') or security.get('time_based_acls') or security.get('trustsec') or security.get('nbar')) %}
+{% include '_security_advanced.j2' %}
+{% endif %}
+
+{# Management (SSH, Lines, Banners, Archive, Smart Licensing, DNS) #}
+{% if management and (management.get('ssh') or management.get('lines') or management.get('banners') or management.get('archive') or management.get('smart_licensing') or management.get('dns')) %}
+{% include '_management.j2' %}
 {% endif %}
 
 !

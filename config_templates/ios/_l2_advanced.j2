@@ -1,0 +1,289 @@
+{# Advanced Layer 2 Features for Cisco IOS/IOS-XE #}
+
+{# LACP Advanced Configuration #}
+{% if l2.get('lacp_advanced') and l2.lacp_advanced.get('enabled') %}
+! ========================================
+! LACP Advanced Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{# Global LACP System Priority #}
+{% if l2.lacp_advanced.get('system_priority') %}
+lacp system-priority {{ l2.lacp_advanced.system_priority }}
+{% endif %}
+
+{# Per Port-Channel LACP Configuration #}
+{% if l2.lacp_advanced.get('port_channels') %}
+{% for pc in l2.lacp_advanced.port_channels %}
+interface Port-channel{{ pc.id }}
+  description {{ pc.description | default('LACP Port-Channel ' ~ pc.id) }}
+{% if pc.min_links %}
+  port-channel min-links {{ pc.min_links }}
+{% endif %}
+{% if pc.load_balance %}
+  port-channel load-balance {{ pc.load_balance }}
+{% endif %}
+{% if pc.max_bundle %}
+  lacp max-bundle {{ pc.max_bundle }}
+{% endif %}
+!
+
+{# Physical Member Ports #}
+{% if pc.members %}
+{% for member in pc.members %}
+interface {{ member.interface }}
+  description LACP Member of Po{{ pc.id }}
+  channel-group {{ pc.id }} mode {{ pc.lacp_mode | default('active') }}
+{% if pc.lacp_rate and pc.lacp_rate == 'fast' %}
+  lacp rate fast
+{% endif %}
+{% if member.lacp_port_priority %}
+  lacp port-priority {{ member.lacp_port_priority }}
+{% endif %}
+  no shutdown
+!
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Global Port-Channel Load-Balancing #}
+{% if l2.lacp_advanced.get('global_load_balance') %}
+port-channel load-balance {{ l2.lacp_advanced.global_load_balance }}
+{% endif %}
+
+{# LACP Suspend Individual #}
+{% if l2.lacp_advanced.get('suspend_individual') %}
+lacp suspend-individual
+{% endif %}
+
+{% endif %}{# end lacp_advanced #}
+
+{# MST (Multiple Spanning Tree) Configuration #}
+{% if l2.get('mst') and l2.mst.get('enabled') %}
+! ========================================
+! MST (Multiple Spanning Tree) Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! Region: {{ l2.mst.region_name | default('MST-REGION') }}
+! ========================================
+
+spanning-tree mode mst
+
+spanning-tree mst configuration
+  name {{ l2.mst.region_name | default('MST-REGION') }}
+  revision {{ l2.mst.revision | default(0) }}
+{% if l2.mst.instances %}
+{% for instance in l2.mst.instances %}
+  instance {{ instance.id }} vlan {{ instance.vlans }}
+{% endfor %}
+{% endif %}
+!
+
+{# MST Instance Root Priority #}
+{% if l2.mst.instances %}
+{% for instance in l2.mst.instances %}
+{% if instance.priority %}
+spanning-tree mst {{ instance.id }} priority {{ instance.priority }}
+{% endif %}
+{% if instance.root_primary %}
+spanning-tree mst {{ instance.id }} root primary{% if instance.diameter %} diameter {{ instance.diameter }}{% endif %}
+{% elif instance.root_secondary %}
+spanning-tree mst {{ instance.id }} root secondary{% if instance.diameter %} diameter {{ instance.diameter }}{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# MST Global Timers #}
+{% if l2.mst.hello_time %}
+spanning-tree mst hello-time {{ l2.mst.hello_time }}
+{% endif %}
+{% if l2.mst.forward_time %}
+spanning-tree mst forward-time {{ l2.mst.forward_time }}
+{% endif %}
+{% if l2.mst.max_age %}
+spanning-tree mst max-age {{ l2.mst.max_age }}
+{% endif %}
+{% if l2.mst.max_hops %}
+spanning-tree mst max-hops {{ l2.mst.max_hops }}
+{% endif %}
+
+{# Per-Interface MST Configuration #}
+{% if l2.mst.interfaces %}
+{% for iface in l2.mst.interfaces %}
+interface {{ iface.interface }}
+{% if iface.cost %}
+{% for instance_id in iface.instances | default([0]) %}
+  spanning-tree mst {{ instance_id }} cost {{ iface.cost }}
+{% endfor %}
+{% endif %}
+{% if iface.port_priority %}
+{% for instance_id in iface.instances | default([0]) %}
+  spanning-tree mst {{ instance_id }} port-priority {{ iface.port_priority }}
+{% endfor %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end mst #}
+
+{# UDLD (UniDirectional Link Detection) #}
+{% if l2.get('udld') and l2.udld.get('enabled') %}
+! ========================================
+! UDLD (UniDirectional Link Detection)
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{# Global UDLD #}
+udld {% if l2.udld.mode == 'aggressive' %}aggressive{% else %}enable{% endif %}
+
+{# UDLD Message Timer #}
+{% if l2.udld.message_time %}
+udld message time {{ l2.udld.message_time }}
+{% endif %}
+
+{# UDLD Recovery #}
+{% if l2.udld.recovery %}
+udld recovery
+{% if l2.udld.recovery_interval %}
+errdisable recovery interval {{ l2.udld.recovery_interval }}
+{% endif %}
+errdisable recovery cause udld
+{% endif %}
+
+{# Per-Interface UDLD Override #}
+{% if l2.udld.interfaces %}
+{% for iface in l2.udld.interfaces %}
+interface {{ iface.interface }}
+{% if iface.udld_mode %}
+  udld port {% if iface.udld_mode == 'aggressive' %}aggressive{% elif iface.udld_mode == 'disable' %}disable{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end udld #}
+
+{# Storm Control #}
+{% if l2.get('storm_control') and l2.storm_control.get('enabled') %}
+! ========================================
+! Storm Control Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{% if l2.storm_control.interfaces %}
+{% for iface in l2.storm_control.interfaces %}
+interface {{ iface.interface }}
+  description Storm Control Enabled
+{% if iface.broadcast %}
+  storm-control broadcast level {% if iface.broadcast.level %}{{ iface.broadcast.level }}{% endif %}{% if iface.broadcast.level_low %} {{ iface.broadcast.level_low }}{% endif %}
+{% endif %}
+{% if iface.multicast %}
+  storm-control multicast level {% if iface.multicast.level %}{{ iface.multicast.level }}{% endif %}{% if iface.multicast.level_low %} {{ iface.multicast.level_low }}{% endif %}
+{% endif %}
+{% if iface.unicast %}
+  storm-control unicast level {% if iface.unicast.level %}{{ iface.unicast.level }}{% endif %}{% if iface.unicast.level_low %} {{ iface.unicast.level_low }}{% endif %}
+{% endif %}
+{% if iface.action %}
+  storm-control action {% if iface.action == 'shutdown' %}shutdown{% elif iface.action == 'trap' %}trap{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end storm_control #}
+
+{# FlexLinks (Cisco Link Redundancy) #}
+{% if l2.get('flexlinks') and l2.flexlinks.get('enabled') %}
+! ========================================
+! FlexLinks Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{% if l2.flexlinks.pairs %}
+{% for pair in l2.flexlinks.pairs %}
+interface {{ pair.primary }}
+  description FlexLink Primary
+  switchport backup interface {{ pair.backup }}{% if pair.preemption_mode %} preemption mode {{ pair.preemption_mode }}{% endif %}{% if pair.preemption_delay %} preemption delay {{ pair.preemption_delay }}{% endif %}
+{% if pair.multicast_fast_convergence %}
+  switchport backup interface {{ pair.backup }} multicast fast-convergence
+{% endif %}
+{% if pair.mac_address_move_update %}
+  switchport backup interface {{ pair.backup }} mac-address-move update
+{% endif %}
+{% if pair.prefer_vlan %}
+  switchport backup interface {{ pair.backup }} prefer vlan {{ pair.prefer_vlan }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end flexlinks #}
+
+{# STP Protection Features (PortFast, Root Guard, BPDU Filter, etc.) #}
+{% if l2.get('stp_protection') and l2.stp_protection.get('enabled') %}
+! ========================================
+! STP Protection Features
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{# Global PortFast Default #}
+{% if l2.stp_protection.get('portfast_default') %}
+spanning-tree portfast default
+{% endif %}
+
+{# Global BPDU Guard #}
+{% if l2.stp_protection.get('bpduguard_default') %}
+spanning-tree portfast bpduguard default
+{% endif %}
+
+{# Global BPDU Filter #}
+{% if l2.stp_protection.get('bpdufilter_default') %}
+spanning-tree portfast bpdufilter default
+{% endif %}
+
+{# Loop Guard Global #}
+{% if l2.stp_protection.get('loopguard_default') %}
+spanning-tree loopguard default
+{% endif %}
+
+{# Per-Interface Protection #}
+{% if l2.stp_protection.interfaces %}
+{% for iface in l2.stp_protection.interfaces %}
+interface {{ iface.interface }}
+  description STP Protection Configured
+{% if iface.portfast %}
+  spanning-tree portfast{% if iface.portfast == 'trunk' %} trunk{% endif %}
+{% endif %}
+{% if iface.bpduguard %}
+  spanning-tree bpduguard enable
+{% endif %}
+{% if iface.bpdufilter %}
+  spanning-tree bpdufilter enable
+{% endif %}
+{% if iface.rootguard %}
+  spanning-tree guard root
+{% endif %}
+{% if iface.loopguard %}
+  spanning-tree guard loop
+{% endif %}
+{% if iface.port_type %}
+  spanning-tree link-type {{ iface.port_type }}
+{% endif %}
+{% if iface.cost %}
+  spanning-tree cost {{ iface.cost }}
+{% endif %}
+{% if iface.port_priority %}
+  spanning-tree port-priority {{ iface.port_priority }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# BPDU Guard Violation Action #}
+{% if l2.stp_protection.get('bpduguard_error_disable_timeout') %}
+errdisable recovery cause bpduguard
+errdisable recovery interval {{ l2.stp_protection.bpduguard_error_disable_timeout }}
+{% endif %}
+
+{% endif %}{# end stp_protection #}
