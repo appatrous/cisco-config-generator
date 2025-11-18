@@ -31,7 +31,7 @@ interface {{ iface.interface }}
 {% if iface.description %}
   description {{ iface.description }}
 {% endif %}
-{% if iface.vrf %}
+{% if iface.get('vrf') %}
   ip vrf forwarding {{ iface.vrf }}
 {% endif %}
 {% if not iface.shutdown %}
@@ -147,7 +147,7 @@ interface {{ iface.interface }}
 {# Static Routes #}
 {% if l3.get('static_routes') %}
 {% for route in l3.static_routes %}
-{% if route.vrf %}
+{% if route.get('vrf') %}
 ip route vrf {{ route.vrf }} {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmask') }} {{ route.next_hop }}{% if route.distance %} {{ route.distance }}{% endif %}{% if route.permanent %} permanent{% endif %}{% if route.name %} name {{ route.name }}{% endif %}{% if route.track %} track {{ route.track }}{% endif %}
 
 {% else %}

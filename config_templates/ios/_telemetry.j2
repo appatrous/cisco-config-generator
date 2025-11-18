@@ -20,7 +20,7 @@ flow exporter {{ exporter.name }}
 {% if exporter.dscp %}
   dscp {{ exporter.dscp }}
 {% endif %}
-{% if exporter.vrf %}
+{% if exporter.get('vrf') %}
   output-features
 {% endif %}
 {% if exporter.template_data_timeout %}
@@ -94,7 +94,7 @@ feature sflow
 
 {# sFlow Collector #}
 {% for collector in l3.telemetry.sflow.collectors | default([]) %}
-sflow collector {{ collector.name }} {{ collector.ip }}{% if collector.port %} {{ collector.port }}{% endif %}{% if collector.vrf %} vrf {{ collector.vrf }}{% endif %}
+sflow collector {{ collector.name }} {{ collector.ip }}{% if collector.port %} {{ collector.port }}{% endif %}{% if collector.get('vrf') %} vrf {{ collector.vrf }}{% endif %}
 {% endfor %}
 
 {# sFlow Data Source #}

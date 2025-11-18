@@ -14,7 +14,7 @@ ip sla {{ probe.id }}
 {% if probe.tos %}
   tos {{ probe.tos }}
 {% endif %}
-{% if probe.vrf %}
+{% if probe.get('vrf') %}
   vrf {{ probe.vrf }}
 {% endif %}
 
@@ -25,28 +25,28 @@ ip sla {{ probe.id }}
 {% if probe.tos %}
   tos {{ probe.tos }}
 {% endif %}
-{% if probe.vrf %}
+{% if probe.get('vrf') %}
   vrf {{ probe.vrf }}
 {% endif %}
 
 {% elif probe.type == 'http' %}
   http {% if probe.method %}{{ probe.method }}{% else %}get{% endif %} {{ probe.url }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}
 
-{% if probe.vrf %}
+{% if probe.get('vrf') %}
   vrf {{ probe.vrf }}
 {% endif %}
 
 {% elif probe.type == 'tcp-connect' %}
   tcp-connect {{ probe.target }} {{ probe.port }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}{% if probe.source_interface %} source-interface {{ probe.source_interface }}{% endif %}
 
-{% if probe.vrf %}
+{% if probe.get('vrf') %}
   vrf {{ probe.vrf }}
 {% endif %}
 
 {% elif probe.type == 'dns' %}
   dns {{ probe.hostname }} name-server {{ probe.name_server }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}
 
-{% if probe.vrf %}
+{% if probe.get('vrf') %}
   vrf {{ probe.vrf }}
 {% endif %}
 {% endif %}

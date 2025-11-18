@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 import yaml
 import json
-from jinja2 import Environment, FileSystemLoader, StrictUndefined, Template
+from jinja2 import Environment, FileSystemLoader, ChainableUndefined, Template
 from jinja2.exceptions import TemplateError, UndefinedError
 
 class ConfigRenderer:
@@ -33,7 +33,7 @@ class ConfigRenderer:
             if vendor_path.exists():
                 env = Environment(
                     loader=FileSystemLoader(str(vendor_path)),
-                    undefined=StrictUndefined,  # Strict mode - fail on undefined vars
+                    undefined=ChainableUndefined,  # Chainable mode - undefined vars return empty, allow chaining
                     trim_blocks=True,
                     lstrip_blocks=True,
                     keep_trailing_newline=True

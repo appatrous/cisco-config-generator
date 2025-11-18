@@ -1,5 +1,5 @@
 {# OSPF Configuration for Cisco IOS/IOS-XE #}
-router ospf {{ ospf.process_id }}{% if ospf.vrf %} vrf {{ ospf.vrf }}{% endif %}
+router ospf {{ ospf.process_id }}{% if ospf.get('vrf') %} vrf {{ ospf.vrf }}{% endif %}
 
 {% if ospf.router_id %}
   router-id {{ ospf.router_id }}
