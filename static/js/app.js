@@ -643,6 +643,712 @@ function saveEigrpData() {
     alert('✅ EIGRP configuration saved!');
 }
 
+function saveDmvpnData() {
+    if (!app.data.l3.tunnels) {
+        app.data.l3.tunnels = { dmvpn: [] };
+    }
+    if (!app.data.l3.tunnels.dmvpn) {
+        app.data.l3.tunnels.dmvpn = [];
+    }
+
+    const tunnelId = parseInt(document.getElementById('dmvpn_tunnel_id')?.value);
+    const phase = document.getElementById('dmvpn_phase')?.value;
+    const source = document.getElementById('dmvpn_source')?.value;
+    const ip = document.getElementById('dmvpn_ip')?.value;
+
+    if (!tunnelId && tunnelId !== 0) {
+        alert('❌ Tunnel ID is required');
+        return;
+    }
+    if (!phase || !source || !ip) {
+        alert('❌ All required fields must be filled');
+        return;
+    }
+
+    const dmvpnConfig = {
+        tunnel_id: tunnelId,
+        phase: parseInt(phase),
+        source: source,
+        ip_address: ip,
+        nhrp: {
+            network_id: parseInt(document.getElementById('dmvpn_nhrp_network_id')?.value) || 1,
+            authentication: document.getElementById('dmvpn_nhrp_auth')?.value || '',
+            holdtime: parseInt(document.getElementById('dmvpn_nhrp_holdtime')?.value) || 600,
+            shortcut: document.getElementById('dmvpn_nhrp_shortcut')?.checked || false,
+            redirect: document.getElementById('dmvpn_nhrp_redirect')?.checked || false,
+            nhs_ip: document.getElementById('dmvpn_nhs_ip')?.value || '',
+            registration_timeout: parseInt(document.getElementById('dmvpn_registration_timeout')?.value) || 60
+        },
+        tunnel_key: parseInt(document.getElementById('dmvpn_tunnel_key')?.value) || null,
+        mtu: parseInt(document.getElementById('dmvpn_mtu')?.value) || 1400,
+        tcp_mss: parseInt(document.getElementById('dmvpn_tcp_mss')?.value) || 1360,
+        bandwidth: parseInt(document.getElementById('dmvpn_bandwidth')?.value) || null
+    };
+
+    app.data.l3.tunnels.dmvpn.push(dmvpnConfig);
+    console.log('DMVPN saved:', app.data.l3.tunnels.dmvpn);
+    alert('✅ DMVPN configuration saved!');
+}
+
+function saveIpsecData() {
+    if (!app.data.l3.ipsec) {
+        app.data.l3.ipsec = { crypto_maps: [], ikev2_profiles: [], transform_sets: [] };
+    }
+
+    const mapName = document.getElementById('ipsec_map_name')?.value;
+    const sequence = parseInt(document.getElementById('ipsec_sequence')?.value);
+    const peer = document.getElementById('ipsec_peer')?.value;
+    const psk = document.getElementById('ipsec_psk')?.value;
+
+    if (!mapName || !sequence || !peer || !psk) {
+        alert('❌ All required fields must be filled');
+        return;
+    }
+
+    const ipsecConfig = {
+        crypto_map: {
+            name: mapName,
+            sequence: sequence,
+            peer: peer
+        },
+        ikev2_profile: {
+            version: parseInt(document.getElementById('ipsec_ike_version')?.value) || 2,
+            encryption: document.getElementById('ipsec_ike_encryption')?.value || 'aes-256',
+            hash: document.getElementById('ipsec_ike_hash')?.value || 'sha256',
+            dh_group: parseInt(document.getElementById('ipsec_ike_dh')?.value) || 14,
+            lifetime: parseInt(document.getElementById('ipsec_ike_lifetime')?.value) || 86400,
+            psk: psk
+        },
+        transform_set: {
+            name: document.getElementById('ipsec_transform_name')?.value || 'ESP-AES256-SHA256',
+            esp_encryption: document.getElementById('ipsec_esp_encryption')?.value || 'esp-aes-256',
+            esp_auth: document.getElementById('ipsec_esp_auth')?.value || 'esp-sha256-hmac',
+            lifetime: parseInt(document.getElementById('ipsec_sa_lifetime')?.value) || 3600,
+            pfs: document.getElementById('ipsec_pfs')?.checked || false,
+            pfs_group: parseInt(document.getElementById('ipsec_pfs_group')?.value) || 14
+        },
+        acl: {
+            source_network: document.getElementById('ipsec_src_network')?.value || '',
+            destination_network: document.getElementById('ipsec_dst_network')?.value || ''
+        }
+    };
+
+    if (!app.data.l3.ipsec.crypto_maps) app.data.l3.ipsec.crypto_maps = [];
+    app.data.l3.ipsec.crypto_maps.push(ipsecConfig);
+    console.log('IPsec saved:', app.data.l3.ipsec);
+    alert('✅ IPsec configuration saved!');
+}
+
+function saveVxlanData() {
+    if (!app.data.vxlan) {
+        app.data.vxlan = {};
+    }
+
+    app.data.vxlan.enabled = document.getElementById('vxlan_enabled')?.checked || false;
+    app.data.vxlan.source_interface = document.getElementById('vxlan_source')?.value || '';
+    app.data.vxlan.multicast_group = document.getElementById('vxlan_mcast')?.value || '';
+
+    app.data.vxlan.evpn = {
+        enabled: document.getElementById('vxlan_evpn_enabled')?.checked || false,
+        rd: document.getElementById('vxlan_rd')?.value || 'auto',
+        rt: document.getElementById('vxlan_rt')?.value || '',
+        anycast_gateway: document.getElementById('vxlan_anycast_gateway')?.checked || false,
+        anycast_mac: document.getElementById('vxlan_anycast_mac')?.value || ''
+    };
+
+    console.log('VXLAN saved:', app.data.vxlan);
+    alert('✅ VXLAN configuration saved!');
+}
+
+function saveBgpAdvancedData() {
+    if (!app.data.l3.bgp) {
+        app.data.l3.bgp = {};
+    }
+    if (!app.data.l3.bgp.advanced) {
+        app.data.l3.bgp.advanced = {};
+    }
+
+    app.data.l3.bgp.advanced.flowspec = {
+        enabled: document.getElementById('bgp_flowspec_enabled')?.checked || false,
+        validation: document.getElementById('bgp_flowspec_validation')?.value || 'local'
+    };
+
+    app.data.l3.bgp.advanced.bmp = {
+        enabled: document.getElementById('bgp_bmp_enabled')?.checked || false,
+        servers: [{
+            ip: document.getElementById('bgp_bmp_server')?.value || '',
+            port: parseInt(document.getElementById('bgp_bmp_port')?.value) || 5000
+        }],
+        monitoring: {
+            route_monitoring: document.getElementById('bgp_bmp_route_monitoring')?.checked || false,
+            stats_reporting: document.getElementById('bgp_bmp_stats_reporting')?.checked || false
+        }
+    };
+
+    app.data.l3.bgp.advanced.link_state = {
+        enabled: document.getElementById('bgp_ls_enabled')?.checked || false,
+        redistribute: {
+            ospf: document.getElementById('bgp_ls_redistribute_ospf')?.checked || false,
+            isis: document.getElementById('bgp_ls_redistribute_isis')?.checked || false
+        }
+    };
+
+    app.data.l3.bgp.advanced.aigp = {
+        enabled: document.getElementById('bgp_aigp_enabled')?.checked || false
+    };
+
+    app.data.l3.bgp.advanced.orr = {
+        enabled: document.getElementById('bgp_orr_enabled')?.checked || false
+    };
+
+    app.data.l3.bgp.advanced.graceful_shutdown = {
+        enabled: document.getElementById('bgp_graceful_shutdown')?.checked || false
+    };
+
+    app.data.l3.bgp.advanced.additional = {
+        add_path: document.getElementById('bgp_add_path')?.checked || false,
+        diverse_path: {
+            max_paths: parseInt(document.getElementById('bgp_max_paths')?.value) || 8
+        }
+    };
+
+    console.log('BGP Advanced saved:', app.data.l3.bgp.advanced);
+    alert('✅ BGP Advanced configuration saved!');
+}
+
+function saveNetflowData() {
+    if (!app.data.l3.telemetry) {
+        app.data.l3.telemetry = { enabled: true };
+    }
+    if (!app.data.l3.telemetry.netflow) {
+        app.data.l3.telemetry.netflow = {};
+    }
+
+    const exporterName = document.getElementById('netflow_exporter_name')?.value;
+    const collectorIp = document.getElementById('netflow_collector_ip')?.value;
+
+    if (!exporterName || !collectorIp) {
+        alert('❌ Exporter name and collector IP are required');
+        return;
+    }
+
+    app.data.l3.telemetry.netflow = {
+        enabled: document.getElementById('netflow_enabled')?.checked || false,
+        exporters: [{
+            name: exporterName,
+            destination: collectorIp,
+            port: parseInt(document.getElementById('netflow_collector_port')?.value) || 9995,
+            source: document.getElementById('netflow_source')?.value || ''
+        }],
+        monitors: [{
+            name: document.getElementById('netflow_monitor_name')?.value || 'FLOW-MONITOR-1',
+            record: document.getElementById('netflow_record')?.value || 'netflow-original',
+            exporter: exporterName,
+            cache_timeout: {
+                active: parseInt(document.getElementById('netflow_cache_active')?.value) || 60,
+                inactive: parseInt(document.getElementById('netflow_cache_inactive')?.value) || 15
+            }
+        }],
+        samplers: [{
+            name: document.getElementById('netflow_sampler_name')?.value || '',
+            rate: parseInt(document.getElementById('netflow_sampling_rate')?.value) || 1000
+        }]
+    };
+
+    console.log('NetFlow saved:', app.data.l3.telemetry.netflow);
+    alert('✅ NetFlow configuration saved!');
+}
+
+function saveSflowData() {
+    if (!app.data.l3.telemetry) {
+        app.data.l3.telemetry = { enabled: true };
+    }
+
+    const collectorIp = document.getElementById('sflow_collector_ip')?.value;
+
+    if (!collectorIp) {
+        alert('❌ Collector IP is required');
+        return;
+    }
+
+    app.data.l3.telemetry.sflow = {
+        enabled: document.getElementById('sflow_enabled')?.checked || false,
+        collectors: [{
+            name: 'COLLECTOR-1',
+            ip: collectorIp,
+            port: parseInt(document.getElementById('sflow_collector_port')?.value) || 6343
+        }],
+        agent_address: document.getElementById('sflow_agent_ip')?.value || '',
+        sampling_rate: parseInt(document.getElementById('sflow_sampling_rate')?.value) || 4096,
+        counter_poll_interval: parseInt(document.getElementById('sflow_counter_poll')?.value) || 20
+    };
+
+    console.log('sFlow saved:', app.data.l3.telemetry.sflow);
+    alert('✅ sFlow configuration saved!');
+}
+
+function saveGnmiData() {
+    if (!app.data.l3.telemetry) {
+        app.data.l3.telemetry = { enabled: true };
+    }
+
+    app.data.l3.telemetry.gnmi = {
+        enabled: document.getElementById('gnmi_enabled')?.checked || false,
+        port: parseInt(document.getElementById('gnmi_port')?.value) || 57400,
+        secure_server: document.getElementById('gnmi_secure')?.checked || false,
+        certificate: document.getElementById('gnmi_certificate')?.value || '',
+        subscriptions: [{
+            id: parseInt(document.getElementById('gnmi_sub_id')?.value) || 100,
+            encoding: document.getElementById('gnmi_encoding')?.value || 'encode-kvgpb',
+            receivers: [{
+                ip: document.getElementById('gnmi_receiver_ip')?.value || '',
+                port: parseInt(document.getElementById('gnmi_receiver_port')?.value) || 57500
+            }],
+            interval: parseInt(document.getElementById('gnmi_interval')?.value) || 30000
+        }]
+    };
+
+    console.log('gNMI saved:', app.data.l3.telemetry.gnmi);
+    alert('✅ gNMI configuration saved!');
+}
+
+function saveNetconfData() {
+    if (!app.data.l3.telemetry) {
+        app.data.l3.telemetry = { enabled: true };
+    }
+
+    app.data.l3.telemetry.netconf = {
+        enabled: document.getElementById('netconf_enabled')?.checked || false,
+        ssh_port: parseInt(document.getElementById('netconf_port')?.value) || 830,
+        acl: document.getElementById('netconf_acl')?.value || ''
+    };
+
+    app.data.l3.telemetry.restconf = {
+        enabled: document.getElementById('restconf_enabled')?.checked || false,
+        port: parseInt(document.getElementById('restconf_port')?.value) || 443,
+        acl: document.getElementById('restconf_acl')?.value || ''
+    };
+
+    console.log('NETCONF/RESTCONF saved:', app.data.l3.telemetry);
+    alert('✅ NETCONF/RESTCONF configuration saved!');
+}
+
+function saveIpSlaData() {
+    if (!app.data.l3.monitoring) {
+        app.data.l3.monitoring = { enabled: true };
+    }
+    if (!app.data.l3.monitoring.ip_sla) {
+        app.data.l3.monitoring.ip_sla = { enabled: true, probes: [] };
+    }
+
+    const id = parseInt(document.getElementById('ipsla_id')?.value);
+    const type = document.getElementById('ipsla_type')?.value;
+    const target = document.getElementById('ipsla_target')?.value;
+
+    if (!id || !type || !target) {
+        alert('❌ SLA ID, type, and target are required');
+        return;
+    }
+
+    const probe = {
+        id: id,
+        type: type,
+        target: target,
+        source: document.getElementById('ipsla_source')?.value || '',
+        frequency: parseInt(document.getElementById('ipsla_frequency')?.value) || 60,
+        timeout: parseInt(document.getElementById('ipsla_timeout')?.value) || 5000,
+        threshold: parseInt(document.getElementById('ipsla_threshold')?.value) || 100,
+        vrf: document.getElementById('ipsla_vrf')?.value || '',
+        tos: parseInt(document.getElementById('ipsla_tos')?.value) || 0,
+        schedule: {
+            start_time: document.getElementById('ipsla_start')?.value || 'now',
+            life: document.getElementById('ipsla_life')?.value || 'forever',
+            recurring: document.getElementById('ipsla_recurring')?.checked || false
+        }
+    };
+
+    app.data.l3.monitoring.ip_sla.probes.push(probe);
+    console.log('IP SLA saved:', app.data.l3.monitoring.ip_sla);
+    alert('✅ IP SLA configuration saved!');
+}
+
+function saveErspanData() {
+    if (!app.data.l3.monitoring) {
+        app.data.l3.monitoring = { enabled: true };
+    }
+    if (!app.data.l3.monitoring.erspan) {
+        app.data.l3.monitoring.erspan = { enabled: true, sessions: [] };
+    }
+
+    const sessionId = parseInt(document.getElementById('erspan_session_id')?.value);
+    const erspanId = parseInt(document.getElementById('erspan_id')?.value);
+    const destIp = document.getElementById('erspan_dest_ip')?.value;
+
+    if (!sessionId || !erspanId || !destIp) {
+        alert('❌ Session ID, ERSPAN ID, and destination IP are required');
+        return;
+    }
+
+    const session = {
+        id: sessionId,
+        erspan_id: erspanId,
+        destination_ip: destIp,
+        origin_ip: document.getElementById('erspan_origin_ip')?.value || '',
+        sources: [{
+            type: document.getElementById('erspan_source_type')?.value || 'interface',
+            interface: document.getElementById('erspan_source')?.value || '',
+            direction: document.getElementById('erspan_direction')?.value || 'both'
+        }],
+        vrf: document.getElementById('erspan_vrf')?.value || 'default',
+        ttl: parseInt(document.getElementById('erspan_ttl')?.value) || 255,
+        dscp: parseInt(document.getElementById('erspan_dscp')?.value) || 0,
+        mtu: parseInt(document.getElementById('erspan_mtu')?.value) || 1500
+    };
+
+    app.data.l3.monitoring.erspan.sessions.push(session);
+    console.log('ERSPAN saved:', app.data.l3.monitoring.erspan);
+    alert('✅ ERSPAN configuration saved!');
+}
+
+function saveLispData() {
+    if (!app.data.l3.lisp) {
+        app.data.l3.lisp = {};
+    }
+
+    app.data.l3.lisp = {
+        enabled: document.getElementById('lisp_enabled')?.checked || false,
+        instance_id: parseInt(document.getElementById('lisp_instance_id')?.value) || 0,
+        role: document.getElementById('lisp_role')?.value || 'xtr',
+        eid: {
+            prefix: document.getElementById('lisp_eid_prefix')?.value || '',
+            rloc: {
+                address: document.getElementById('lisp_rloc')?.value || '',
+                priority: parseInt(document.getElementById('lisp_rloc_priority')?.value) || 1,
+                weight: parseInt(document.getElementById('lisp_rloc_weight')?.value) || 100
+            }
+        },
+        map_server: document.getElementById('lisp_map_server')?.value || '',
+        map_resolver: document.getElementById('lisp_map_resolver')?.value || '',
+        authentication_key: document.getElementById('lisp_auth_key')?.value || ''
+    };
+
+    console.log('LISP saved:', app.data.l3.lisp);
+    alert('✅ LISP configuration saved!');
+}
+
+function saveNatData() {
+    if (!app.data.l3.nat) {
+        app.data.l3.nat = {};
+    }
+
+    const natType = document.getElementById('nat_type')?.value;
+
+    if (!natType) {
+        alert('❌ NAT type is required');
+        return;
+    }
+
+    app.data.l3.nat = {
+        type: natType,
+        inside_interface: document.getElementById('nat_inside_if')?.value || '',
+        outside_interface: document.getElementById('nat_outside_if')?.value || '',
+        pool: {
+            name: document.getElementById('nat_pool_name')?.value || '',
+            start: document.getElementById('nat_pool_start')?.value || '',
+            end: document.getElementById('nat_pool_end')?.value || '',
+            netmask: document.getElementById('nat_pool_netmask')?.value || ''
+        },
+        static_mappings: [{
+            inside_local: document.getElementById('nat_inside_local')?.value || '',
+            inside_global: document.getElementById('nat_inside_global')?.value || ''
+        }]
+    };
+
+    console.log('NAT saved:', app.data.l3.nat);
+    alert('✅ NAT configuration saved!');
+}
+
+function saveMplsData() {
+    if (!app.data.l3.mpls) {
+        app.data.l3.mpls = {};
+    }
+
+    app.data.l3.mpls = {
+        enabled: document.getElementById('mpls_enabled')?.checked || false,
+        ldp_router_id: document.getElementById('mpls_ldp_router_id')?.value || '',
+        l3vpn: {
+            vrf_name: document.getElementById('mpls_vrf_name')?.value || '',
+            rd: document.getElementById('mpls_rd')?.value || '',
+            rt_export: document.getElementById('mpls_rt_export')?.value || '',
+            rt_import: document.getElementById('mpls_rt_import')?.value || ''
+        },
+        te: {
+            enabled: document.getElementById('mpls_te_enabled')?.checked || false,
+            tunnel_interface: document.getElementById('mpls_te_tunnel')?.value || '',
+            bandwidth: parseInt(document.getElementById('mpls_te_bandwidth')?.value) || 0
+        }
+    };
+
+    console.log('MPLS saved:', app.data.l3.mpls);
+    alert('✅ MPLS configuration saved!');
+}
+
+function saveSrData() {
+    if (!app.data.l3.segment_routing) {
+        app.data.l3.segment_routing = {};
+    }
+
+    const srType = document.getElementById('sr_type')?.value || 'sr-mpls';
+
+    app.data.l3.segment_routing = {
+        enabled: document.getElementById('sr_enabled')?.checked || false,
+        type: srType
+    };
+
+    if (srType === 'sr-mpls') {
+        app.data.l3.segment_routing.sr_mpls = {
+            srgb_start: parseInt(document.getElementById('sr_srgb_start')?.value) || 16000,
+            srgb_end: parseInt(document.getElementById('sr_srgb_end')?.value) || 23999,
+            node_sid: parseInt(document.getElementById('sr_node_sid')?.value) || 100
+        };
+    } else if (srType === 'srv6') {
+        app.data.l3.segment_routing.srv6 = {
+            locator_name: document.getElementById('srv6_locator_name')?.value || '',
+            locator_prefix: document.getElementById('srv6_locator_prefix')?.value || '',
+            behavior: document.getElementById('srv6_behavior')?.value || 'end'
+        };
+    }
+
+    console.log('Segment Routing saved:', app.data.l3.segment_routing);
+    alert('✅ Segment Routing configuration saved!');
+}
+
+function saveQosData() {
+    if (!app.data.l3.qos) {
+        app.data.l3.qos = { policies: [] };
+    }
+
+    const policyName = document.getElementById('qos_policy_name')?.value;
+
+    if (!policyName) {
+        alert('❌ Policy name is required');
+        return;
+    }
+
+    const policy = {
+        name: policyName,
+        classes: [{
+            name: document.getElementById('qos_class_name')?.value || 'class-default',
+            match_dscp: document.getElementById('qos_match_dscp')?.value || '',
+            priority_bandwidth: parseInt(document.getElementById('qos_priority_bw')?.value) || 0,
+            police: {
+                rate: parseInt(document.getElementById('qos_police_rate')?.value) || 0,
+                burst: parseInt(document.getElementById('qos_police_burst')?.value) || 0
+            },
+            shape_rate: parseInt(document.getElementById('qos_shape_rate')?.value) || 0,
+            queue_limit: parseInt(document.getElementById('qos_queue_limit')?.value) || 64,
+            random_detect: document.getElementById('qos_random_detect')?.value || ''
+        }]
+    };
+
+    app.data.l3.qos.policies.push(policy);
+    console.log('QoS saved:', app.data.l3.qos);
+    alert('✅ QoS configuration saved!');
+}
+
+function saveBfdData() {
+    if (!app.data.l3.bfd) {
+        app.data.l3.bfd = {};
+    }
+
+    app.data.l3.bfd = {
+        enabled: document.getElementById('bfd_enabled')?.checked || false,
+        interval: parseInt(document.getElementById('bfd_interval')?.value) || 50,
+        multiplier: parseInt(document.getElementById('bfd_multiplier')?.value) || 3,
+        template: {
+            name: document.getElementById('bfd_template_name')?.value || '',
+            echo_mode: document.getElementById('bfd_echo_mode')?.value || 'disabled',
+            authentication: document.getElementById('bfd_authentication')?.checked || false
+        }
+    };
+
+    console.log('BFD saved:', app.data.l3.bfd);
+    alert('✅ BFD configuration saved!');
+}
+
+function saveSecurityData() {
+    if (!app.data.l2.security) {
+        app.data.l2.security = {};
+    }
+
+    app.data.l2.security = {
+        port_security: {
+            enabled: document.getElementById('security_port_security')?.checked || false,
+            max_macs: parseInt(document.getElementById('security_max_macs')?.value) || 2,
+            violation_mode: document.getElementById('security_violation')?.value || 'restrict'
+        },
+        dhcp_snooping: {
+            enabled: document.getElementById('security_dhcp_snooping')?.checked || false,
+            vlans: document.getElementById('security_dhcp_vlans')?.value || '',
+            option82: document.getElementById('security_dhcp_option82')?.checked || false
+        },
+        dai: {
+            enabled: document.getElementById('security_dai')?.checked || false,
+            vlans: document.getElementById('security_dai_vlans')?.value || ''
+        },
+        dot1x: {
+            enabled: document.getElementById('security_dot1x')?.checked || false,
+            mode: document.getElementById('security_dot1x_mode')?.value || 'single-host'
+        }
+    };
+
+    console.log('Security saved:', app.data.l2.security);
+    alert('✅ L2 Security configuration saved!');
+}
+
+function saveDcbData() {
+    if (!app.data.l2.dcb) {
+        app.data.l2.dcb = {};
+    }
+
+    app.data.l2.dcb = {
+        enabled: document.getElementById('dcb_enabled')?.checked || false,
+        pfc: {
+            enabled: document.getElementById('dcb_pfc_enabled')?.checked || false,
+            priorities: document.getElementById('dcb_pfc_priorities')?.value || ''
+        },
+        ets: {
+            enabled: document.getElementById('dcb_ets_enabled')?.checked || false,
+            tc0_bandwidth: parseInt(document.getElementById('dcb_ets_tc0')?.value) || 25,
+            tc1_bandwidth: parseInt(document.getElementById('dcb_ets_tc1')?.value) || 25,
+            tc2_bandwidth: parseInt(document.getElementById('dcb_ets_tc2')?.value) || 25,
+            tc3_bandwidth: parseInt(document.getElementById('dcb_ets_tc3')?.value) || 25
+        },
+        dcbx: {
+            version: document.getElementById('dcb_dcbx_version')?.value || 'ieee'
+        }
+    };
+
+    console.log('DCB saved:', app.data.l2.dcb);
+    alert('✅ DCB configuration saved!');
+}
+
+function saveErpsData() {
+    if (!app.data.l2.erps) {
+        app.data.l2.erps = { rings: [] };
+    }
+
+    const ringId = parseInt(document.getElementById('erps_ring_id')?.value);
+    const controlVlan = parseInt(document.getElementById('erps_control_vlan')?.value);
+
+    if (!ringId || !controlVlan) {
+        alert('❌ Ring ID and Control VLAN are required');
+        return;
+    }
+
+    const ring = {
+        enabled: document.getElementById('erps_enabled')?.checked || false,
+        ring_id: ringId,
+        control_vlan: controlVlan,
+        port0: document.getElementById('erps_port0')?.value || '',
+        port1: document.getElementById('erps_port1')?.value || '',
+        rpl_role: document.getElementById('erps_rpl_role')?.value || 'none',
+        guard_timer: parseInt(document.getElementById('erps_guard_timer')?.value) || 500,
+        holdoff_timer: parseInt(document.getElementById('erps_holdoff_timer')?.value) || 0,
+        wtr_timer: parseInt(document.getElementById('erps_wtr_timer')?.value) || 300
+    };
+
+    app.data.l2.erps.rings.push(ring);
+    console.log('ERPS saved:', app.data.l2.erps);
+    alert('✅ ERPS configuration saved!');
+}
+
+function saveDiscoveryData() {
+    if (!app.data.l2.discovery) {
+        app.data.l2.discovery = {};
+    }
+
+    app.data.l2.discovery = {
+        lldp: {
+            enabled: document.getElementById('lldp_enabled')?.checked || true,
+            timer: parseInt(document.getElementById('lldp_timer')?.value) || 30,
+            holdtime: parseInt(document.getElementById('lldp_holdtime')?.value) || 120,
+            med: document.getElementById('lldp_med')?.checked || false
+        },
+        cdp: {
+            enabled: document.getElementById('cdp_enabled')?.checked || false,
+            timer: parseInt(document.getElementById('cdp_timer')?.value) || 60,
+            holdtime: parseInt(document.getElementById('cdp_holdtime')?.value) || 180
+        }
+    };
+
+    console.log('Discovery saved:', app.data.l2.discovery);
+    alert('✅ Discovery protocols configuration saved!');
+}
+
+function saveMlagData() {
+    if (!app.data.l2.mlag) {
+        app.data.l2.mlag = {};
+    }
+
+    const domainId = parseInt(document.getElementById('mlag_domain_id')?.value);
+
+    if (!domainId) {
+        alert('❌ Domain ID is required');
+        return;
+    }
+
+    app.data.l2.mlag = {
+        enabled: document.getElementById('mlag_enabled')?.checked || false,
+        domain_id: domainId,
+        keepalive: {
+            destination: document.getElementById('mlag_keepalive_ip')?.value || '',
+            source: document.getElementById('mlag_keepalive_src')?.value || '',
+            vrf: document.getElementById('mlag_keepalive_vrf')?.value || ''
+        },
+        peer_link: document.getElementById('mlag_peer_link')?.value || '',
+        role: document.getElementById('mlag_role')?.value || 'primary',
+        peer_gateway: document.getElementById('mlag_peer_gateway')?.checked || false,
+        peer_switch: document.getElementById('mlag_peer_switch')?.checked || false,
+        anycast_vtep: document.getElementById('mlag_anycast_vtep')?.checked || false
+    };
+
+    console.log('MLAG saved:', app.data.l2.mlag);
+    alert('✅ MLAG/vPC configuration saved!');
+}
+
+function saveMulticastData() {
+    if (!app.data.l3.multicast) {
+        app.data.l3.multicast = {};
+    }
+
+    app.data.l3.multicast = {
+        pim: {
+            enabled: document.getElementById('multicast_pim_enabled')?.checked || false,
+            mode: document.getElementById('multicast_pim_mode')?.value || 'sparse-mode',
+            rp_address: document.getElementById('multicast_rp_address')?.value || ''
+        },
+        igmp: {
+            version: parseInt(document.getElementById('multicast_igmp_version')?.value) || 3,
+            snooping: {
+                enabled: document.getElementById('multicast_igmp_snooping')?.checked || false,
+                vlans: document.getElementById('multicast_igmp_vlans')?.value || ''
+            }
+        },
+        msdp: {
+            enabled: document.getElementById('multicast_msdp')?.checked || false,
+            peer: document.getElementById('multicast_msdp_peer')?.value || ''
+        },
+        ssm: {
+            enabled: document.getElementById('multicast_ssm')?.checked || false,
+            range: document.getElementById('multicast_ssm_range')?.value || '232.0.0.0/8'
+        }
+    };
+
+    console.log('Multicast saved:', app.data.l3.multicast);
+    alert('✅ Multicast configuration saved!');
+}
+
 // Generate form HTML for protocol
 function generateForm(protocolPath, protocolData) {
     const [category, protocol] = protocolPath.split('.');
@@ -868,11 +1574,1292 @@ function generateForm(protocolPath, protocolData) {
             `;
             break;
 
+        case 'dmvpn':
+            html += `
+                <h4>DMVPN Configuration</h4>
+                <div class="form-group">
+                    <label>Tunnel ID</label>
+                    <input type="number" id="dmvpn_tunnel_id" min="0" max="9999" placeholder="0" required>
+                </div>
+                <div class="form-group">
+                    <label>DMVPN Phase</label>
+                    <select id="dmvpn_phase" required>
+                        <option value="">Select Phase...</option>
+                        <option value="1">Phase 1 (Hub-and-Spoke)</option>
+                        <option value="2">Phase 2 (Spoke-to-Spoke)</option>
+                        <option value="3">Phase 3 (Hierarchical)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tunnel Source</label>
+                    <input type="text" id="dmvpn_source" placeholder="GigabitEthernet0/0 or IP address" required>
+                </div>
+                <div class="form-group">
+                    <label>Tunnel IP Address (CIDR)</label>
+                    <input type="text" id="dmvpn_ip" placeholder="10.0.0.1/24" required>
+                </div>
+                <details class="advanced-section">
+                    <summary>NHRP Configuration</summary>
+                    <div class="form-group">
+                        <label>NHRP Network ID</label>
+                        <input type="number" id="dmvpn_nhrp_network_id" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label>NHRP Authentication</label>
+                        <input type="text" id="dmvpn_nhrp_auth" placeholder="secret123">
+                    </div>
+                    <div class="form-group">
+                        <label>NHRP Holdtime (seconds)</label>
+                        <input type="number" id="dmvpn_nhrp_holdtime" placeholder="600">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dmvpn_nhrp_shortcut"> Enable NHRP Shortcut (Phase 2/3)</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dmvpn_nhrp_redirect"> Enable NHRP Redirect (Phase 3)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>NHRP NHS Server IP (Hub only)</label>
+                        <input type="text" id="dmvpn_nhs_ip" placeholder="10.0.0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>NHRP Registration Timeout</label>
+                        <input type="number" id="dmvpn_registration_timeout" placeholder="60">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Tunnel Advanced Settings</summary>
+                    <div class="form-group">
+                        <label>Tunnel Key</label>
+                        <input type="number" id="dmvpn_tunnel_key" placeholder="100">
+                    </div>
+                    <div class="form-group">
+                        <label>MTU</label>
+                        <input type="number" id="dmvpn_mtu" placeholder="1400">
+                    </div>
+                    <div class="form-group">
+                        <label>TCP MSS</label>
+                        <input type="number" id="dmvpn_tcp_mss" placeholder="1360">
+                    </div>
+                    <div class="form-group">
+                        <label>Bandwidth (kbps)</label>
+                        <input type="number" id="dmvpn_bandwidth" placeholder="1000">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveDmvpnData()" style="width: 100%;">
+                    💾 Save DMVPN Configuration
+                </button>
+            `;
+            break;
+
+        case 'ipsec':
+            html += `
+                <h4>IPsec VPN Configuration</h4>
+                <div class="form-group">
+                    <label>Crypto Map Name</label>
+                    <input type="text" id="ipsec_map_name" placeholder="CRYPTO-MAP" required>
+                </div>
+                <div class="form-group">
+                    <label>Sequence Number</label>
+                    <input type="number" id="ipsec_sequence" min="1" max="65535" placeholder="10" required>
+                </div>
+                <div class="form-group">
+                    <label>Peer IP Address</label>
+                    <input type="text" id="ipsec_peer" placeholder="203.0.113.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Pre-Shared Key</label>
+                    <input type="password" id="ipsec_psk" placeholder="Enter PSK" required>
+                </div>
+                <details class="advanced-section">
+                    <summary>IKEv2 Profile</summary>
+                    <div class="form-group">
+                        <label>IKE Version</label>
+                        <select id="ipsec_ike_version">
+                            <option value="2">IKEv2 (Recommended)</option>
+                            <option value="1">IKEv1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IKE Encryption</label>
+                        <select id="ipsec_ike_encryption">
+                            <option value="aes-256">AES-256</option>
+                            <option value="aes-192">AES-192</option>
+                            <option value="aes-128">AES-128</option>
+                            <option value="3des">3DES</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IKE Hash</label>
+                        <select id="ipsec_ike_hash">
+                            <option value="sha512">SHA-512</option>
+                            <option value="sha256">SHA-256</option>
+                            <option value="sha1">SHA-1</option>
+                            <option value="md5">MD5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IKE DH Group</label>
+                        <select id="ipsec_ike_dh">
+                            <option value="16">Group 16 (4096-bit)</option>
+                            <option value="15">Group 15 (3072-bit)</option>
+                            <option value="14">Group 14 (2048-bit)</option>
+                            <option value="5">Group 5 (1536-bit)</option>
+                            <option value="2">Group 2 (1024-bit)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IKE Lifetime (seconds)</label>
+                        <input type="number" id="ipsec_ike_lifetime" placeholder="86400">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>IPsec Transform Set</summary>
+                    <div class="form-group">
+                        <label>Transform Set Name</label>
+                        <input type="text" id="ipsec_transform_name" placeholder="ESP-AES256-SHA256">
+                    </div>
+                    <div class="form-group">
+                        <label>ESP Encryption</label>
+                        <select id="ipsec_esp_encryption">
+                            <option value="esp-aes-256">ESP-AES-256</option>
+                            <option value="esp-aes-192">ESP-AES-192</option>
+                            <option value="esp-aes-128">ESP-AES-128</option>
+                            <option value="esp-3des">ESP-3DES</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ESP Authentication</label>
+                        <select id="ipsec_esp_auth">
+                            <option value="esp-sha512-hmac">ESP-SHA512-HMAC</option>
+                            <option value="esp-sha256-hmac">ESP-SHA256-HMAC</option>
+                            <option value="esp-sha-hmac">ESP-SHA-HMAC</option>
+                            <option value="esp-md5-hmac">ESP-MD5-HMAC</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IPsec Lifetime (seconds)</label>
+                        <input type="number" id="ipsec_sa_lifetime" placeholder="3600">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ipsec_pfs"> Perfect Forward Secrecy (PFS)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>PFS DH Group</label>
+                        <select id="ipsec_pfs_group">
+                            <option value="16">Group 16</option>
+                            <option value="14">Group 14</option>
+                            <option value="5">Group 5</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Traffic Selectors (ACL)</summary>
+                    <div class="form-group">
+                        <label>Source Network</label>
+                        <input type="text" id="ipsec_src_network" placeholder="192.168.1.0/24">
+                    </div>
+                    <div class="form-group">
+                        <label>Destination Network</label>
+                        <input type="text" id="ipsec_dst_network" placeholder="192.168.2.0/24">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveIpsecData()" style="width: 100%;">
+                    💾 Save IPsec Configuration
+                </button>
+            `;
+            break;
+
+        case 'vxlan':
+            html += `
+                <h4>VXLAN / EVPN Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="vxlan_enabled"> Enable VXLAN</label>
+                </div>
+                <div class="form-group">
+                    <label>Source Interface (VTEP)</label>
+                    <input type="text" id="vxlan_source" placeholder="Loopback0">
+                </div>
+                <div class="form-group">
+                    <label>Multicast Group (or 'static' for ingress-replication)</label>
+                    <input type="text" id="vxlan_mcast" placeholder="239.0.0.1 or static">
+                </div>
+                <details class="advanced-section">
+                    <summary>VXLAN Network Identifier (VNI) Mappings</summary>
+                    <div id="vni-list"></div>
+                    <button type="button" class="btn btn-secondary" onclick="addVniMapping()">+ Add VNI</button>
+                </details>
+                <details class="advanced-section">
+                    <summary>EVPN Configuration</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_enabled"> Enable EVPN</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Route Distinguisher (RD)</label>
+                        <input type="text" id="vxlan_rd" placeholder="auto or 1:1">
+                    </div>
+                    <div class="form-group">
+                        <label>Route Target (RT)</label>
+                        <input type="text" id="vxlan_rt" placeholder="1:1">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_anycast_gateway"> Anycast Gateway</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Anycast Gateway MAC</label>
+                        <input type="text" id="vxlan_anycast_mac" placeholder="0000.1111.2222">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveVxlanData()" style="width: 100%;">
+                    💾 Save VXLAN Configuration
+                </button>
+            `;
+            break;
+
+        case 'bgp_advanced':
+            html += `
+                <h4>BGP Advanced Features</h4>
+                <details class="advanced-section" open>
+                    <summary>BGP-Flowspec (DDoS Mitigation)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_flowspec_enabled"> Enable BGP-Flowspec</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Flowspec Validation Mode</label>
+                        <select id="bgp_flowspec_validation">
+                            <option value="local">Local</option>
+                            <option value="strict">Strict</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>BGP-BMP (Monitoring Protocol)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_bmp_enabled"> Enable BGP-BMP</label>
+                    </div>
+                    <div class="form-group">
+                        <label>BMP Server IP</label>
+                        <input type="text" id="bgp_bmp_server" placeholder="10.0.0.100">
+                    </div>
+                    <div class="form-group">
+                        <label>BMP Server Port</label>
+                        <input type="number" id="bgp_bmp_port" placeholder="5000">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_bmp_route_monitoring"> Route Monitoring</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_bmp_stats_reporting"> Statistics Reporting</label>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>BGP-LS (Link-State for SDN)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_ls_enabled"> Enable BGP-LS</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_ls_redistribute_ospf"> Redistribute OSPF</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_ls_redistribute_isis"> Redistribute IS-IS</label>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Other Advanced Features</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_aigp_enabled"> AIGP (Accumulated IGP Metric)</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_orr_enabled"> ORR (Optimal Route Reflection)</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_graceful_shutdown"> Graceful Shutdown (RFC 8326)</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_add_path"> Additional-Paths</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Maximum Paths</label>
+                        <input type="number" id="bgp_max_paths" placeholder="8" min="1" max="64">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveBgpAdvancedData()" style="width: 100%;">
+                    💾 Save BGP Advanced Configuration
+                </button>
+            `;
+            break;
+
+        case 'netflow':
+            html += `
+                <h4>NetFlow / IPFIX Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="netflow_enabled"> Enable NetFlow/IPFIX</label>
+                </div>
+                <div class="form-group">
+                    <label>Flow Exporter Name</label>
+                    <input type="text" id="netflow_exporter_name" placeholder="EXPORTER-1" required>
+                </div>
+                <div class="form-group">
+                    <label>Collector IP Address</label>
+                    <input type="text" id="netflow_collector_ip" placeholder="10.0.0.100" required>
+                </div>
+                <div class="form-group">
+                    <label>Collector Port</label>
+                    <input type="number" id="netflow_collector_port" placeholder="9995">
+                </div>
+                <div class="form-group">
+                    <label>Source Interface</label>
+                    <input type="text" id="netflow_source" placeholder="Loopback0">
+                </div>
+                <details class="advanced-section">
+                    <summary>Flow Monitor Settings</summary>
+                    <div class="form-group">
+                        <label>Monitor Name</label>
+                        <input type="text" id="netflow_monitor_name" placeholder="FLOW-MONITOR-1">
+                    </div>
+                    <div class="form-group">
+                        <label>Flow Record</label>
+                        <select id="netflow_record">
+                            <option value="netflow-original">NetFlow Original</option>
+                            <option value="netflow ipv4 original-input">NetFlow IPv4 Input</option>
+                            <option value="netflow ipv4 original-output">NetFlow IPv4 Output</option>
+                            <option value="ipfix">IPFIX</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cache Timeout Active (seconds)</label>
+                        <input type="number" id="netflow_cache_active" placeholder="60">
+                    </div>
+                    <div class="form-group">
+                        <label>Cache Timeout Inactive (seconds)</label>
+                        <input type="number" id="netflow_cache_inactive" placeholder="15">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Sampling</summary>
+                    <div class="form-group">
+                        <label>Sampler Name</label>
+                        <input type="text" id="netflow_sampler_name" placeholder="SAMPLER-1">
+                    </div>
+                    <div class="form-group">
+                        <label>Sampling Rate (1 out of N)</label>
+                        <input type="number" id="netflow_sampling_rate" placeholder="1000">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveNetflowData()" style="width: 100%;">
+                    💾 Save NetFlow Configuration
+                </button>
+            `;
+            break;
+
+        case 'sflow':
+            html += `
+                <h4>sFlow Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="sflow_enabled"> Enable sFlow</label>
+                </div>
+                <div class="form-group">
+                    <label>Collector IP Address</label>
+                    <input type="text" id="sflow_collector_ip" placeholder="10.0.0.100" required>
+                </div>
+                <div class="form-group">
+                    <label>Collector Port</label>
+                    <input type="number" id="sflow_collector_port" placeholder="6343">
+                </div>
+                <div class="form-group">
+                    <label>Agent IP Address</label>
+                    <input type="text" id="sflow_agent_ip" placeholder="10.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label>Sampling Rate</label>
+                    <input type="number" id="sflow_sampling_rate" placeholder="4096">
+                </div>
+                <div class="form-group">
+                    <label>Counter Poll Interval (seconds)</label>
+                    <input type="number" id="sflow_counter_poll" placeholder="20">
+                </div>
+                <button class="btn btn-primary" onclick="saveSflowData()" style="width: 100%;">
+                    💾 Save sFlow Configuration
+                </button>
+            `;
+            break;
+
+        case 'gnmi':
+            html += `
+                <h4>gNMI (gRPC Network Management Interface)</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="gnmi_enabled"> Enable gNMI</label>
+                </div>
+                <div class="form-group">
+                    <label>gNMI Server Port</label>
+                    <input type="number" id="gnmi_port" placeholder="57400">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="gnmi_secure"> Secure Server (TLS)</label>
+                </div>
+                <div class="form-group">
+                    <label>Trustpoint Certificate</label>
+                    <input type="text" id="gnmi_certificate" placeholder="GNMI-CERT">
+                </div>
+                <details class="advanced-section">
+                    <summary>Telemetry Subscriptions (Dial-Out)</summary>
+                    <div class="form-group">
+                        <label>Subscription ID</label>
+                        <input type="number" id="gnmi_sub_id" placeholder="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Receiver IP</label>
+                        <input type="text" id="gnmi_receiver_ip" placeholder="10.0.0.100">
+                    </div>
+                    <div class="form-group">
+                        <label>Receiver Port</label>
+                        <input type="number" id="gnmi_receiver_port" placeholder="57500">
+                    </div>
+                    <div class="form-group">
+                        <label>Encoding</label>
+                        <select id="gnmi_encoding">
+                            <option value="encode-kvgpb">Key-Value GPB</option>
+                            <option value="encode-proto3">Protobuf 3</option>
+                            <option value="encode-json">JSON</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Update Interval (ms)</label>
+                        <input type="number" id="gnmi_interval" placeholder="30000">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveGnmiData()" style="width: 100%;">
+                    💾 Save gNMI Configuration
+                </button>
+            `;
+            break;
+
+        case 'netconf':
+            html += `
+                <h4>NETCONF / RESTCONF Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="netconf_enabled"> Enable NETCONF</label>
+                </div>
+                <div class="form-group">
+                    <label>NETCONF SSH Port</label>
+                    <input type="number" id="netconf_port" placeholder="830">
+                </div>
+                <div class="form-group">
+                    <label>NETCONF ACL</label>
+                    <input type="text" id="netconf_acl" placeholder="NETCONF-ACL">
+                </div>
+                <details class="advanced-section">
+                    <summary>RESTCONF Configuration</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="restconf_enabled"> Enable RESTCONF</label>
+                    </div>
+                    <div class="form-group">
+                        <label>RESTCONF Port</label>
+                        <input type="number" id="restconf_port" placeholder="443">
+                    </div>
+                    <div class="form-group">
+                        <label>RESTCONF ACL</label>
+                        <input type="text" id="restconf_acl" placeholder="RESTCONF-ACL">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveNetconfData()" style="width: 100%;">
+                    💾 Save NETCONF/RESTCONF Configuration
+                </button>
+            `;
+            break;
+
+        case 'ip_sla':
+            html += `
+                <h4>IP SLA Configuration</h4>
+                <div class="form-group">
+                    <label>SLA Operation ID</label>
+                    <input type="number" id="ipsla_id" min="1" max="2147483647" placeholder="1" required>
+                </div>
+                <div class="form-group">
+                    <label>SLA Type</label>
+                    <select id="ipsla_type" required>
+                        <option value="">Select Type...</option>
+                        <option value="icmp-echo">ICMP Echo</option>
+                        <option value="udp-jitter">UDP Jitter (VoIP)</option>
+                        <option value="http">HTTP</option>
+                        <option value="tcp-connect">TCP Connect</option>
+                        <option value="dns">DNS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target IP/URL</label>
+                    <input type="text" id="ipsla_target" placeholder="8.8.8.8 or http://example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Source IP/Interface</label>
+                    <input type="text" id="ipsla_source" placeholder="192.168.1.1 or GigabitEthernet0/0">
+                </div>
+                <details class="advanced-section">
+                    <summary>SLA Parameters</summary>
+                    <div class="form-group">
+                        <label>Frequency (seconds)</label>
+                        <input type="number" id="ipsla_frequency" placeholder="60">
+                    </div>
+                    <div class="form-group">
+                        <label>Timeout (ms)</label>
+                        <input type="number" id="ipsla_timeout" placeholder="5000">
+                    </div>
+                    <div class="form-group">
+                        <label>Threshold (ms)</label>
+                        <input type="number" id="ipsla_threshold" placeholder="100">
+                    </div>
+                    <div class="form-group">
+                        <label>VRF</label>
+                        <input type="text" id="ipsla_vrf" placeholder="management">
+                    </div>
+                    <div class="form-group">
+                        <label>ToS/DSCP</label>
+                        <input type="number" id="ipsla_tos" placeholder="0" min="0" max="255">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Scheduling</summary>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <select id="ipsla_start">
+                            <option value="now">Now</option>
+                            <option value="hh:mm:ss">Specific Time</option>
+                            <option value="after">After delay</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Life</label>
+                        <select id="ipsla_life">
+                            <option value="forever">Forever</option>
+                            <option value="seconds">Specific duration</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ipsla_recurring"> Recurring</label>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveIpSlaData()" style="width: 100%;">
+                    💾 Save IP SLA Configuration
+                </button>
+            `;
+            break;
+
+        case 'erspan':
+            html += `
+                <h4>ERSPAN Configuration</h4>
+                <div class="form-group">
+                    <label>ERSPAN Session ID</label>
+                    <input type="number" id="erspan_session_id" min="1" max="1023" placeholder="1" required>
+                </div>
+                <div class="form-group">
+                    <label>ERSPAN ID</label>
+                    <input type="number" id="erspan_id" min="1" max="1023" placeholder="101" required>
+                </div>
+                <div class="form-group">
+                    <label>Destination IP</label>
+                    <input type="text" id="erspan_dest_ip" placeholder="10.0.0.100" required>
+                </div>
+                <div class="form-group">
+                    <label>Origin IP</label>
+                    <input type="text" id="erspan_origin_ip" placeholder="10.0.0.1">
+                </div>
+                <details class="advanced-section">
+                    <summary>Source Configuration</summary>
+                    <div class="form-group">
+                        <label>Source Type</label>
+                        <select id="erspan_source_type">
+                            <option value="interface">Interface</option>
+                            <option value="vlan">VLAN</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Source Interface/VLAN</label>
+                        <input type="text" id="erspan_source" placeholder="GigabitEthernet0/1 or 100">
+                    </div>
+                    <div class="form-group">
+                        <label>Traffic Direction</label>
+                        <select id="erspan_direction">
+                            <option value="both">Both</option>
+                            <option value="rx">RX (Ingress)</option>
+                            <option value="tx">TX (Egress)</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Advanced Settings</summary>
+                    <div class="form-group">
+                        <label>VRF</label>
+                        <input type="text" id="erspan_vrf" placeholder="default">
+                    </div>
+                    <div class="form-group">
+                        <label>IP TTL</label>
+                        <input type="number" id="erspan_ttl" placeholder="255" min="1" max="255">
+                    </div>
+                    <div class="form-group">
+                        <label>IP DSCP</label>
+                        <input type="number" id="erspan_dscp" placeholder="0" min="0" max="63">
+                    </div>
+                    <div class="form-group">
+                        <label>MTU</label>
+                        <input type="number" id="erspan_mtu" placeholder="1500">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveErspanData()" style="width: 100%;">
+                    💾 Save ERSPAN Configuration
+                </button>
+            `;
+            break;
+
+        case 'lisp':
+            html += `
+                <h4>LISP Mobility Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="lisp_enabled"> Enable LISP</label>
+                </div>
+                <div class="form-group">
+                    <label>LISP Instance ID</label>
+                    <input type="number" id="lisp_instance_id" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>LISP Role</label>
+                    <select id="lisp_role">
+                        <option value="xtr">xTR (Both ITR and ETR)</option>
+                        <option value="itr">ITR (Ingress Tunnel Router)</option>
+                        <option value="etr">ETR (Egress Tunnel Router)</option>
+                        <option value="ms">Map Server</option>
+                        <option value="mr">Map Resolver</option>
+                    </select>
+                </div>
+                <details class="advanced-section">
+                    <summary>EID Configuration</summary>
+                    <div class="form-group">
+                        <label>EID Prefix</label>
+                        <input type="text" id="lisp_eid_prefix" placeholder="10.0.0.0/24">
+                    </div>
+                    <div class="form-group">
+                        <label>RLOC Address</label>
+                        <input type="text" id="lisp_rloc" placeholder="203.0.113.1">
+                    </div>
+                    <div class="form-group">
+                        <label>RLOC Priority</label>
+                        <input type="number" id="lisp_rloc_priority" placeholder="1" min="0" max="255">
+                    </div>
+                    <div class="form-group">
+                        <label>RLOC Weight</label>
+                        <input type="number" id="lisp_rloc_weight" placeholder="100" min="0" max="100">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Map Server/Resolver</summary>
+                    <div class="form-group">
+                        <label>Map Server IP</label>
+                        <input type="text" id="lisp_map_server" placeholder="10.0.0.100">
+                    </div>
+                    <div class="form-group">
+                        <label>Map Resolver IP</label>
+                        <input type="text" id="lisp_map_resolver" placeholder="10.0.0.100">
+                    </div>
+                    <div class="form-group">
+                        <label>Authentication Key</label>
+                        <input type="password" id="lisp_auth_key" placeholder="lisp-key">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveLispData()" style="width: 100%;">
+                    💾 Save LISP Configuration
+                </button>
+            `;
+            break;
+
+        case 'nat':
+            html += `
+                <h4>NAT Configuration</h4>
+                <div class="form-group">
+                    <label>NAT Type</label>
+                    <select id="nat_type" required>
+                        <option value="">Select NAT Type...</option>
+                        <option value="static">Static NAT</option>
+                        <option value="dynamic">Dynamic NAT (Pool)</option>
+                        <option value="pat">PAT (Port Address Translation)</option>
+                        <option value="cgnat">CGNAT (Carrier Grade NAT)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Inside Interface</label>
+                    <input type="text" id="nat_inside_if" placeholder="GigabitEthernet0/0">
+                </div>
+                <div class="form-group">
+                    <label>Outside Interface</label>
+                    <input type="text" id="nat_outside_if" placeholder="GigabitEthernet0/1">
+                </div>
+                <details class="advanced-section">
+                    <summary>NAT Pool Configuration</summary>
+                    <div class="form-group">
+                        <label>Pool Name</label>
+                        <input type="text" id="nat_pool_name" placeholder="NAT-POOL-1">
+                    </div>
+                    <div class="form-group">
+                        <label>Pool Start IP</label>
+                        <input type="text" id="nat_pool_start" placeholder="203.0.113.10">
+                    </div>
+                    <div class="form-group">
+                        <label>Pool End IP</label>
+                        <input type="text" id="nat_pool_end" placeholder="203.0.113.20">
+                    </div>
+                    <div class="form-group">
+                        <label>Netmask</label>
+                        <input type="text" id="nat_pool_netmask" placeholder="255.255.255.0">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Static NAT Mappings</summary>
+                    <div class="form-group">
+                        <label>Inside Local IP</label>
+                        <input type="text" id="nat_inside_local" placeholder="192.168.1.10">
+                    </div>
+                    <div class="form-group">
+                        <label>Inside Global IP</label>
+                        <input type="text" id="nat_inside_global" placeholder="203.0.113.10">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveNatData()" style="width: 100%;">
+                    💾 Save NAT Configuration
+                </button>
+            `;
+            break;
+
+        case 'mpls':
+            html += `
+                <h4>MPLS Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="mpls_enabled"> Enable MPLS</label>
+                </div>
+                <div class="form-group">
+                    <label>LDP Router ID</label>
+                    <input type="text" id="mpls_ldp_router_id" placeholder="1.1.1.1">
+                </div>
+                <details class="advanced-section">
+                    <summary>MPLS L3VPN Configuration</summary>
+                    <div class="form-group">
+                        <label>VRF Name</label>
+                        <input type="text" id="mpls_vrf_name" placeholder="CUSTOMER-A">
+                    </div>
+                    <div class="form-group">
+                        <label>Route Distinguisher (RD)</label>
+                        <input type="text" id="mpls_rd" placeholder="65000:100">
+                    </div>
+                    <div class="form-group">
+                        <label>Route Target Export</label>
+                        <input type="text" id="mpls_rt_export" placeholder="65000:100">
+                    </div>
+                    <div class="form-group">
+                        <label>Route Target Import</label>
+                        <input type="text" id="mpls_rt_import" placeholder="65000:100">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>MPLS TE (Traffic Engineering)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="mpls_te_enabled"> Enable MPLS TE</label>
+                    </div>
+                    <div class="form-group">
+                        <label>TE Tunnel Interface</label>
+                        <input type="text" id="mpls_te_tunnel" placeholder="Tunnel100">
+                    </div>
+                    <div class="form-group">
+                        <label>TE Bandwidth (kbps)</label>
+                        <input type="number" id="mpls_te_bandwidth" placeholder="1000000">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveMplsData()" style="width: 100%;">
+                    💾 Save MPLS Configuration
+                </button>
+            `;
+            break;
+
+        case 'sr':
+            html += `
+                <h4>Segment Routing Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="sr_enabled"> Enable Segment Routing</label>
+                </div>
+                <div class="form-group">
+                    <label>SR Type</label>
+                    <select id="sr_type">
+                        <option value="sr-mpls">SR-MPLS</option>
+                        <option value="srv6">SRv6</option>
+                    </select>
+                </div>
+                <details class="advanced-section">
+                    <summary>SR-MPLS Configuration</summary>
+                    <div class="form-group">
+                        <label>SRGB Start Label</label>
+                        <input type="number" id="sr_srgb_start" placeholder="16000">
+                    </div>
+                    <div class="form-group">
+                        <label>SRGB End Label</label>
+                        <input type="number" id="sr_srgb_end" placeholder="23999">
+                    </div>
+                    <div class="form-group">
+                        <label>Node SID (Prefix-SID)</label>
+                        <input type="number" id="sr_node_sid" placeholder="100">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>SRv6 Configuration</summary>
+                    <div class="form-group">
+                        <label>Locator Name</label>
+                        <input type="text" id="srv6_locator_name" placeholder="LOC1">
+                    </div>
+                    <div class="form-group">
+                        <label>Locator Prefix</label>
+                        <input type="text" id="srv6_locator_prefix" placeholder="2001:db8:1::/48">
+                    </div>
+                    <div class="form-group">
+                        <label>SRv6 Behavior</label>
+                        <select id="srv6_behavior">
+                            <option value="end">End</option>
+                            <option value="end.x">End.X</option>
+                            <option value="end.dt4">End.DT4</option>
+                            <option value="end.dt6">End.DT6</option>
+                        </select>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveSrData()" style="width: 100%;">
+                    💾 Save Segment Routing Configuration
+                </button>
+            `;
+            break;
+
+        case 'qos':
+            html += `
+                <h4>QoS Configuration</h4>
+                <div class="form-group">
+                    <label>Policy Name</label>
+                    <input type="text" id="qos_policy_name" placeholder="QOS-POLICY-1" required>
+                </div>
+                <details class="advanced-section" open>
+                    <summary>Class Configuration</summary>
+                    <div class="form-group">
+                        <label>Class Name</label>
+                        <input type="text" id="qos_class_name" placeholder="VOICE">
+                    </div>
+                    <div class="form-group">
+                        <label>Match DSCP</label>
+                        <input type="text" id="qos_match_dscp" placeholder="ef,af41">
+                    </div>
+                    <div class="form-group">
+                        <label>Priority Bandwidth (kbps)</label>
+                        <input type="number" id="qos_priority_bw" placeholder="1000">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Policing & Shaping</summary>
+                    <div class="form-group">
+                        <label>Police Rate (bps)</label>
+                        <input type="number" id="qos_police_rate" placeholder="10000000">
+                    </div>
+                    <div class="form-group">
+                        <label>Police Burst (bytes)</label>
+                        <input type="number" id="qos_police_burst" placeholder="1500000">
+                    </div>
+                    <div class="form-group">
+                        <label>Shape Rate (bps)</label>
+                        <input type="number" id="qos_shape_rate" placeholder="100000000">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Queueing</summary>
+                    <div class="form-group">
+                        <label>Queue Limit (packets)</label>
+                        <input type="number" id="qos_queue_limit" placeholder="64">
+                    </div>
+                    <div class="form-group">
+                        <label>Random Detect</label>
+                        <select id="qos_random_detect">
+                            <option value="">None</option>
+                            <option value="dscp-based">DSCP-Based WRED</option>
+                            <option value="precedence-based">Precedence-Based WRED</option>
+                        </select>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveQosData()" style="width: 100%;">
+                    💾 Save QoS Configuration
+                </button>
+            `;
+            break;
+
+        case 'bfd':
+            html += `
+                <h4>BFD (Bidirectional Forwarding Detection)</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="bfd_enabled"> Enable BFD</label>
+                </div>
+                <div class="form-group">
+                    <label>BFD Interval (ms)</label>
+                    <input type="number" id="bfd_interval" placeholder="50" min="50" max="999">
+                </div>
+                <div class="form-group">
+                    <label>BFD Multiplier</label>
+                    <input type="number" id="bfd_multiplier" placeholder="3" min="3" max="50">
+                </div>
+                <details class="advanced-section">
+                    <summary>BFD Templates</summary>
+                    <div class="form-group">
+                        <label>Template Name</label>
+                        <input type="text" id="bfd_template_name" placeholder="BFD-TEMPLATE-1">
+                    </div>
+                    <div class="form-group">
+                        <label>Echo Mode</label>
+                        <select id="bfd_echo_mode">
+                            <option value="disabled">Disabled</option>
+                            <option value="enabled">Enabled</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bfd_authentication"> BFD Authentication</label>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveBfdData()" style="width: 100%;">
+                    💾 Save BFD Configuration
+                </button>
+            `;
+            break;
+
+        case 'security':
+            html += `
+                <h4>L2 Security Configuration</h4>
+                <details class="advanced-section" open>
+                    <summary>Port Security</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_port_security"> Enable Port Security</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Maximum MACs</label>
+                        <input type="number" id="security_max_macs" placeholder="2" min="1" max="8192">
+                    </div>
+                    <div class="form-group">
+                        <label>Violation Mode</label>
+                        <select id="security_violation">
+                            <option value="protect">Protect</option>
+                            <option value="restrict">Restrict</option>
+                            <option value="shutdown">Shutdown</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>DHCP Snooping</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dhcp_snooping"> Enable DHCP Snooping</label>
+                    </div>
+                    <div class="form-group">
+                        <label>DHCP Snooping VLANs</label>
+                        <input type="text" id="security_dhcp_vlans" placeholder="10,20,30-40">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dhcp_option82"> Insert Option 82</label>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Dynamic ARP Inspection (DAI)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dai"> Enable DAI</label>
+                    </div>
+                    <div class="form-group">
+                        <label>DAI VLANs</label>
+                        <input type="text" id="security_dai_vlans" placeholder="10,20,30-40">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>802.1X Authentication</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dot1x"> Enable 802.1X</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Authentication Mode</label>
+                        <select id="security_dot1x_mode">
+                            <option value="single-host">Single Host</option>
+                            <option value="multi-host">Multi Host</option>
+                            <option value="multi-auth">Multi Auth</option>
+                        </select>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveSecurityData()" style="width: 100%;">
+                    💾 Save Security Configuration
+                </button>
+            `;
+            break;
+
+        case 'dcb':
+            html += `
+                <h4>Data Center Bridging (DCB)</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="dcb_enabled"> Enable DCB</label>
+                </div>
+                <details class="advanced-section" open>
+                    <summary>Priority Flow Control (PFC)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dcb_pfc_enabled"> Enable PFC</label>
+                    </div>
+                    <div class="form-group">
+                        <label>PFC Priority Classes</label>
+                        <input type="text" id="dcb_pfc_priorities" placeholder="3,4" title="Comma-separated CoS values">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Enhanced Transmission Selection (ETS)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dcb_ets_enabled"> Enable ETS</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Traffic Class 0 Bandwidth %</label>
+                        <input type="number" id="dcb_ets_tc0" placeholder="25" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Traffic Class 1 Bandwidth %</label>
+                        <input type="number" id="dcb_ets_tc1" placeholder="25" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Traffic Class 2 Bandwidth %</label>
+                        <input type="number" id="dcb_ets_tc2" placeholder="25" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Traffic Class 3 Bandwidth %</label>
+                        <input type="number" id="dcb_ets_tc3" placeholder="25" min="0" max="100">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>DCBX (DCB Exchange)</summary>
+                    <div class="form-group">
+                        <label>DCBX Version</label>
+                        <select id="dcb_dcbx_version">
+                            <option value="ieee">IEEE 802.1Qaz</option>
+                            <option value="cee">CEE</option>
+                        </select>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveDcbData()" style="width: 100%;">
+                    💾 Save DCB Configuration
+                </button>
+            `;
+            break;
+
+        case 'erps':
+            html += `
+                <h4>Ethernet Ring Protection Switching (ERPS G.8032)</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="erps_enabled"> Enable ERPS</label>
+                </div>
+                <div class="form-group">
+                    <label>Ring ID</label>
+                    <input type="number" id="erps_ring_id" placeholder="1" min="1" max="255">
+                </div>
+                <div class="form-group">
+                    <label>Control VLAN</label>
+                    <input type="number" id="erps_control_vlan" placeholder="4094" min="1" max="4094">
+                </div>
+                <details class="advanced-section">
+                    <summary>Ring Ports Configuration</summary>
+                    <div class="form-group">
+                        <label>Port 0 Interface</label>
+                        <input type="text" id="erps_port0" placeholder="GigabitEthernet0/1">
+                    </div>
+                    <div class="form-group">
+                        <label>Port 1 Interface</label>
+                        <input type="text" id="erps_port1" placeholder="GigabitEthernet0/2">
+                    </div>
+                    <div class="form-group">
+                        <label>RPL (Ring Protection Link) Role</label>
+                        <select id="erps_rpl_role">
+                            <option value="none">None</option>
+                            <option value="owner">RPL Owner</option>
+                            <option value="neighbor">RPL Neighbor</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Timing Parameters</summary>
+                    <div class="form-group">
+                        <label>Guard Timer (ms)</label>
+                        <input type="number" id="erps_guard_timer" placeholder="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Hold-off Timer (ms)</label>
+                        <input type="number" id="erps_holdoff_timer" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>WTR Timer (seconds)</label>
+                        <input type="number" id="erps_wtr_timer" placeholder="300">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveErpsData()" style="width: 100%;">
+                    💾 Save ERPS Configuration
+                </button>
+            `;
+            break;
+
+        case 'discovery':
+            html += `
+                <h4>Discovery Protocols (LLDP / CDP)</h4>
+                <details class="advanced-section" open>
+                    <summary>LLDP Configuration</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="lldp_enabled" checked> Enable LLDP</label>
+                    </div>
+                    <div class="form-group">
+                        <label>LLDP Timer (seconds)</label>
+                        <input type="number" id="lldp_timer" placeholder="30">
+                    </div>
+                    <div class="form-group">
+                        <label>LLDP Hold Time (seconds)</label>
+                        <input type="number" id="lldp_holdtime" placeholder="120">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="lldp_med"> Enable LLDP-MED</label>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>CDP Configuration</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="cdp_enabled"> Enable CDP (Cisco Only)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>CDP Timer (seconds)</label>
+                        <input type="number" id="cdp_timer" placeholder="60">
+                    </div>
+                    <div class="form-group">
+                        <label>CDP Holdtime (seconds)</label>
+                        <input type="number" id="cdp_holdtime" placeholder="180">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveDiscoveryData()" style="width: 100%;">
+                    💾 Save Discovery Configuration
+                </button>
+            `;
+            break;
+
+        case 'mlag':
+            html += `
+                <h4>Multi-Chassis LAG (MLAG/vPC)</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="mlag_enabled"> Enable MLAG/vPC</label>
+                </div>
+                <div class="form-group">
+                    <label>Domain ID</label>
+                    <input type="number" id="mlag_domain_id" placeholder="1" min="1" max="1000">
+                </div>
+                <details class="advanced-section">
+                    <summary>Peer Configuration</summary>
+                    <div class="form-group">
+                        <label>Peer Keepalive IP</label>
+                        <input type="text" id="mlag_keepalive_ip" placeholder="10.0.0.2">
+                    </div>
+                    <div class="form-group">
+                        <label>Peer Keepalive Source IP</label>
+                        <input type="text" id="mlag_keepalive_src" placeholder="10.0.0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Peer Keepalive VRF</label>
+                        <input type="text" id="mlag_keepalive_vrf" placeholder="management">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Peer Link Configuration</summary>
+                    <div class="form-group">
+                        <label>Peer Link Interface</label>
+                        <input type="text" id="mlag_peer_link" placeholder="port-channel10">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select id="mlag_role">
+                            <option value="primary">Primary</option>
+                            <option value="secondary">Secondary</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Advanced Features</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="mlag_peer_gateway"> Peer Gateway</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="mlag_peer_switch"> Peer Switch</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="mlag_anycast_vtep"> Anycast VTEP</label>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveMlagData()" style="width: 100%;">
+                    💾 Save MLAG Configuration
+                </button>
+            `;
+            break;
+
+        case 'multicast':
+            html += `
+                <h4>Multicast Configuration</h4>
+                <details class="advanced-section" open>
+                    <summary>PIM (Protocol Independent Multicast)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="multicast_pim_enabled"> Enable PIM</label>
+                    </div>
+                    <div class="form-group">
+                        <label>PIM Mode</label>
+                        <select id="multicast_pim_mode">
+                            <option value="sparse-mode">Sparse Mode</option>
+                            <option value="dense-mode">Dense Mode</option>
+                            <option value="sparse-dense-mode">Sparse-Dense Mode</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>RP Address (for Sparse Mode)</label>
+                        <input type="text" id="multicast_rp_address" placeholder="10.0.0.100">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>IGMP Configuration</summary>
+                    <div class="form-group">
+                        <label>IGMP Version</label>
+                        <select id="multicast_igmp_version">
+                            <option value="3">Version 3</option>
+                            <option value="2">Version 2</option>
+                            <option value="1">Version 1</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="multicast_igmp_snooping"> IGMP Snooping</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Snooping VLANs</label>
+                        <input type="text" id="multicast_igmp_vlans" placeholder="10,20,30-40">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Advanced Multicast</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="multicast_msdp"> Enable MSDP</label>
+                    </div>
+                    <div class="form-group">
+                        <label>MSDP Peer IP</label>
+                        <input type="text" id="multicast_msdp_peer" placeholder="10.0.0.101">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="multicast_ssm"> SSM (Source-Specific Multicast)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>SSM Range</label>
+                        <input type="text" id="multicast_ssm_range" placeholder="232.0.0.0/8">
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveMulticastData()" style="width: 100%;">
+                    💾 Save Multicast Configuration
+                </button>
+            `;
+            break;
+
         default:
             html += `
                 <p>📝 Configuration form for ${protocolData.name}</p>
-                <p class="help-text">Use JSON editor for advanced configuration or wait for form implementation.</p>
-                <button class="btn btn-secondary" onclick="openJsonEditor()">📝 Edit JSON</button>
+                <p class="help-text">This protocol form is being implemented.</p>
             `;
     }
 
