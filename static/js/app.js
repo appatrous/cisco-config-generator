@@ -18,6 +18,165 @@ const app = {
     currentView: 'protocols'
 };
 
+// ============================================
+// VALIDATION UTILITIES
+// ============================================
+
+const Validator = {
+    // IP Address validation (IPv4)
+    isValidIPv4: function(ip) {
+        const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        return ipv4Regex.test(ip);
+    },
+
+    // IPv6 Address validation
+    isValidIPv6: function(ip) {
+        const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+        return ipv6Regex.test(ip);
+    },
+
+    // CIDR notation validation (e.g., 192.168.1.0/24)
+    isValidCIDR: function(cidr) {
+        const parts = cidr.split('/');
+        if (parts.length !== 2) return false;
+
+        const ip = parts[0];
+        const prefix = parseInt(parts[1]);
+
+        if (!this.isValidIPv4(ip)) return false;
+        if (isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+
+        return true;
+    },
+
+    // CIDR IPv6 validation
+    isValidCIDRv6: function(cidr) {
+        const parts = cidr.split('/');
+        if (parts.length !== 2) return false;
+
+        const ip = parts[0];
+        const prefix = parseInt(parts[1]);
+
+        if (!this.isValidIPv6(ip)) return false;
+        if (isNaN(prefix) || prefix < 0 || prefix > 128) return false;
+
+        return true;
+    },
+
+    // VLAN ID validation (1-4094)
+    isValidVLAN: function(vlan) {
+        const vlanId = parseInt(vlan);
+        return !isNaN(vlanId) && vlanId >= 1 && vlanId <= 4094;
+    },
+
+    // VLAN range validation (e.g., "10,20,30-40")
+    isValidVLANRange: function(range) {
+        const parts = range.split(',');
+        for (const part of parts) {
+            const trimmed = part.trim();
+            if (trimmed.includes('-')) {
+                const [start, end] = trimmed.split('-').map(v => parseInt(v.trim()));
+                if (!this.isValidVLAN(start) || !this.isValidVLAN(end) || start >= end) {
+                    return false;
+                }
+            } else {
+                if (!this.isValidVLAN(trimmed)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    },
+
+    // MAC Address validation
+    isValidMAC: function(mac) {
+        const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{4}\.){2}([0-9A-Fa-f]{4})$/;
+        return macRegex.test(mac);
+    },
+
+    // AS Number validation (1-4294967295)
+    isValidASN: function(asn) {
+        const asnNum = parseInt(asn);
+        return !isNaN(asnNum) && asnNum >= 1 && asnNum <= 4294967295;
+    },
+
+    // Port number validation (1-65535)
+    isValidPort: function(port) {
+        const portNum = parseInt(port);
+        return !isNaN(portNum) && portNum >= 1 && portNum <= 65535;
+    },
+
+    // Hostname validation (alphanumeric, hyphens, max 63 chars)
+    isValidHostname: function(hostname) {
+        const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+        return hostnameRegex.test(hostname);
+    },
+
+    // Interface name validation
+    isValidInterface: function(iface) {
+        const ifaceRegex = /^(GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|Loopback|Vlan|Port-channel|Tunnel|Serial|Dialer)\d+(\/\d+)*(\.\d+)?$/i;
+        return ifaceRegex.test(iface);
+    },
+
+    // Add validation feedback to input field
+    addValidationFeedback: function(inputElement, isValid, message = '') {
+        if (!inputElement) return;
+
+        // Remove existing feedback
+        this.removeValidationFeedback(inputElement);
+
+        if (isValid === null) return; // No validation
+
+        // Add validation class
+        inputElement.classList.remove('valid', 'invalid');
+        inputElement.classList.add(isValid ? 'valid' : 'invalid');
+
+        // Add feedback message if invalid
+        if (!isValid && message) {
+            const feedback = document.createElement('small');
+            feedback.className = 'validation-error';
+            feedback.textContent = message;
+            inputElement.parentNode.insertBefore(feedback, inputElement.nextSibling);
+        }
+    },
+
+    // Remove validation feedback
+    removeValidationFeedback: function(inputElement) {
+        if (!inputElement) return;
+
+        inputElement.classList.remove('valid', 'invalid');
+
+        const nextEl = inputElement.nextSibling;
+        if (nextEl && nextEl.classList && nextEl.classList.contains('validation-error')) {
+            nextEl.remove();
+        }
+    },
+
+    // Setup real-time validation for an input
+    setupRealtimeValidation: function(inputElement, validatorFunc, errorMessage) {
+        if (!inputElement) return;
+
+        const validateInput = () => {
+            const value = inputElement.value.trim();
+            if (!value) {
+                this.removeValidationFeedback(inputElement);
+                return;
+            }
+
+            const isValid = validatorFunc(value);
+            this.addValidationFeedback(inputElement, isValid, isValid ? '' : errorMessage);
+        };
+
+        // Validate on blur and input (with debounce)
+        let timeout;
+        inputElement.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(validateInput, 500); // 500ms debounce
+        });
+        inputElement.addEventListener('blur', validateInput);
+    }
+};
+
 // Protocol definitions with metadata
 const protocols = {
     l2: {
@@ -523,6 +682,100 @@ function showProtocolForm(protocolPath) {
 
     const formContainer = document.getElementById('protocol-form-container');
     formContainer.innerHTML = generateForm(protocolPath, protocolData);
+
+    // Initialize validation after form is rendered
+    setTimeout(() => initializeFormValidation(), 100);
+}
+
+// Initialize validation for form fields
+function initializeFormValidation() {
+    // IP Address fields
+    const ipFields = document.querySelectorAll('input[type="text"][placeholder*="IP"], input[type="text"][placeholder*="ip"], input[type="text"][id*="_ip"], input[type="text"][id*="_peer"], input[type="text"][id*="_server"], input[type="text"][id*="_collector"], input[type="text"][id*="_address"]');
+    ipFields.forEach(field => {
+        // Skip if it's a CIDR field
+        if (field.placeholder.includes('/') || field.id.includes('prefix') || field.id.includes('network')) return;
+
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidIPv4(val) || Validator.isValidIPv6(val),
+            '❌ Invalid IP address format (e.g., 192.168.1.1 or 2001:db8::1)'
+        );
+    });
+
+    // CIDR fields
+    const cidrFields = document.querySelectorAll('input[type="text"][placeholder*="/"], input[type="text"][id*="prefix"], input[type="text"][id*="network"], input[type="text"][id*="_cidr"]');
+    cidrFields.forEach(field => {
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidCIDR(val) || Validator.isValidCIDRv6(val),
+            '❌ Invalid CIDR notation (e.g., 192.168.1.0/24 or 2001:db8::/64)'
+        );
+    });
+
+    // VLAN ID fields
+    const vlanFields = document.querySelectorAll('input[type="number"][id*="vlan"], input[type="text"][id*="vlan_id"]');
+    vlanFields.forEach(field => {
+        if (field.id.includes('vlans') && !field.id.includes('vlan_id')) return; // Skip VLAN range fields
+
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidVLAN(val),
+            '❌ VLAN ID must be between 1 and 4094'
+        );
+    });
+
+    // VLAN Range fields (comma-separated or ranges like 10,20,30-40)
+    const vlanRangeFields = document.querySelectorAll('input[type="text"][id*="vlans"], input[type="text"][id*="allowed_vlan"]');
+    vlanRangeFields.forEach(field => {
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidVLANRange(val),
+            '❌ Invalid VLAN range (e.g., 10,20,30-40)'
+        );
+    });
+
+    // MAC Address fields
+    const macFields = document.querySelectorAll('input[type="text"][id*="_mac"], input[type="text"][id*="mac_"]');
+    macFields.forEach(field => {
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidMAC(val),
+            '❌ Invalid MAC address (e.g., 00:11:22:33:44:55 or 0000.1111.2222)'
+        );
+    });
+
+    // AS Number fields
+    const asnFields = document.querySelectorAll('input[type="number"][id*="asn"], input[type="number"][id*="_as"]');
+    asnFields.forEach(field => {
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidASN(val),
+            '❌ AS Number must be between 1 and 4294967295'
+        );
+    });
+
+    // Port number fields
+    const portFields = document.querySelectorAll('input[type="number"][id*="port"], input[type="number"][id*="_port"]');
+    portFields.forEach(field => {
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidPort(val),
+            '❌ Port number must be between 1 and 65535'
+        );
+    });
+
+    // Hostname fields
+    const hostnameFields = document.querySelectorAll('input[type="text"][id*="hostname"]');
+    hostnameFields.forEach(field => {
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidHostname(val),
+            '❌ Invalid hostname (alphanumeric and hyphens, max 63 chars)'
+        );
+    });
+
+    // Interface fields
+    const ifaceFields = document.querySelectorAll('input[type="text"][id*="interface"], input[type="text"][placeholder*="GigabitEthernet"], input[type="text"][placeholder*="Ethernet"]');
+    ifaceFields.forEach(field => {
+        if (field.id.includes('source_interface')) return; // These can be Loopback or other types
+
+        Validator.setupRealtimeValidation(field,
+            (val) => Validator.isValidInterface(val),
+            '❌ Invalid interface (e.g., GigabitEthernet0/1, Loopback0, Vlan10)'
+        );
+    });
 }
 
 // Save form data to app.data
