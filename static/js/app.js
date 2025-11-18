@@ -1757,6 +1757,903 @@ function saveMulticastData() {
     alert('✅ Multicast configuration saved!');
 }
 
+// ============================================
+// Save functions for 29 new protocols
+// ============================================
+
+// Layer 2 Advanced Save Functions (6)
+function saveLacpAdvancedData() {
+    if (!app.data.l2.lacp_advanced) {
+        app.data.l2.lacp_advanced = {};
+    }
+
+    app.data.l2.lacp_advanced = {
+        enabled: document.getElementById('lacp_adv_enabled')?.checked || false,
+        system_priority: parseInt(document.getElementById('lacp_system_priority')?.value) || 32768,
+        load_balance: document.getElementById('lacp_load_balance')?.value || 'src-dst-ip',
+        port_channels: [{
+            id: parseInt(document.getElementById('lacp_port_channel_id')?.value) || 1,
+            lacp_mode: document.getElementById('lacp_mode')?.value || 'active',
+            min_links: parseInt(document.getElementById('lacp_min_links')?.value) || 1,
+            max_bundle: parseInt(document.getElementById('lacp_max_bundle')?.value) || 8,
+            lacp_rate: document.getElementById('lacp_rate')?.value || 'normal',
+            members: [
+                {
+                    interface: document.getElementById('lacp_member_interface')?.value || 'GigabitEthernet0/1',
+                    lacp_port_priority: parseInt(document.getElementById('lacp_port_priority')?.value) || 32768
+                }
+            ]
+        }]
+    };
+
+    console.log('LACP Advanced saved:', app.data.l2.lacp_advanced);
+    alert('✅ LACP Advanced configuration saved!');
+}
+
+function saveMstData() {
+    if (!app.data.l2.mst) {
+        app.data.l2.mst = {};
+    }
+
+    app.data.l2.mst = {
+        enabled: document.getElementById('mst_enabled')?.checked || false,
+        region_name: document.getElementById('mst_region_name')?.value || 'MST_REGION',
+        revision: parseInt(document.getElementById('mst_revision')?.value) || 1,
+        instances: [
+            {
+                id: parseInt(document.getElementById('mst_instance_id')?.value) || 1,
+                vlans: document.getElementById('mst_instance_vlans')?.value || '10-20',
+                priority: parseInt(document.getElementById('mst_instance_priority')?.value) || 32768
+            }
+        ]
+    };
+
+    console.log('MST saved:', app.data.l2.mst);
+    alert('✅ MST configuration saved!');
+}
+
+function saveUdldData() {
+    if (!app.data.l2.udld) {
+        app.data.l2.udld = {};
+    }
+
+    app.data.l2.udld = {
+        enabled: document.getElementById('udld_enabled')?.checked || false,
+        mode: document.getElementById('udld_mode')?.value || 'aggressive',
+        message_time: parseInt(document.getElementById('udld_message_time')?.value) || 15,
+        interfaces: [
+            {
+                interface: document.getElementById('udld_interface')?.value || 'GigabitEthernet0/1',
+                mode: document.getElementById('udld_iface_mode')?.value || 'aggressive'
+            }
+        ]
+    };
+
+    console.log('UDLD saved:', app.data.l2.udld);
+    alert('✅ UDLD configuration saved!');
+}
+
+function saveStormControlData() {
+    if (!app.data.l2.storm_control) {
+        app.data.l2.storm_control = {};
+    }
+
+    app.data.l2.storm_control = {
+        enabled: document.getElementById('storm_enabled')?.checked || false,
+        broadcast_level: document.getElementById('storm_broadcast')?.value || '10',
+        multicast_level: document.getElementById('storm_multicast')?.value || '10',
+        unicast_level: document.getElementById('storm_unicast')?.value || '10',
+        action: document.getElementById('storm_action')?.value || 'shutdown',
+        interfaces: document.getElementById('storm_interfaces')?.value || 'GigabitEthernet0/1-24'
+    };
+
+    console.log('Storm Control saved:', app.data.l2.storm_control);
+    alert('✅ Storm Control configuration saved!');
+}
+
+function saveFlexLinksData() {
+    if (!app.data.l2.flexlinks) {
+        app.data.l2.flexlinks = {};
+    }
+
+    app.data.l2.flexlinks = {
+        enabled: document.getElementById('flexlinks_enabled')?.checked || false,
+        pairs: [
+            {
+                primary: document.getElementById('flexlink_primary')?.value || 'GigabitEthernet0/1',
+                backup: document.getElementById('flexlink_backup')?.value || 'GigabitEthernet0/2',
+                preemption_mode: document.getElementById('flexlink_preemption')?.value || 'off',
+                preemption_delay: parseInt(document.getElementById('flexlink_delay')?.value) || 35
+            }
+        ]
+    };
+
+    console.log('FlexLinks saved:', app.data.l2.flexlinks);
+    alert('✅ FlexLinks configuration saved!');
+}
+
+function saveStpProtectionData() {
+    if (!app.data.l2.stp_protection) {
+        app.data.l2.stp_protection = {};
+    }
+
+    app.data.l2.stp_protection = {
+        enabled: document.getElementById('stp_prot_enabled')?.checked || false,
+        portfast_default: document.getElementById('stp_portfast_default')?.checked || false,
+        bpduguard_default: document.getElementById('stp_bpduguard_default')?.checked || false,
+        rootguard: {
+            enabled: document.getElementById('stp_rootguard')?.checked || false,
+            interfaces: document.getElementById('stp_rootguard_ifaces')?.value || 'GigabitEthernet0/1-24'
+        },
+        loopguard_default: document.getElementById('stp_loopguard_default')?.checked || false,
+        bpdu_filter: document.getElementById('stp_bpdu_filter')?.checked || false
+    };
+
+    console.log('STP Protection saved:', app.data.l2.stp_protection);
+    alert('✅ STP Protection configuration saved!');
+}
+
+// Layer 3 Advanced Save Functions (5)
+function saveRouteMapData() {
+    if (!app.data.l3.route_maps) {
+        app.data.l3.route_maps = [];
+    }
+
+    const routeMap = {
+        name: document.getElementById('route_map_name')?.value || 'ROUTE-MAP-1',
+        entries: [
+            {
+                sequence: parseInt(document.getElementById('route_map_seq')?.value) || 10,
+                action: document.getElementById('route_map_action')?.value || 'permit',
+                description: document.getElementById('route_map_desc')?.value || '',
+                match: {
+                    ip_address: {
+                        acl: document.getElementById('route_map_match_acl')?.value || '',
+                        prefix_list: document.getElementById('route_map_match_pl')?.value || ''
+                    },
+                    metric: document.getElementById('route_map_match_metric')?.value || '',
+                    tag: document.getElementById('route_map_match_tag')?.value || ''
+                },
+                set: {
+                    ip_next_hop: document.getElementById('route_map_set_nh')?.value || '',
+                    metric: document.getElementById('route_map_set_metric')?.value || '',
+                    local_preference: document.getElementById('route_map_set_lp')?.value || '',
+                    community: document.getElementById('route_map_set_comm')?.value || ''
+                }
+            }
+        ]
+    };
+
+    app.data.l3.route_maps.push(routeMap);
+    console.log('Route Maps saved:', app.data.l3.route_maps);
+    alert('✅ Route Map configuration saved!');
+}
+
+function savePrefixListData() {
+    if (!app.data.l3.prefix_lists) {
+        app.data.l3.prefix_lists = [];
+    }
+
+    const prefixList = {
+        name: document.getElementById('prefix_list_name')?.value || 'PREFIX-LIST-1',
+        type: document.getElementById('prefix_list_type')?.value || 'ipv4',
+        entries: [
+            {
+                sequence: parseInt(document.getElementById('prefix_list_seq')?.value) || 10,
+                action: document.getElementById('prefix_list_action')?.value || 'permit',
+                prefix: document.getElementById('prefix_list_prefix')?.value || '0.0.0.0/0',
+                ge: document.getElementById('prefix_list_ge')?.value || '',
+                le: document.getElementById('prefix_list_le')?.value || ''
+            }
+        ]
+    };
+
+    app.data.l3.prefix_lists.push(prefixList);
+    console.log('Prefix Lists saved:', app.data.l3.prefix_lists);
+    alert('✅ Prefix List configuration saved!');
+}
+
+function saveVrfLiteData() {
+    if (!app.data.l3.vrf_lite) {
+        app.data.l3.vrf_lite = {};
+    }
+
+    app.data.l3.vrf_lite = {
+        enabled: document.getElementById('vrf_lite_enabled')?.checked || false,
+        use_vrf_definition: document.getElementById('vrf_use_definition')?.checked || false,
+        vrfs: [
+            {
+                name: document.getElementById('vrf_name')?.value || 'VRF-A',
+                rd: document.getElementById('vrf_rd')?.value || '65000:100',
+                description: document.getElementById('vrf_desc')?.value || '',
+                route_target: {
+                    export: document.getElementById('vrf_rt_export')?.value || '65000:100',
+                    import: document.getElementById('vrf_rt_import')?.value || '65000:100'
+                }
+            }
+        ],
+        route_leaking: {
+            enabled: document.getElementById('vrf_leak_enabled')?.checked || false,
+            source_vrf: document.getElementById('vrf_leak_source')?.value || '',
+            target_vrf: document.getElementById('vrf_leak_target')?.value || '',
+            prefix_list: document.getElementById('vrf_leak_pl')?.value || ''
+        }
+    };
+
+    console.log('VRF-Lite saved:', app.data.l3.vrf_lite);
+    alert('✅ VRF-Lite configuration saved!');
+}
+
+function saveIpv6AdvancedData() {
+    if (!app.data.l3.ipv6_advanced) {
+        app.data.l3.ipv6_advanced = {};
+    }
+
+    app.data.l3.ipv6_advanced = {
+        enabled: document.getElementById('ipv6_adv_enabled')?.checked || false,
+        unicast_routing: document.getElementById('ipv6_routing')?.checked || false,
+        dhcpv6: {
+            enabled: document.getElementById('ipv6_dhcpv6')?.checked || false,
+            pool_name: document.getElementById('ipv6_dhcp_pool')?.value || '',
+            prefix: document.getElementById('ipv6_dhcp_prefix')?.value || ''
+        },
+        slaac: {
+            enabled: document.getElementById('ipv6_slaac')?.checked || false
+        },
+        nd: {
+            ra_lifetime: parseInt(document.getElementById('ipv6_nd_lifetime')?.value) || 1800,
+            ra_interval: parseInt(document.getElementById('ipv6_nd_interval')?.value) || 200
+        },
+        first_hop_security: {
+            enabled: document.getElementById('ipv6_fhs')?.checked || false,
+            ra_guard: document.getElementById('ipv6_ra_guard')?.checked || false,
+            dhcp_guard: document.getElementById('ipv6_dhcp_guard')?.checked || false,
+            source_guard: document.getElementById('ipv6_source_guard')?.checked || false
+        }
+    };
+
+    console.log('IPv6 Advanced saved:', app.data.l3.ipv6_advanced);
+    alert('✅ IPv6 Advanced configuration saved!');
+}
+
+function saveRouteFilteringData() {
+    if (!app.data.l3.route_filtering) {
+        app.data.l3.route_filtering = {};
+    }
+
+    app.data.l3.route_filtering = {
+        enabled: document.getElementById('route_filter_enabled')?.checked || false,
+        distribute_lists: [
+            {
+                protocol: document.getElementById('route_filter_proto')?.value || 'ospf',
+                process_id: document.getElementById('route_filter_pid')?.value || '',
+                acl: document.getElementById('route_filter_acl')?.value || '',
+                direction: document.getElementById('route_filter_dir')?.value || 'in',
+                interface: document.getElementById('route_filter_iface')?.value || ''
+            }
+        ],
+        route_maps: document.getElementById('route_filter_maps')?.value || '',
+        prefix_lists: document.getElementById('route_filter_pl')?.value || ''
+    };
+
+    console.log('Route Filtering saved:', app.data.l3.route_filtering);
+    alert('✅ Route Filtering configuration saved!');
+}
+
+// Security Save Functions (6)
+function saveCoppData() {
+    if (!app.data.security) {
+        app.data.security = {};
+    }
+    if (!app.data.security.copp) {
+        app.data.security.copp = {};
+    }
+
+    app.data.security.copp = {
+        enabled: document.getElementById('copp_enabled')?.checked || false,
+        class_maps: [
+            {
+                name: document.getElementById('copp_class_name')?.value || 'CRITICAL-CLASS',
+                match_type: document.getElementById('copp_match_type')?.value || 'any',
+                match_access_group: document.getElementById('copp_acl')?.value || ''
+            }
+        ],
+        policy_map: {
+            name: document.getElementById('copp_policy_name')?.value || 'COPP-POLICY',
+            classes: [
+                {
+                    class_name: document.getElementById('copp_class_name')?.value || 'CRITICAL-CLASS',
+                    police: {
+                        rate: document.getElementById('copp_rate')?.value || '8000',
+                        burst: document.getElementById('copp_burst')?.value || '1500',
+                        exceed_action: document.getElementById('copp_action')?.value || 'drop'
+                    }
+                }
+            ]
+        }
+    };
+
+    console.log('CoPP saved:', app.data.security.copp);
+    alert('✅ CoPP configuration saved!');
+}
+
+function saveIaclsData() {
+    if (!app.data.security) {
+        app.data.security = {};
+    }
+    if (!app.data.security.iacls) {
+        app.data.security.iacls = {};
+    }
+
+    app.data.security.iacls = {
+        enabled: document.getElementById('iacl_enabled')?.checked || false,
+        acls: [
+            {
+                name: document.getElementById('iacl_name')?.value || 'INFRASTRUCTURE-ACL',
+                type: document.getElementById('iacl_type')?.value || 'extended',
+                entries: [
+                    {
+                        sequence: parseInt(document.getElementById('iacl_seq')?.value) || 10,
+                        action: document.getElementById('iacl_action')?.value || 'permit',
+                        protocol: document.getElementById('iacl_protocol')?.value || 'ip',
+                        source: document.getElementById('iacl_source')?.value || '10.0.0.0 0.255.255.255',
+                        destination: document.getElementById('iacl_dest')?.value || 'any'
+                    }
+                ]
+            }
+        ],
+        interface: document.getElementById('iacl_interface')?.value || '',
+        direction: document.getElementById('iacl_direction')?.value || 'in'
+    };
+
+    console.log('iACLs saved:', app.data.security.iacls);
+    alert('✅ Infrastructure ACLs configuration saved!');
+}
+
+function saveIpv6AclsData() {
+    if (!app.data.security) {
+        app.data.security = {};
+    }
+    if (!app.data.security.ipv6_acls) {
+        app.data.security.ipv6_acls = {};
+    }
+
+    app.data.security.ipv6_acls = {
+        enabled: document.getElementById('ipv6_acl_enabled')?.checked || false,
+        acls: [
+            {
+                name: document.getElementById('ipv6_acl_name')?.value || 'IPV6-ACL-1',
+                entries: [
+                    {
+                        sequence: parseInt(document.getElementById('ipv6_acl_seq')?.value) || 10,
+                        action: document.getElementById('ipv6_acl_action')?.value || 'permit',
+                        protocol: document.getElementById('ipv6_acl_protocol')?.value || 'ipv6',
+                        source: document.getElementById('ipv6_acl_source')?.value || '2001:db8::/32',
+                        destination: document.getElementById('ipv6_acl_dest')?.value || 'any'
+                    }
+                ]
+            }
+        ]
+    };
+
+    console.log('IPv6 ACLs saved:', app.data.security.ipv6_acls);
+    alert('✅ IPv6 ACLs configuration saved!');
+}
+
+function saveTimeBasedAclsData() {
+    if (!app.data.security) {
+        app.data.security = {};
+    }
+    if (!app.data.security.time_based_acls) {
+        app.data.security.time_based_acls = {};
+    }
+
+    app.data.security.time_based_acls = {
+        enabled: document.getElementById('time_acl_enabled')?.checked || false,
+        time_ranges: [
+            {
+                name: document.getElementById('time_range_name')?.value || 'BUSINESS-HOURS',
+                periodic: {
+                    days: document.getElementById('time_range_days')?.value || 'weekdays',
+                    start_time: document.getElementById('time_range_start')?.value || '08:00',
+                    end_time: document.getElementById('time_range_end')?.value || '18:00'
+                }
+            }
+        ],
+        acls: [
+            {
+                name: document.getElementById('time_acl_name')?.value || 'TIME-BASED-ACL',
+                entries: [
+                    {
+                        sequence: parseInt(document.getElementById('time_acl_seq')?.value) || 10,
+                        action: document.getElementById('time_acl_action')?.value || 'permit',
+                        protocol: document.getElementById('time_acl_protocol')?.value || 'ip',
+                        source: document.getElementById('time_acl_source')?.value || 'any',
+                        destination: document.getElementById('time_acl_dest')?.value || 'any',
+                        time_range: document.getElementById('time_acl_range')?.value || 'BUSINESS-HOURS'
+                    }
+                ]
+            }
+        ]
+    };
+
+    console.log('Time-based ACLs saved:', app.data.security.time_based_acls);
+    alert('✅ Time-based ACLs configuration saved!');
+}
+
+function saveTrustSecData() {
+    if (!app.data.security) {
+        app.data.security = {};
+    }
+    if (!app.data.security.trustsec) {
+        app.data.security.trustsec = {};
+    }
+
+    app.data.security.trustsec = {
+        enabled: document.getElementById('trustsec_enabled')?.checked || false,
+        device_id: document.getElementById('trustsec_device_id')?.value || '',
+        password: document.getElementById('trustsec_password')?.value || '',
+        sgt_assignments: [
+            {
+                ip_address: document.getElementById('trustsec_ip')?.value || '10.0.0.10',
+                subnet_mask: document.getElementById('trustsec_mask')?.value || '255.255.255.0',
+                sgt_value: parseInt(document.getElementById('trustsec_sgt')?.value) || 10
+            }
+        ],
+        sgacl: {
+            enabled: document.getElementById('trustsec_sgacl')?.checked || false,
+            policies: []
+        },
+        sxp: {
+            enabled: document.getElementById('trustsec_sxp')?.checked || false,
+            source_ip: document.getElementById('trustsec_sxp_source')?.value || '',
+            connections: [
+                {
+                    peer_ip: document.getElementById('trustsec_sxp_peer')?.value || '',
+                    mode: document.getElementById('trustsec_sxp_mode')?.value || 'both'
+                }
+            ]
+        }
+    };
+
+    console.log('TrustSec saved:', app.data.security.trustsec);
+    alert('✅ TrustSec configuration saved!');
+}
+
+function saveNbarData() {
+    if (!app.data.security) {
+        app.data.security = {};
+    }
+    if (!app.data.security.nbar) {
+        app.data.security.nbar = {};
+    }
+
+    app.data.security.nbar = {
+        enabled: document.getElementById('nbar_enabled')?.checked || false,
+        protocol_discovery: document.getElementById('nbar_discovery')?.checked || false,
+        custom_applications: [
+            {
+                name: document.getElementById('nbar_app_name')?.value || '',
+                protocol: document.getElementById('nbar_app_proto')?.value || '',
+                port: document.getElementById('nbar_app_port')?.value || ''
+            }
+        ],
+        class_maps: [
+            {
+                name: document.getElementById('nbar_class_name')?.value || 'BUSINESS-CRITICAL',
+                match_protocol: document.getElementById('nbar_match_proto')?.value || ''
+            }
+        ],
+        avc: {
+            enabled: document.getElementById('nbar_avc')?.checked || false
+        }
+    };
+
+    console.log('NBAR2 saved:', app.data.security.nbar);
+    alert('✅ NBAR2/AVC configuration saved!');
+}
+
+// VPN/Overlay Save Functions (5)
+function saveFlexVpnData() {
+    if (!app.data.vpn) {
+        app.data.vpn = {};
+    }
+    if (!app.data.vpn.flexvpn) {
+        app.data.vpn.flexvpn = {};
+    }
+
+    app.data.vpn.flexvpn = {
+        enabled: document.getElementById('flexvpn_enabled')?.checked || false,
+        role: document.getElementById('flexvpn_role')?.value || 'hub',
+        ikev2_proposal: {
+            name: document.getElementById('flexvpn_proposal_name')?.value || 'FLEXVPN-PROPOSAL',
+            encryption: document.getElementById('flexvpn_encryption')?.value || 'aes-cbc-256',
+            integrity: document.getElementById('flexvpn_integrity')?.value || 'sha512',
+            dh_group: parseInt(document.getElementById('flexvpn_dh_group')?.value) || 14,
+            prf: document.getElementById('flexvpn_prf')?.value || 'sha512'
+        },
+        ikev2_policy: {
+            name: document.getElementById('flexvpn_policy_name')?.value || 'FLEXVPN-POLICY',
+            proposal: document.getElementById('flexvpn_proposal_name')?.value || 'FLEXVPN-PROPOSAL'
+        },
+        ipsec_transform: {
+            name: document.getElementById('flexvpn_transform')?.value || 'FLEXVPN-TRANSFORM',
+            encryption: document.getElementById('flexvpn_esp_enc')?.value || 'esp-aes 256',
+            integrity: document.getElementById('flexvpn_esp_int')?.value || 'esp-sha512-hmac'
+        },
+        ipsec_profile: {
+            name: document.getElementById('flexvpn_profile')?.value || 'FLEXVPN-PROFILE',
+            transform_set: document.getElementById('flexvpn_transform')?.value || 'FLEXVPN-TRANSFORM'
+        },
+        virtual_template: {
+            id: parseInt(document.getElementById('flexvpn_vt_id')?.value) || 1,
+            description: document.getElementById('flexvpn_vt_desc')?.value || 'FlexVPN Virtual Template',
+            ip_unnumbered: document.getElementById('flexvpn_vt_unnumbered')?.value || 'Loopback0',
+            ipsec_profile: document.getElementById('flexvpn_profile')?.value || 'FLEXVPN-PROFILE'
+        }
+    };
+
+    console.log('FlexVPN saved:', app.data.vpn.flexvpn);
+    alert('✅ FlexVPN configuration saved!');
+}
+
+function saveGetVpnData() {
+    if (!app.data.vpn) {
+        app.data.vpn = {};
+    }
+    if (!app.data.vpn.getvpn) {
+        app.data.vpn.getvpn = {};
+    }
+
+    app.data.vpn.getvpn = {
+        enabled: document.getElementById('getvpn_enabled')?.checked || false,
+        role: document.getElementById('getvpn_role')?.value || 'key-server',
+        group: {
+            name: document.getElementById('getvpn_group_name')?.value || 'GETVPN-GROUP',
+            identity: parseInt(document.getElementById('getvpn_group_id')?.value) || 1234
+        },
+        key_server: {
+            local: {
+                address: document.getElementById('getvpn_ks_address')?.value || '',
+                priority: parseInt(document.getElementById('getvpn_ks_priority')?.value) || 100
+            },
+            rekey: {
+                authentication: document.getElementById('getvpn_rekey_auth')?.checked || true,
+                transport_unicast: document.getElementById('getvpn_rekey_unicast')?.checked || false,
+                lifetime: parseInt(document.getElementById('getvpn_rekey_lifetime')?.value) || 86400,
+                retransmit: parseInt(document.getElementById('getvpn_rekey_retransmit')?.value) || 10
+            }
+        },
+        ipsec_transform: {
+            name: document.getElementById('getvpn_transform')?.value || 'GETVPN-TRANSFORM',
+            encryption: document.getElementById('getvpn_esp_enc')?.value || 'esp-aes 256',
+            integrity: document.getElementById('getvpn_esp_int')?.value || 'esp-sha256-hmac'
+        },
+        crypto_acl: document.getElementById('getvpn_acl')?.value || 'GETVPN-ACL',
+        protected_networks: document.getElementById('getvpn_networks')?.value || '10.0.0.0/8'
+    };
+
+    console.log('GET VPN saved:', app.data.vpn.getvpn);
+    alert('✅ GET VPN configuration saved!');
+}
+
+function saveL2tpv3Data() {
+    if (!app.data.vpn) {
+        app.data.vpn = {};
+    }
+    if (!app.data.vpn.l2tpv3) {
+        app.data.vpn.l2tpv3 = {};
+    }
+
+    app.data.vpn.l2tpv3 = {
+        enabled: document.getElementById('l2tpv3_enabled')?.checked || false,
+        l2tp_class: {
+            name: document.getElementById('l2tp_class_name')?.value || 'L2TP-CLASS',
+            digest: document.getElementById('l2tp_digest')?.value || 'sha1',
+            hash: document.getElementById('l2tp_hash')?.value || 'md5',
+            password: document.getElementById('l2tp_password')?.value || ''
+        },
+        pseudowire_class: {
+            name: document.getElementById('pw_class_name')?.value || 'PW-CLASS',
+            encapsulation: document.getElementById('pw_encap')?.value || 'l2tpv3',
+            protocol: document.getElementById('pw_protocol')?.value || 'l2tpv3',
+            source_ip: document.getElementById('pw_source_ip')?.value || ''
+        },
+        xconnect: {
+            peer_ip: document.getElementById('l2tp_peer_ip')?.value || '',
+            vc_id: parseInt(document.getElementById('l2tp_vc_id')?.value) || 100,
+            pw_class: document.getElementById('pw_class_name')?.value || 'PW-CLASS',
+            interface: document.getElementById('l2tp_interface')?.value || 'GigabitEthernet0/0'
+        }
+    };
+
+    console.log('L2TPv3 saved:', app.data.vpn.l2tpv3);
+    alert('✅ L2TPv3 configuration saved!');
+}
+
+function saveOtvData() {
+    if (!app.data.vpn) {
+        app.data.vpn = {};
+    }
+    if (!app.data.vpn.otv) {
+        app.data.vpn.otv = {};
+    }
+
+    app.data.vpn.otv = {
+        enabled: document.getElementById('otv_enabled')?.checked || false,
+        site_identifier: document.getElementById('otv_site_id')?.value || '0000.0000.0001',
+        site_vlan: parseInt(document.getElementById('otv_site_vlan')?.value) || 100,
+        overlay_interface: {
+            id: parseInt(document.getElementById('otv_overlay_id')?.value) || 1,
+            join_interface: document.getElementById('otv_join_iface')?.value || 'GigabitEthernet0/0',
+            source_interface: document.getElementById('otv_source_iface')?.value || 'Loopback0',
+            extended_vlans: document.getElementById('otv_vlans')?.value || '10-20,30',
+            control_group: document.getElementById('otv_control_group')?.value || '239.0.0.1',
+            data_group: document.getElementById('otv_data_group')?.value || '232.0.0.0/8'
+        },
+        aed: {
+            enabled: document.getElementById('otv_aed')?.checked || false,
+            primary: document.getElementById('otv_aed_primary')?.value || 'GigabitEthernet0/1',
+            vlans: document.getElementById('otv_aed_vlans')?.value || '10-20'
+        }
+    };
+
+    console.log('OTV saved:', app.data.vpn.otv);
+    alert('✅ OTV configuration saved!');
+}
+
+function saveSdwanData() {
+    if (!app.data.vpn) {
+        app.data.vpn = {};
+    }
+    if (!app.data.vpn.sdwan) {
+        app.data.vpn.sdwan = {};
+    }
+
+    const sdwanType = document.getElementById('sdwan_type')?.value || 'viptela';
+
+    app.data.vpn.sdwan = {
+        enabled: document.getElementById('sdwan_enabled')?.checked || false,
+        type: sdwanType
+    };
+
+    if (sdwanType === 'viptela') {
+        app.data.vpn.sdwan.system = {
+            system_ip: document.getElementById('sdwan_system_ip')?.value || '1.1.1.1',
+            site_id: parseInt(document.getElementById('sdwan_site_id')?.value) || 100,
+            organization_name: document.getElementById('sdwan_org')?.value || 'MyOrganization'
+        };
+        app.data.vpn.sdwan.vpns = [
+            {
+                vpn_id: parseInt(document.getElementById('sdwan_vpn_id')?.value) || 0,
+                name: document.getElementById('sdwan_vpn_name')?.value || 'Transport-VPN',
+                interfaces: [
+                    {
+                        interface: document.getElementById('sdwan_interface')?.value || 'GigabitEthernet0/0',
+                        ip_address: document.getElementById('sdwan_ip')?.value || '192.168.1.1/24',
+                        tunnel: {
+                            encapsulation: document.getElementById('sdwan_encap')?.value || 'ipsec',
+                            color: document.getElementById('sdwan_color')?.value || 'default',
+                            restrict: document.getElementById('sdwan_restrict')?.checked || false
+                        }
+                    }
+                ]
+            }
+        ];
+    } else if (sdwanType === 'meraki') {
+        app.data.vpn.sdwan.meraki = {
+            network_id: document.getElementById('sdwan_meraki_network')?.value || '',
+            hub_priority: document.getElementById('sdwan_meraki_priority')?.value || 'primary',
+            subnets: document.getElementById('sdwan_meraki_subnets')?.value || '10.0.0.0/8'
+        };
+    }
+
+    console.log('SD-WAN saved:', app.data.vpn.sdwan);
+    alert('✅ SD-WAN configuration saved!');
+}
+
+// Management Save Functions (6)
+function saveSshData() {
+    if (!app.data.management) {
+        app.data.management = {};
+    }
+    if (!app.data.management.ssh) {
+        app.data.management.ssh = {};
+    }
+
+    app.data.management.ssh = {
+        enabled: document.getElementById('ssh_enabled')?.checked || true,
+        version: parseInt(document.getElementById('ssh_version')?.value) || 2,
+        rsa_keypair: {
+            modulus: parseInt(document.getElementById('ssh_rsa_modulus')?.value) || 2048
+        },
+        timeout: parseInt(document.getElementById('ssh_timeout')?.value) || 60,
+        authentication_retries: parseInt(document.getElementById('ssh_auth_retries')?.value) || 3,
+        source_interface: document.getElementById('ssh_source_iface')?.value || '',
+        server_algorithm: {
+            encryption: document.getElementById('ssh_algo_enc')?.value || '',
+            mac: document.getElementById('ssh_algo_mac')?.value || '',
+            kex: document.getElementById('ssh_algo_kex')?.value || '',
+            host_key: document.getElementById('ssh_algo_hostkey')?.value || ''
+        },
+        access_class: document.getElementById('ssh_access_class')?.value || '',
+        access_class_vrf_also: document.getElementById('ssh_vrf_also')?.checked || false,
+        logging: document.getElementById('ssh_logging')?.checked || false,
+        maxstartups: document.getElementById('ssh_maxstartups')?.value || '',
+        rate_limit: document.getElementById('ssh_rate_limit')?.value || ''
+    };
+
+    console.log('SSH saved:', app.data.management.ssh);
+    alert('✅ SSH configuration saved!');
+}
+
+function saveLinesData() {
+    if (!app.data.management) {
+        app.data.management = {};
+    }
+    if (!app.data.management.lines) {
+        app.data.management.lines = {};
+    }
+
+    app.data.management.lines = {
+        enabled: document.getElementById('lines_enabled')?.checked || true,
+        console: {
+            logging: document.getElementById('console_logging')?.checked || true,
+            exec_timeout: {
+                minutes: parseInt(document.getElementById('console_timeout_min')?.value) || 5,
+                seconds: parseInt(document.getElementById('console_timeout_sec')?.value) || 0
+            },
+            password: document.getElementById('console_password')?.value || '',
+            login_local: document.getElementById('console_login_local')?.checked || false
+        },
+        aux: {
+            exec_timeout: {
+                minutes: parseInt(document.getElementById('aux_timeout_min')?.value) || 0,
+                seconds: parseInt(document.getElementById('aux_timeout_sec')?.value) || 0
+            },
+            no_exec: document.getElementById('aux_no_exec')?.checked || true,
+            transport_input: document.getElementById('aux_transport')?.value || 'none'
+        },
+        vty: [
+            {
+                start: parseInt(document.getElementById('vty_start')?.value) || 0,
+                end: parseInt(document.getElementById('vty_end')?.value) || 15,
+                description: document.getElementById('vty_desc')?.value || 'VTY Lines',
+                logging: document.getElementById('vty_logging')?.checked || true,
+                exec_timeout: {
+                    minutes: parseInt(document.getElementById('vty_timeout_min')?.value) || 5,
+                    seconds: parseInt(document.getElementById('vty_timeout_sec')?.value) || 0
+                },
+                login_local: document.getElementById('vty_login_local')?.checked || true,
+                login_authentication: document.getElementById('vty_auth')?.value || '',
+                transport_input: document.getElementById('vty_transport_in')?.value || 'ssh',
+                transport_output: document.getElementById('vty_transport_out')?.value || '',
+                access_class: document.getElementById('vty_access_class')?.value || ''
+            }
+        ]
+    };
+
+    console.log('Lines saved:', app.data.management.lines);
+    alert('✅ Console/VTY Lines configuration saved!');
+}
+
+function saveBannersData() {
+    if (!app.data.management) {
+        app.data.management = {};
+    }
+    if (!app.data.management.banners) {
+        app.data.management.banners = {};
+    }
+
+    app.data.management.banners = {
+        enabled: document.getElementById('banners_enabled')?.checked || true,
+        motd: document.getElementById('banner_motd')?.value || '',
+        login: document.getElementById('banner_login')?.value || '',
+        exec: document.getElementById('banner_exec')?.value || '',
+        incoming: document.getElementById('banner_incoming')?.value || '',
+        slip_ppp: document.getElementById('banner_slip_ppp')?.value || ''
+    };
+
+    console.log('Banners saved:', app.data.management.banners);
+    alert('✅ Banners configuration saved!');
+}
+
+function saveArchiveData() {
+    if (!app.data.management) {
+        app.data.management = {};
+    }
+    if (!app.data.management.archive) {
+        app.data.management.archive = {};
+    }
+
+    app.data.management.archive = {
+        enabled: document.getElementById('archive_enabled')?.checked || true,
+        path: document.getElementById('archive_path')?.value || 'flash:archive/',
+        maximum: parseInt(document.getElementById('archive_maximum')?.value) || 14,
+        write_memory: document.getElementById('archive_write_memory')?.checked || true,
+        time_period: parseInt(document.getElementById('archive_time_period')?.value) || 1440,
+        hidekeys: document.getElementById('archive_hidekeys')?.checked || true,
+        logging: {
+            enabled: document.getElementById('archive_log_enabled')?.checked || true,
+            hidekeys: document.getElementById('archive_log_hidekeys')?.checked || true,
+            notify: {
+                syslog: document.getElementById('archive_log_syslog')?.checked || true,
+                contenttype: document.getElementById('archive_log_contenttype')?.value || 'plaintext'
+            }
+        },
+        rollback: document.getElementById('archive_rollback')?.checked || false
+    };
+
+    console.log('Archive saved:', app.data.management.archive);
+    alert('✅ Archive/Rollback configuration saved!');
+}
+
+function saveSmartLicensingData() {
+    if (!app.data.management) {
+        app.data.management = {};
+    }
+    if (!app.data.management.smart_licensing) {
+        app.data.management.smart_licensing = {};
+    }
+
+    app.data.management.smart_licensing = {
+        enabled: document.getElementById('smart_lic_enabled')?.checked || false,
+        transport: {
+            type: document.getElementById('smart_lic_transport')?.value || 'callhome',
+            url: document.getElementById('smart_lic_url')?.value || 'https://smartreceiver.cisco.com/licservice/license'
+        },
+        server: {
+            contact_email: document.getElementById('smart_lic_email')?.value || 'admin@company.com',
+            url: document.getElementById('smart_lic_server_url')?.value || 'https://tools.cisco.com/its/service/oddce/services/DDCEService'
+        },
+        reservation: {
+            enabled: document.getElementById('smart_lic_reservation')?.checked || false,
+            request: document.getElementById('smart_lic_request')?.checked || false
+        },
+        throughput_level: document.getElementById('smart_lic_throughput')?.value || ''
+    };
+
+    console.log('Smart Licensing saved:', app.data.management.smart_licensing);
+    alert('✅ Smart Licensing configuration saved!');
+}
+
+function saveDnsData() {
+    if (!app.data.management) {
+        app.data.management = {};
+    }
+    if (!app.data.management.dns) {
+        app.data.management.dns = {};
+    }
+
+    const nameServers = [];
+    const primaryDns = document.getElementById('dns_primary')?.value;
+    const secondaryDns = document.getElementById('dns_secondary')?.value;
+    const tertiaryDns = document.getElementById('dns_tertiary')?.value;
+
+    if (primaryDns) nameServers.push({ address: primaryDns });
+    if (secondaryDns) nameServers.push({ address: secondaryDns });
+    if (tertiaryDns) nameServers.push({ address: tertiaryDns });
+
+    app.data.management.dns = {
+        enabled: document.getElementById('dns_enabled')?.checked || true,
+        domain_name: document.getElementById('dns_domain_name')?.value || '',
+        domain_list: document.getElementById('dns_domain_list')?.value ?
+            document.getElementById('dns_domain_list')?.value.split(',').map(d => d.trim()) : [],
+        name_servers: nameServers,
+        lookup: document.getElementById('dns_lookup')?.checked || true,
+        source_interface: document.getElementById('dns_source_iface')?.value || '',
+        timeout: parseInt(document.getElementById('dns_timeout')?.value) || 2,
+        retry: parseInt(document.getElementById('dns_retry')?.value) || 2,
+        server: {
+            enabled: document.getElementById('dns_server_enabled')?.checked || false,
+            logging: document.getElementById('dns_server_logging')?.checked || false
+        }
+    };
+
+    console.log('DNS saved:', app.data.management.dns);
+    alert('✅ DNS configuration saved!');
+}
+
 // Generate form HTML for protocol
 function generateForm(protocolPath, protocolData) {
     const [category, protocol] = protocolPath.split('.');
