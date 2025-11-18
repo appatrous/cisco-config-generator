@@ -19,11 +19,14 @@ import traceback
 
 from utils.config_export import render_cli_config, serialize_config
 from device_manager import DeviceManager, DeviceConnectionError
+from config_comparison import ConfigComparator, ChangeTracker
 
 api_bp = Blueprint('api', __name__)
 
-# Initialize device manager
+# Initialize device manager and comparator
 device_manager = DeviceManager()
+config_comparator = ConfigComparator()
+change_tracker = ChangeTracker()
 
 @api_bp.route('/generate', methods=['POST'])
 def api_generate() -> Any:
@@ -280,6 +283,247 @@ def compare_configs() -> Any:
     except Exception as e:
         return jsonify({
             'error': 'Failed to compare configurations',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@api_bp.route('/configs/compare-detailed', methods=['POST'])
+def compare_configs_detailed() -> Any:
+    """
+    Detailed configuration comparison with section awareness
+
+    POST /api/configs/compare-detailed
+    Body: {
+        "old_config": "! Old configuration...",
+        "new_config": "! New configuration..."
+    }
+
+    Returns: {
+        "added_lines": 15,
+        "removed_lines": 8,
+        "modified_sections": ["interface GigabitEthernet0/1", "router ospf 1"],
+        "added": [...],
+        "removed": [...],
+        "summary": "15 lines added, 8 lines removed, 2 sections modified",
+        "risk_level": "MEDIUM",
+        "affected_interfaces": ["GigabitEthernet0/1", "GigabitEthernet0/2"],
+        "affected_vlans": [10, 20, 30],
+        "routing_changes": {
+            "ospf": true,
+            "bgp": false,
+            "static_routes": true
+        }
+    }
+    """
+    if not request.is_json:
+        return jsonify({'error': 'Expected JSON payload'}), 400
+
+    data = request.get_json() or {}
+    old_config = data.get('old_config', '')
+    new_config = data.get('new_config', '')
+
+    try:
+        result = config_comparator.compare_configs_detailed(old_config, new_config)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to compare configurations',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@api_bp.route('/configs/merge', methods=['POST'])
+def merge_configs() -> Any:
+    """
+    Merge two configurations with intelligent conflict resolution
+
+    POST /api/configs/merge
+    Body: {
+        "base_config": "! Base configuration...",
+        "overlay_config": "! Overlay configuration...",
+        "strategy": "overlay"  // Options: overlay, additive, replace
+    }
+
+    Returns: {
+        "success": true,
+        "merged_config": "! Merged configuration...",
+        "conflicts": [
+            {
+                "section": "interface GigabitEthernet0/1",
+                "base": "...",
+                "overlay": "...",
+                "resolution": "Used overlay version"
+            }
+        ],
+        "strategy": "overlay",
+        "sections_merged": 15
+    }
+    """
+    if not request.is_json:
+        return jsonify({'error': 'Expected JSON payload'}), 400
+
+    data = request.get_json() or {}
+    base_config = data.get('base_config', '')
+    overlay_config = data.get('overlay_config', '')
+    strategy = data.get('strategy', 'overlay')
+
+    if strategy not in ['overlay', 'additive', 'replace']:
+        return jsonify({
+            'error': 'Invalid strategy. Must be: overlay, additive, or replace'
+        }), 400
+
+    try:
+        result = config_comparator.merge_configs(base_config, overlay_config, strategy)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to merge configurations',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@api_bp.route('/configs/rollback', methods=['POST'])
+def generate_rollback_config() -> Any:
+    """
+    Generate rollback configuration
+
+    POST /api/configs/rollback
+    Body: {
+        "current_config": "! Current running configuration...",
+        "target_config": "! Target (previous) configuration..."
+    }
+
+    Returns: {
+        "rollback_commands": [
+            "no interface GigabitEthernet0/3",
+            "interface GigabitEthernet0/1",
+            "ip address 192.168.1.1 255.255.255.0",
+            ...
+        ],
+        "commands_count": 25,
+        "removals": 10,
+        "additions": 15,
+        "estimated_time_seconds": 22
+    }
+    """
+    if not request.is_json:
+        return jsonify({'error': 'Expected JSON payload'}), 400
+
+    data = request.get_json() or {}
+    current_config = data.get('current_config', '')
+    target_config = data.get('target_config', '')
+
+    if not all([current_config, target_config]):
+        return jsonify({
+            'error': 'Both current_config and target_config are required'
+        }), 400
+
+    try:
+        result = config_comparator.generate_rollback_config(current_config, target_config)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to generate rollback configuration',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@api_bp.route('/changes/record', methods=['POST'])
+def record_config_change() -> Any:
+    """
+    Record a configuration change in the audit trail
+
+    POST /api/changes/record
+    Body: {
+        "device_id": "device_123",
+        "change_type": "push",  // Options: manual, pull, push, rollback
+        "old_config": "! Previous configuration...",
+        "new_config": "! New configuration...",
+        "user": "admin",
+        "notes": "Updated VLAN configuration"
+    }
+
+    Returns: {
+        "id": "change_1640000000_device_123",
+        "device_id": "device_123",
+        "timestamp": "2025-01-01T12:00:00",
+        "user": "admin",
+        "change_type": "push",
+        "notes": "Updated VLAN configuration",
+        "comparison": {
+            "added_lines": 5,
+            "removed_lines": 2,
+            "modified_sections": [...],
+            "risk_level": "LOW",
+            "summary": "5 lines added, 2 lines removed"
+        },
+        "rollback_available": true
+    }
+    """
+    if not request.is_json:
+        return jsonify({'error': 'Expected JSON payload'}), 400
+
+    data = request.get_json() or {}
+
+    device_id = data.get('device_id')
+    change_type = data.get('change_type', 'manual')
+    old_config = data.get('old_config', '')
+    new_config = data.get('new_config', '')
+    user = data.get('user', 'admin')
+    notes = data.get('notes', '')
+
+    if not device_id:
+        return jsonify({'error': 'device_id is required'}), 400
+
+    try:
+        change_record = change_tracker.record_change(
+            device_id=device_id,
+            change_type=change_type,
+            old_config=old_config,
+            new_config=new_config,
+            user=user,
+            notes=notes
+        )
+        return jsonify(change_record)
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to record change',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@api_bp.route('/changes/history/<device_id>', methods=['GET'])
+def get_change_history(device_id: str) -> Any:
+    """
+    Get configuration change history for a device
+
+    GET /api/changes/history/device_123?limit=50
+
+    Returns: [
+        {
+            "id": "change_1640000000_device_123",
+            "timestamp": "2025-01-01T12:00:00",
+            "user": "admin",
+            "change_type": "push",
+            "notes": "Updated VLAN configuration",
+            "comparison": {...}
+        },
+        ...
+    ]
+    """
+    limit = request.args.get('limit', 50, type=int)
+
+    try:
+        history = change_tracker.get_device_history(device_id, limit)
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to retrieve change history',
             'details': str(e),
             'traceback': traceback.format_exc()
         }), 500
