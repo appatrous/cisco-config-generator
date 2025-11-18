@@ -1434,20 +1434,228 @@ function saveVxlanData() {
         app.data.vxlan = {};
     }
 
+    // Basic Configuration
     app.data.vxlan.enabled = document.getElementById('vxlan_enabled')?.checked || false;
-    app.data.vxlan.source_interface = document.getElementById('vxlan_source')?.value || '';
-    app.data.vxlan.multicast_group = document.getElementById('vxlan_mcast')?.value || '';
+    app.data.vxlan.nve_id = parseInt(document.getElementById('vxlan_nve_id')?.value) || 1;
+    app.data.vxlan.description = document.getElementById('vxlan_description')?.value || '';
+    app.data.vxlan.source = document.getElementById('vxlan_source')?.value || 'Loopback0';
+    app.data.vxlan.host_reachability = document.getElementById('vxlan_host_reachability')?.value || 'bgp';
 
-    app.data.vxlan.evpn = {
-        enabled: document.getElementById('vxlan_evpn_enabled')?.checked || false,
-        rd: document.getElementById('vxlan_rd')?.value || 'auto',
-        rt: document.getElementById('vxlan_rt')?.value || '',
-        anycast_gateway: document.getElementById('vxlan_anycast_gateway')?.checked || false,
-        anycast_mac: document.getElementById('vxlan_anycast_mac')?.value || ''
-    };
+    // VNI Mappings
+    const vniMappingsText = document.getElementById('vxlan_vni_mappings')?.value || '';
+    if (vniMappingsText.trim()) {
+        app.data.vxlan.vni_mappings = [];
+        const lines = vniMappingsText.trim().split('\n');
+        for (const line of lines) {
+            const [vni, vlan, mcastGroup] = line.split(':').map(s => s.trim());
+            if (vni && vlan) {
+                const vniMapping = {
+                    vni: parseInt(vni),
+                    vlan: parseInt(vlan)
+                };
 
-    console.log('VXLAN saved:', app.data.vxlan);
-    alert('✅ VXLAN configuration saved!');
+                if (mcastGroup) {
+                    if (mcastGroup.toLowerCase() === 'static') {
+                        vniMapping.ingress_replication = true;
+                        vniMapping.ingress_replication_protocol = document.getElementById('vxlan_ingress_replication_protocol')?.value || 'bgp';
+                    } else {
+                        vniMapping.mcast_group = mcastGroup;
+                    }
+                }
+
+                if (document.getElementById('vxlan_suppress_arp')?.checked) {
+                    vniMapping.suppress_arp = true;
+                }
+
+                app.data.vxlan.vni_mappings.push(vniMapping);
+            }
+        }
+    }
+
+    // EVPN Configuration
+    if (document.getElementById('vxlan_evpn_enabled')?.checked) {
+        app.data.vxlan.evpn = {
+            enabled: true
+        };
+
+        // L2VNI
+        const l2vniText = document.getElementById('vxlan_evpn_l2vni')?.value || '';
+        if (l2vniText.trim()) {
+            app.data.vxlan.evpn.l2vni = [];
+            const l2vnis = l2vniText.split(',').map(v => v.trim());
+            for (const vni of l2vnis) {
+                if (vni) {
+                    app.data.vxlan.evpn.l2vni.push({
+                        vni: parseInt(vni)
+                    });
+                }
+            }
+        }
+
+        // L3VNI
+        const l3vniText = document.getElementById('vxlan_evpn_l3vni')?.value || '';
+        if (l3vniText.trim()) {
+            app.data.vxlan.evpn.l3vni = [];
+            const l3vnis = l3vniText.split(',').map(v => v.trim());
+            for (const vni of l3vnis) {
+                if (vni) {
+                    app.data.vxlan.evpn.l3vni.push({
+                        vni: parseInt(vni)
+                    });
+                }
+            }
+        }
+
+        // BGP EVPN
+        const bgpAsn = document.getElementById('vxlan_evpn_bgp_asn')?.value;
+        if (bgpAsn) {
+            app.data.vxlan.evpn.bgp = {
+                asn: parseInt(bgpAsn),
+                router_id: document.getElementById('vxlan_evpn_bgp_router_id')?.value || '',
+                peer_address: document.getElementById('vxlan_evpn_bgp_peer_address')?.value || '',
+                route_reflector_client: document.getElementById('vxlan_evpn_bgp_rr_client')?.checked || false
+            };
+
+            const remoteAsn = document.getElementById('vxlan_evpn_bgp_remote_asn')?.value;
+            if (remoteAsn) {
+                app.data.vxlan.evpn.bgp.remote_asn = parseInt(remoteAsn);
+            }
+        }
+
+        // EVPN Advertisements
+        app.data.vxlan.evpn.advertise_all_vni = document.getElementById('vxlan_evpn_advertise_all_vni')?.checked || false;
+        app.data.vxlan.evpn.advertise_default_gw = document.getElementById('vxlan_evpn_advertise_default_gw')?.checked || false;
+        app.data.vxlan.evpn.advertise_svi_ip = document.getElementById('vxlan_evpn_advertise_svi_ip')?.checked || false;
+
+        // EVPN Instances
+        const evpnInstancesText = document.getElementById('vxlan_evpn_instances')?.value || '';
+        if (evpnInstancesText.trim()) {
+            app.data.vxlan.evpn.instance = [];
+            const lines = evpnInstancesText.trim().split('\n');
+            for (const line of lines) {
+                const [id, rd, rt, replicationType] = line.split(':').map(s => s.trim());
+                if (id && rd && rt) {
+                    app.data.vxlan.evpn.instance.push({
+                        id: parseInt(id),
+                        rd: rd,
+                        rt: rt,
+                        replication_type: replicationType || 'ingress'
+                    });
+                }
+            }
+        }
+
+        // EVPN Ethernet Segment (Multi-homing)
+        if (document.getElementById('vxlan_evpn_es_enabled')?.checked) {
+            const esInterface = document.getElementById('vxlan_evpn_es_interface')?.value;
+            const esEsi = document.getElementById('vxlan_evpn_es_esi')?.value;
+
+            if (esInterface && esEsi) {
+                app.data.vxlan.evpn.ethernet_segment = [{
+                    interface: esInterface,
+                    esi: esEsi,
+                    system_mac: document.getElementById('vxlan_evpn_es_system_mac')?.value || '',
+                    df_election: {
+                        wait_time: parseInt(document.getElementById('vxlan_evpn_es_df_wait')?.value) || 3
+                    }
+                }];
+            }
+        }
+    }
+
+    // Anycast Gateway
+    if (document.getElementById('vxlan_anycast_gateway_enabled')?.checked) {
+        app.data.vxlan.anycast_gateway = {
+            enabled: true,
+            mac: document.getElementById('vxlan_anycast_mac')?.value || ''
+        };
+
+        // Parse Anycast Gateway VLANs
+        const anycastVlansText = document.getElementById('vxlan_anycast_vlans')?.value || '';
+        if (anycastVlansText.trim()) {
+            app.data.vxlan.anycast_gateway.vlans = [];
+            const lines = anycastVlansText.trim().split('\n');
+            for (const line of lines) {
+                const [vlan, ipv4, ipv6, vrf] = line.split(':').map(s => s.trim());
+                if (vlan && ipv4) {
+                    const anycastVlan = {
+                        vlan_id: parseInt(vlan),
+                        ip_address: ipv4
+                    };
+                    if (ipv6) anycastVlan.ipv6 = ipv6;
+                    if (vrf) anycastVlan.vrf = vrf;
+
+                    app.data.vxlan.anycast_gateway.vlans.push(anycastVlan);
+                }
+            }
+        }
+    }
+
+    // VRF for L3VNI
+    const vrfsText = document.getElementById('vxlan_vrfs')?.value || '';
+    if (vrfsText.trim()) {
+        app.data.vxlan.vrfs = [];
+        const lines = vrfsText.trim().split('\n');
+        for (const line of lines) {
+            const [name, vni, vlan, rd, rtImport, rtExport, ipv6] = line.split(':').map(s => s.trim());
+            if (name && vni && vlan) {
+                const vrfConfig = {
+                    name: name,
+                    vni: parseInt(vni),
+                    vlan: parseInt(vlan)
+                };
+
+                if (rd) vrfConfig.rd = rd;
+                if (rtImport) vrfConfig.rt_import = rtImport;
+                if (rtExport) vrfConfig.rt_export = rtExport;
+                if (ipv6 && ipv6.toLowerCase() === 'yes') {
+                    vrfConfig.ipv6 = true;
+                }
+
+                app.data.vxlan.vrfs.push(vrfConfig);
+            }
+        }
+    }
+
+    // Flood and Learn (non-EVPN)
+    if (document.getElementById('vxlan_flood_and_learn')?.checked) {
+        app.data.vxlan.flood_and_learn = true;
+
+        const vtepPeersText = document.getElementById('vxlan_vtep_peers')?.value || '';
+        if (vtepPeersText.trim()) {
+            const peers = vtepPeersText.split(',').map(p => p.trim());
+            if (app.data.vxlan.vni_mappings) {
+                for (const vniMapping of app.data.vxlan.vni_mappings) {
+                    vniMapping.flood_list = peers;
+                }
+            }
+        }
+    }
+
+    // Monitoring
+    const monitoringCounters = document.getElementById('vxlan_monitoring_counters')?.checked;
+    const monitoringVisibility = document.getElementById('vxlan_monitoring_visibility')?.checked;
+
+    if (monitoringCounters || monitoringVisibility) {
+        app.data.vxlan.monitoring = {
+            counters: monitoringCounters || false,
+            visibility: monitoringVisibility || false
+        };
+    }
+
+    // BUM Optimization
+    const bumMode = document.getElementById('vxlan_bum_mode')?.value;
+    if (bumMode) {
+        app.data.vxlan.bum_optimization = {};
+        if (bumMode === 'head-end-replication') {
+            app.data.vxlan.bum_optimization.head_end_replication = true;
+        } else if (bumMode === 'multicast-underlay') {
+            app.data.vxlan.bum_optimization.multicast_underlay = true;
+        }
+    }
+
+    console.log('VXLAN/EVPN saved (complete):', app.data.vxlan);
+    alert('✅ Complete VXLAN/EVPN configuration saved!');
 }
 
 function saveBgpAdvancedData() {
@@ -4741,45 +4949,240 @@ SOO:100:1"></textarea>
         case 'vxlan':
             html += `
                 <h4>VXLAN / EVPN Configuration</h4>
+                <p class="help-text">Data Center overlay network with EVPN control-plane</p>
+
+                {# Basic VXLAN Configuration #}
                 <div class="form-group">
-                    <label><input type="checkbox" id="vxlan_enabled"> Enable VXLAN</label>
+                    <label><input type="checkbox" id="vxlan_enabled" checked> Enable VXLAN</label>
+                    <small class="help-text">Enable VXLAN overlay network</small>
                 </div>
-                <div class="form-group">
-                    <label>Source Interface (VTEP)</label>
-                    <input type="text" id="vxlan_source" placeholder="Loopback0">
-                </div>
-                <div class="form-group">
-                    <label>Multicast Group (or 'static' for ingress-replication)</label>
-                    <input type="text" id="vxlan_mcast" placeholder="239.0.0.1 or static">
-                </div>
-                <details class="advanced-section">
-                    <summary>VXLAN Network Identifier (VNI) Mappings</summary>
-                    <div id="vni-list"></div>
-                    <button type="button" class="btn btn-secondary" onclick="addVniMapping()">+ Add VNI</button>
+
+                <details class="advanced-section" open>
+                    <summary>🌐 NVE Interface (VTEP)</summary>
+                    <div class="form-group">
+                        <label>NVE Interface ID</label>
+                        <input type="number" id="vxlan_nve_id" min="1" max="10" value="1" placeholder="1">
+                        <small class="help-text">Network Virtualization Endpoint ID</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="vxlan_description" placeholder="VXLAN VTEP">
+                    </div>
+                    <div class="form-group">
+                        <label>Source Interface (VTEP)</label>
+                        <input type="text" id="vxlan_source" placeholder="Loopback0" required>
+                        <small class="help-text">Loopback interface for VTEP IP</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Host Reachability Protocol</label>
+                        <select id="vxlan_host_reachability">
+                            <option value="">None (Flood and Learn)</option>
+                            <option value="bgp" selected>BGP EVPN</option>
+                            <option value="static">Static</option>
+                        </select>
+                    </div>
                 </details>
+
+                {# VNI Mappings #}
+                <details class="advanced-section" open>
+                    <summary>🔢 VNI (VXLAN Network Identifier) Mappings</summary>
+                    <div class="form-group">
+                        <label>VNI Mappings (one per line)</label>
+                        <textarea id="vxlan_vni_mappings" rows="5" placeholder="Format: VNI:VLAN:mcast-group (or 'static' for ingress-replication)
+Example:
+10010:10:static
+10020:20:239.1.1.1
+10030:30:static"></textarea>
+                        <small class="help-text">Format: VNI:VLAN:mcast-group (use 'static' for BGP EVPN ingress-replication)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_suppress_arp"> Suppress ARP</label>
+                        <small class="help-text">Enable ARP suppression for all VNIs</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Ingress Replication Protocol</label>
+                        <select id="vxlan_ingress_replication_protocol">
+                            <option value="bgp" selected>BGP</option>
+                            <option value="static">Static</option>
+                        </select>
+                    </div>
+                </details>
+
+                {# EVPN Configuration #}
+                <details class="advanced-section" open>
+                    <summary>📡 EVPN Control-Plane</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_enabled" checked> Enable EVPN</label>
+                        <small class="help-text">BGP EVPN for MAC/IP advertisement</small>
+                    </div>
+
+                    <h5>L2VNI Configuration</h5>
+                    <div class="form-group">
+                        <label>L2VNI List (comma-separated)</label>
+                        <input type="text" id="vxlan_evpn_l2vni" placeholder="10010,10020,10030">
+                        <small class="help-text">Layer 2 VNIs for EVPN bridging</small>
+                    </div>
+
+                    <h5>L3VNI Configuration</h5>
+                    <div class="form-group">
+                        <label>L3VNI List (comma-separated)</label>
+                        <input type="text" id="vxlan_evpn_l3vni" placeholder="50001,50002">
+                        <small class="help-text">Layer 3 VNIs for EVPN routing (VRF)</small>
+                    </div>
+
+                    <h5>BGP EVPN Configuration</h5>
+                    <div class="form-group">
+                        <label>BGP AS Number</label>
+                        <input type="number" id="vxlan_evpn_bgp_asn" min="1" max="4294967295" placeholder="65000">
+                    </div>
+                    <div class="form-group">
+                        <label>BGP Router ID</label>
+                        <input type="text" id="vxlan_evpn_bgp_router_id" placeholder="1.1.1.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Route Reflector / Peer Address</label>
+                        <input type="text" id="vxlan_evpn_bgp_peer_address" placeholder="10.0.0.1">
+                        <small class="help-text">BGP EVPN route reflector or peer IP</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Remote AS Number</label>
+                        <input type="number" id="vxlan_evpn_bgp_remote_asn" placeholder="65000">
+                        <small class="help-text">Leave empty to use same AS (iBGP)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_bgp_rr_client"> Route Reflector Client</label>
+                        <small class="help-text">Enable if this device is a route reflector client</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_advertise_all_vni" checked> Advertise All VNIs</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_advertise_default_gw"> Advertise Default Gateway</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_advertise_svi_ip"> Advertise SVI IP Addresses</label>
+                    </div>
+                </details>
+
+                {# EVPN Instance #}
                 <details class="advanced-section">
-                    <summary>EVPN Configuration</summary>
+                    <summary>🏷️ EVPN Instances</summary>
                     <div class="form-group">
-                        <label><input type="checkbox" id="vxlan_evpn_enabled"> Enable EVPN</label>
+                        <label>EVPN Instances (one per line)</label>
+                        <textarea id="vxlan_evpn_instances" rows="4" placeholder="Format: instance-id:RD:RT:replication-type
+Example:
+1:auto:1:1:ingress
+2:1.1.1.1:200:2:2:static"></textarea>
+                        <small class="help-text">Format: instance-id:rd:rt:replication-type (ingress/static)</small>
+                    </div>
+                </details>
+
+                {# EVPN Ethernet Segment (Multi-homing) #}
+                <details class="advanced-section">
+                    <summary>🔗 EVPN Ethernet Segment (Multi-homing)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_evpn_es_enabled"> Enable Ethernet Segment</label>
+                        <small class="help-text">For active-active multi-homing</small>
                     </div>
                     <div class="form-group">
-                        <label>Route Distinguisher (RD)</label>
-                        <input type="text" id="vxlan_rd" placeholder="auto or 1:1">
+                        <label>Interface</label>
+                        <input type="text" id="vxlan_evpn_es_interface" placeholder="Port-channel10">
                     </div>
                     <div class="form-group">
-                        <label>Route Target (RT)</label>
-                        <input type="text" id="vxlan_rt" placeholder="1:1">
+                        <label>ESI (Ethernet Segment Identifier)</label>
+                        <input type="text" id="vxlan_evpn_es_esi" placeholder="00:11:22:33:44:55:66:77:88:99">
+                        <small class="help-text">10-byte ESI in hex format</small>
                     </div>
                     <div class="form-group">
-                        <label><input type="checkbox" id="vxlan_anycast_gateway"> Anycast Gateway</label>
+                        <label>System MAC</label>
+                        <input type="text" id="vxlan_evpn_es_system_mac" placeholder="0000.1111.2222">
+                    </div>
+                    <div class="form-group">
+                        <label>DF Election Wait Time (seconds)</label>
+                        <input type="number" id="vxlan_evpn_es_df_wait" min="1" max="300" value="3">
+                    </div>
+                </details>
+
+                {# Anycast Gateway #}
+                <details class="advanced-section">
+                    <summary>🌍 Anycast Gateway</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_anycast_gateway_enabled"> Enable Anycast Gateway</label>
+                        <small class="help-text">Distributed default gateway</small>
                     </div>
                     <div class="form-group">
                         <label>Anycast Gateway MAC</label>
                         <input type="text" id="vxlan_anycast_mac" placeholder="0000.1111.2222">
+                        <small class="help-text">Shared virtual MAC for all VTEPs</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Anycast Gateway VLANs (one per line)</label>
+                        <textarea id="vxlan_anycast_vlans" rows="4" placeholder="Format: vlan:ip-address:ipv6-address:vrf
+Example:
+10:192.168.10.1/24::
+20:192.168.20.1/24:2001:db8:20::1/64:VRF-TENANT
+30:192.168.30.1/24::VRF-PROD"></textarea>
+                        <small class="help-text">Format: vlan:ipv4:ipv6:vrf (optional ipv6 and vrf)</small>
                     </div>
                 </details>
+
+                {# VRF for L3VNI #}
+                <details class="advanced-section">
+                    <summary>🔀 VRF for L3VNI (Inter-Subnet Routing)</summary>
+                    <div class="form-group">
+                        <label>VRF Definitions (one per line)</label>
+                        <textarea id="vxlan_vrfs" rows="5" placeholder="Format: vrf-name:vni:vlan:rd:rt-import:rt-export:ipv6
+Example:
+VRF-TENANT1:50001:1000:1:1:50001:50001:yes
+VRF-TENANT2:50002:2000:2:2:50002:50002:no
+VRF-PROD:50003:3000:auto:50003:50003:yes"></textarea>
+                        <small class="help-text">Format: vrf:vni:vlan:rd:rt-import:rt-export:ipv6(yes/no)</small>
+                    </div>
+                </details>
+
+                {# Flood and Learn (non-EVPN) #}
+                <details class="advanced-section">
+                    <summary>💧 Flood and Learn (Non-EVPN)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_flood_and_learn"> Enable Flood and Learn</label>
+                        <small class="help-text">Static VTEP peering (use if not using EVPN)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>VTEP Peer IP Addresses (comma-separated)</label>
+                        <input type="text" id="vxlan_vtep_peers" placeholder="10.1.1.1,10.1.1.2,10.1.1.3">
+                        <small class="help-text">Statically configured VTEPs for flood list</small>
+                    </div>
+                </details>
+
+                {# Monitoring and Statistics #}
+                <details class="advanced-section">
+                    <summary>📊 Monitoring and Statistics</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_monitoring_counters"> Hardware Counters</label>
+                        <small class="help-text">Enable VXLAN hardware counters</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vxlan_monitoring_visibility"> NVE Visibility</label>
+                        <small class="help-text">Enable NVE visibility for monitoring</small>
+                    </div>
+                </details>
+
+                {# BUM Optimization #}
+                <details class="advanced-section">
+                    <summary>⚡ BUM Traffic Optimization</summary>
+                    <div class="form-group">
+                        <label>BUM Optimization Mode</label>
+                        <select id="vxlan_bum_mode">
+                            <option value="">Default</option>
+                            <option value="head-end-replication">Head-End Replication</option>
+                            <option value="multicast-underlay">Multicast Underlay</option>
+                        </select>
+                        <small class="help-text">Broadcast, Unknown Unicast, Multicast traffic handling</small>
+                    </div>
+                </details>
+
                 <button class="btn btn-primary" onclick="saveVxlanData()" style="width: 100%;">
-                    💾 Save VXLAN Configuration
+                    💾 Save Complete VXLAN/EVPN Configuration
                 </button>
             `;
             break;
