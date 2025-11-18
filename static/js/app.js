@@ -54,6 +54,19 @@ const protocols = {
                 description: 'Port Security, DHCP Snooping, DAI, 802.1X',
                 fields: ['security']
             },
+            dcb: {
+                name: 'Data Center Bridging',
+                icon: '🏢',
+                description: 'PFC, ETS, DCBX (lossless Ethernet)',
+                fields: ['dcb'],
+                supported: ['nxos', 'huawei']
+            },
+            erps: {
+                name: 'Ring Protection',
+                icon: '🔄',
+                description: 'ERPS G.8032 / REP',
+                fields: ['erps', 'rep']
+            },
             discovery: {
                 name: 'Discovery',
                 icon: '📡',
@@ -120,6 +133,33 @@ const protocols = {
                 fields: ['vxlan'],
                 supported: ['nxos', 'eos', 'junos']
             },
+            dmvpn: {
+                name: 'DMVPN',
+                icon: '🌐',
+                description: 'Dynamic Multipoint VPN (Phase 1/2/3)',
+                fields: ['tunnels'],
+                supported: ['ios', 'huawei']
+            },
+            ipsec: {
+                name: 'IPsec VPN',
+                icon: '🔐',
+                description: 'IKEv1/IKEv2, Crypto Maps, Profiles',
+                fields: ['ipsec'],
+                supported: ['ios', 'huawei']
+            },
+            lisp: {
+                name: 'LISP Mobility',
+                icon: '📍',
+                description: 'Locator/ID Separation Protocol',
+                fields: ['lisp'],
+                supported: ['ios', 'huawei']
+            },
+            bgp_advanced: {
+                name: 'BGP Advanced',
+                icon: '🎯',
+                description: 'Flowspec, BMP, BGP-LS, AIGP',
+                fields: ['bgp.advanced']
+            },
             nat: {
                 name: 'NAT',
                 icon: '🔄',
@@ -134,7 +174,7 @@ const protocols = {
             },
             sr: {
                 name: 'Segment Routing',
-                icon: '🎯',
+                icon: '🛣️',
                 description: 'SR-MPLS / SRv6',
                 fields: ['segment_routing']
             },
@@ -149,6 +189,49 @@ const protocols = {
                 icon: '💓',
                 description: 'Bidirectional Forwarding Detection',
                 fields: ['bfd']
+            }
+        }
+    },
+    telemetry: {
+        title: 'Telemetry & Monitoring',
+        protocols: {
+            netflow: {
+                name: 'NetFlow / IPFIX',
+                icon: '📊',
+                description: 'Flow collection and export',
+                fields: ['telemetry.netflow']
+            },
+            sflow: {
+                name: 'sFlow',
+                icon: '📈',
+                description: 'sFlow sampling',
+                fields: ['telemetry.sflow'],
+                supported: ['nxos', 'eos', 'junos']
+            },
+            gnmi: {
+                name: 'gNMI',
+                icon: '📡',
+                description: 'gRPC Network Management',
+                fields: ['telemetry.gnmi']
+            },
+            netconf: {
+                name: 'NETCONF / RESTCONF',
+                icon: '🔧',
+                description: 'YANG-based configuration',
+                fields: ['telemetry.netconf']
+            },
+            ip_sla: {
+                name: 'IP SLA',
+                icon: '⏱️',
+                description: 'Service Level Agreement monitoring',
+                fields: ['monitoring.ip_sla'],
+                supported: ['ios', 'nxos']
+            },
+            erspan: {
+                name: 'ERSPAN',
+                icon: '🔍',
+                description: 'Encapsulated Remote SPAN',
+                fields: ['monitoring.erspan']
             }
         }
     }
@@ -401,6 +484,165 @@ function saveBgpData() {
     console.log('BGP saved:', app.data.l3.bgp);
 }
 
+// NEW: Save functions for additional protocols
+function saveStpData() {
+    if (!app.data.l2.stp) {
+        app.data.l2.stp = {};
+    }
+
+    app.data.l2.stp.mode = document.getElementById('stp_mode')?.value || 'mst';
+    app.data.l2.stp.root_priority = {
+        global: parseInt(document.getElementById('stp_priority')?.value) || 32768
+    };
+
+    app.data.l2.stp.guards = {
+        bpduguard_default: document.getElementById('stp_bpduguard')?.checked || false,
+        loopguard_default: document.getElementById('stp_loopguard')?.checked || false
+    };
+
+    console.log('STP saved:', app.data.l2.stp);
+    alert('✅ STP configuration saved!');
+}
+
+function saveLagData() {
+    if (!app.data.l2.lag) {
+        app.data.l2.lag = [];
+    }
+
+    const bundleId = parseInt(document.getElementById('lag_bundle_id')?.value);
+    const mode = document.getElementById('lag_mode')?.value || 'lacp';
+    const membersStr = document.getElementById('lag_members')?.value || '';
+
+    if (!bundleId || !membersStr) {
+        alert('❌ Please fill all required fields');
+        return;
+    }
+
+    const members = membersStr.split(',').map(m => m.trim());
+
+    app.data.l2.lag.push({
+        bundle_id: bundleId,
+        mode: mode,
+        members: members,
+        description: `Bundle ${bundleId}`
+    });
+
+    console.log('LAG saved:', app.data.l2.lag);
+    alert('✅ LAG configuration saved!');
+
+    // Clear form
+    document.getElementById('lag_bundle_id').value = '';
+    document.getElementById('lag_members').value = '';
+}
+
+function saveInterfaceData() {
+    if (!app.data.l3.interfaces) {
+        app.data.l3.interfaces = [];
+    }
+
+    const ifaceName = document.getElementById('iface_name')?.value;
+    const ipv4 = document.getElementById('iface_ipv4')?.value;
+    const description = document.getElementById('iface_description')?.value;
+    const vrf = document.getElementById('iface_vrf')?.value;
+    const shutdown = document.getElementById('iface_shutdown')?.checked;
+
+    if (!ifaceName || !ipv4) {
+        alert('❌ Interface name and IP address are required');
+        return;
+    }
+
+    app.data.l3.interfaces.push({
+        interface: ifaceName,
+        ipv4: [{ address: ipv4 }],
+        description: description,
+        vrf: vrf || undefined,
+        shutdown: shutdown
+    });
+
+    console.log('Interface saved:', app.data.l3.interfaces);
+    alert('✅ Interface configuration saved!');
+
+    // Clear form
+    document.getElementById('iface_name').value = '';
+    document.getElementById('iface_ipv4').value = '';
+    document.getElementById('iface_description').value = '';
+}
+
+function saveStaticRouteData() {
+    if (!app.data.l3.static_routes) {
+        app.data.l3.static_routes = [];
+    }
+
+    const prefix = document.getElementById('route_prefix')?.value;
+    const nextHop = document.getElementById('route_next_hop')?.value;
+    const distance = document.getElementById('route_distance')?.value;
+
+    if (!prefix || !nextHop) {
+        alert('❌ Destination network and next hop are required');
+        return;
+    }
+
+    app.data.l3.static_routes.push({
+        prefix: prefix,
+        next_hop: nextHop,
+        distance: distance ? parseInt(distance) : undefined
+    });
+
+    console.log('Static route saved:', app.data.l3.static_routes);
+    alert('✅ Static route saved!');
+
+    // Clear form
+    document.getElementById('route_prefix').value = '';
+    document.getElementById('route_next_hop').value = '';
+    document.getElementById('route_distance').value = '';
+}
+
+function saveIsisData() {
+    if (!app.data.l3.isis) {
+        app.data.l3.isis = [];
+    }
+
+    const tag = document.getElementById('isis_tag')?.value || '1';
+    const net = document.getElementById('isis_net')?.value;
+    const isType = document.getElementById('isis_is_type')?.value || 'level-1-2';
+
+    if (!net) {
+        alert('❌ NET address is required');
+        return;
+    }
+
+    app.data.l3.isis.push({
+        tag: tag,
+        net: net,
+        is_type: isType
+    });
+
+    console.log('IS-IS saved:', app.data.l3.isis);
+    alert('✅ IS-IS configuration saved!');
+}
+
+function saveEigrpData() {
+    if (!app.data.l3.eigrp) {
+        app.data.l3.eigrp = [];
+    }
+
+    const asn = parseInt(document.getElementById('eigrp_asn')?.value);
+    const routerId = document.getElementById('eigrp_router_id')?.value;
+
+    if (!asn) {
+        alert('❌ AS Number is required');
+        return;
+    }
+
+    app.data.l3.eigrp.push({
+        asn: asn,
+        router_id: routerId
+    });
+
+    console.log('EIGRP saved:', app.data.l3.eigrp);
+    alert('✅ EIGRP configuration saved!');
+}
+
 // Generate form HTML for protocol
 function generateForm(protocolPath, protocolData) {
     const [category, protocol] = protocolPath.split('.');
@@ -477,19 +719,152 @@ function generateForm(protocolPath, protocolData) {
             setTimeout(updateBgpNeighborsList, 100);
             break;
 
+        case 'stp':
+            html += `
+                <h4>Spanning Tree Configuration</h4>
+                <div class="form-group">
+                    <label>Mode</label>
+                    <select id="stp_mode">
+                        <option value="mst">MST (802.1s)</option>
+                        <option value="rapid-pvst">Rapid-PVST+ (Cisco)</option>
+                        <option value="rstp">RSTP (802.1w)</option>
+                        <option value="pvst">PVST+ (Cisco)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <input type="number" id="stp_priority" value="32768" step="4096" min="0" max="61440">
+                </div>
+                <details class="advanced-section">
+                    <summary>Advanced Options</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="stp_bpduguard"> BPDU Guard (default)</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="stp_loopguard"> Loop Guard (default)</label>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveStpData()" style="width: 100%;">
+                    💾 Save STP Configuration
+                </button>
+            `;
+            break;
+
+        case 'lag':
+            html += `
+                <h4>Link Aggregation (LAG/LACP)</h4>
+                <div class="form-group">
+                    <label>Bundle ID</label>
+                    <input type="number" id="lag_bundle_id" min="1" max="255" placeholder="1">
+                </div>
+                <div class="form-group">
+                    <label>Mode</label>
+                    <select id="lag_mode">
+                        <option value="lacp">LACP (active)</option>
+                        <option value="on">Static (on)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Member Interfaces (comma-separated)</label>
+                    <input type="text" id="lag_members" placeholder="GigabitEthernet0/1,GigabitEthernet0/2">
+                </div>
+                <button class="btn btn-primary" onclick="saveLagData()" style="width: 100%;">
+                    💾 Save LAG Configuration
+                </button>
+            `;
+            break;
+
         case 'interfaces':
             html += `
-                <h4>L3 Interfaces</h4>
-                <p>Use JSON editor to configure interfaces (complex structure)</p>
-                <button class="btn btn-secondary" onclick="openJsonEditor()">📝 Edit JSON</button>
+                <h4>L3 Interfaces Configuration</h4>
+                <div class="form-group">
+                    <label>Interface Name</label>
+                    <input type="text" id="iface_name" placeholder="GigabitEthernet0/0">
+                </div>
+                <div class="form-group">
+                    <label>IPv4 Address (CIDR)</label>
+                    <input type="text" id="iface_ipv4" placeholder="192.168.1.1/24">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="iface_description" placeholder="WAN Link">
+                </div>
+                <details class="advanced-section">
+                    <summary>Advanced Options</summary>
+                    <div class="form-group">
+                        <label>VRF Name</label>
+                        <input type="text" id="iface_vrf" placeholder="MGMT">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="iface_shutdown"> Shutdown</label>
+                    </div>
+                </details>
+                <button class="btn btn-primary" onclick="saveInterfaceData()" style="width: 100%;">
+                    💾 Save Interface Configuration
+                </button>
             `;
             break;
 
         case 'static':
             html += `
-                <h4>Static Routes</h4>
-                <p>Use JSON editor to configure static routes</p>
-                <button class="btn btn-secondary" onclick="openJsonEditor()">📝 Edit JSON</button>
+                <h4>Static Routes Configuration</h4>
+                <div class="form-group">
+                    <label>Destination Network (CIDR)</label>
+                    <input type="text" id="route_prefix" placeholder="10.0.0.0/8">
+                </div>
+                <div class="form-group">
+                    <label>Next Hop IP</label>
+                    <input type="text" id="route_next_hop" placeholder="192.168.1.254">
+                </div>
+                <div class="form-group">
+                    <label>Administrative Distance (optional)</label>
+                    <input type="number" id="route_distance" min="1" max="255" placeholder="1">
+                </div>
+                <button class="btn btn-primary" onclick="saveStaticRouteData()" style="width: 100%;">
+                    💾 Save Static Route
+                </button>
+            `;
+            break;
+
+        case 'isis':
+            html += `
+                <h4>IS-IS Configuration</h4>
+                <div class="form-group">
+                    <label>Process Tag</label>
+                    <input type="text" id="isis_tag" placeholder="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>NET Address</label>
+                    <input type="text" id="isis_net" placeholder="49.0001.0000.0000.0001.00">
+                </div>
+                <div class="form-group">
+                    <label>IS-Type</label>
+                    <select id="isis_is_type">
+                        <option value="level-1-2">Level-1-2</option>
+                        <option value="level-1">Level-1</option>
+                        <option value="level-2-only">Level-2 Only</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="saveIsisData()" style="width: 100%;">
+                    💾 Save IS-IS Configuration
+                </button>
+            `;
+            break;
+
+        case 'eigrp':
+            html += `
+                <h4>EIGRP Configuration</h4>
+                <div class="form-group">
+                    <label>AS Number</label>
+                    <input type="number" id="eigrp_asn" min="1" max="65535" placeholder="100">
+                </div>
+                <div class="form-group">
+                    <label>Router ID</label>
+                    <input type="text" id="eigrp_router_id" placeholder="1.1.1.1">
+                </div>
+                <button class="btn btn-primary" onclick="saveEigrpData()" style="width: 100%;">
+                    💾 Save EIGRP Configuration
+                </button>
             `;
             break;
 
