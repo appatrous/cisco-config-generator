@@ -1,4 +1,10 @@
 {# BGP Configuration for Cisco IOS/IOS-XE #}
+! ========================================
+! BGP Routing Protocol
+! Device: {{ global.hostname | default('Router') }}
+! AS Number: {{ l3.bgp.asn }}{% if l3.bgp.router_id %} | Router ID: {{ l3.bgp.router_id }}{% endif %}
+
+! ========================================
 router bgp {{ l3.bgp.asn }}
 {% if l3.bgp.router_id %}
   bgp router-id {{ l3.bgp.router_id }}

@@ -1,4 +1,10 @@
 {# OSPF Configuration for Cisco IOS/IOS-XE #}
+! ========================================
+! OSPF Routing Protocol
+! Device: {{ global.hostname | default('Router') }}
+! Process ID: {{ ospf.process_id }}{% if ospf.router_id %} | Router ID: {{ ospf.router_id }}{% endif %}
+
+! ========================================
 router ospf {{ ospf.process_id }}{% if ospf.get('vrf') %} vrf {{ ospf.vrf }}{% endif %}
 
 {% if ospf.router_id %}

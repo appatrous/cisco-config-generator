@@ -2,6 +2,12 @@
 
 {# VLANs #}
 {% if l2.get('vlans') %}
+! ========================================
+! VLANs Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! VLANs: {% for vlan in l2.vlans %}{{ vlan.id }} ({{ vlan.name }}){% if not loop.last %}, {% endif %}{% endfor %}
+
+! ========================================
 {% for vlan in l2.vlans %}
 vlan {{ vlan.id }}
   name {{ vlan.name }}
@@ -40,6 +46,11 @@ interface {{ port }}
 
 {# Spanning Tree #}
 {% if l2.get('stp') %}
+! ========================================
+! Spanning Tree Protocol (STP)
+! Device: {{ global.hostname | default('Switch') }}
+! Mode: {{ l2.stp.mode | default('PVST') | upper }}
+! ========================================
 spanning-tree mode {% if l2.stp.mode == 'mst' %}mst{% elif l2.stp.mode == 'rapid-pvst' %}rapid-pvst{% else %}pvst{% endif %}
 
 {% if l2.stp.mode == 'mst' and l2.stp.mst_config %}
@@ -99,6 +110,12 @@ spanning-tree {% if l2.stp.mode == 'mst' %}mst {% endif %}max-age {{ l2.stp.time
 
 {# LAG / Port-Channel #}
 {% if l2.get('lag') %}
+! ========================================
+! Link Aggregation (Port-Channel)
+! Device: {{ global.hostname | default('Switch') }}
+! Port-Channels: {% for bundle in l2.lag %}Po{{ bundle.bundle_id }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+! ========================================
 {% for bundle in l2.lag %}
 interface Port-Channel{{ bundle.bundle_id }}
 {% if bundle.description %}
