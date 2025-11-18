@@ -2934,17 +2934,37 @@ async function generateConfig() {
             // Show error message
             statusDiv.innerHTML = `<div class="error">❌ Error: ${result.error || 'Unknown error'}</div>`;
 
-            // Show validation errors if available
-            if (result.validation) {
-                // Make preview panel visible to show validation errors
-                document.getElementById('preview-panel').style.display = 'block';
-                showValidationErrors(result.validation);
+            // Make preview panel visible to show error details
+            document.getElementById('preview-panel').style.display = 'block';
 
-                // Clear config output since generation failed
-                const configOutput = document.getElementById('config-output');
-                if (configOutput) {
-                    configOutput.textContent = '# Configuration generation failed due to validation errors\n# Please fix the errors below and try again';
+            // Check if it's a validation error or rendering error
+            if (result.validation) {
+                showValidationErrors(result.validation);
+            }
+
+            // Show error details in config output
+            const configOutput = document.getElementById('config-output');
+            if (configOutput) {
+                let errorMessage = '# Configuration generation failed\n\n';
+
+                // Check if validation errors exist
+                if (result.validation && result.validation.errors && result.validation.errors.length > 0) {
+                    errorMessage += '# VALIDATION ERRORS:\n';
+                    result.validation.errors.forEach(err => {
+                        errorMessage += `# - ${err}\n`;
+                    });
+                    errorMessage += '\n# Please fix the validation errors above and try again';
+                } else {
+                    // It's a rendering/template error
+                    errorMessage += '# RENDERING ERROR:\n';
+                    errorMessage += `# ${result.error || 'Unknown error'}\n\n`;
+                    errorMessage += '# This is likely a template error. Check:\n';
+                    errorMessage += '# - Protocol configuration data structure\n';
+                    errorMessage += '# - Template syntax in config_templates/\n';
+                    errorMessage += '# - Missing required fields in protocol forms';
                 }
+
+                configOutput.textContent = errorMessage;
             }
         }
     } catch (error) {
