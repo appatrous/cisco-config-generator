@@ -300,9 +300,15 @@ const protocols = {
                 description: 'CoPP for DoS protection',
                 fields: ['copp']
             },
+            aaa: {
+                name: 'AAA',
+                icon: '🔐',
+                description: 'Authentication, Authorization, Accounting',
+                fields: ['aaa']
+            },
             iacls: {
                 name: 'Infrastructure ACLs',
-                icon: '🔐',
+                icon: '🔒',
                 description: 'Management plane protection (iACLs)',
                 fields: ['iacls']
             },
@@ -2614,6 +2620,295 @@ function saveCoppData() {
 
     console.log('CoPP saved:', app.data.security.copp);
     alert('✅ CoPP configuration saved!');
+}
+
+function saveAaaData() {
+    if (!app.data.global) {
+        app.data.global = {};
+    }
+    if (!app.data.global.aaa) {
+        app.data.global.aaa = {};
+    }
+
+    // Basic Configuration
+    app.data.global.aaa.enabled = document.getElementById('aaa_enabled')?.checked || false;
+
+    // TACACS+ Servers
+    const tacacsServersText = document.getElementById('aaa_tacacs_servers')?.value || '';
+    if (tacacsServersText.trim()) {
+        app.data.global.aaa.tacacs_servers = [];
+        const lines = tacacsServersText.trim().split('\n');
+        for (const line of lines) {
+            const [host, key] = line.split(':').map(s => s.trim());
+            if (host && key) {
+                app.data.global.aaa.tacacs_servers.push({
+                    host: host,
+                    key: key
+                });
+            }
+        }
+        app.data.global.aaa.tacacs_timeout = parseInt(document.getElementById('aaa_tacacs_timeout')?.value) || 5;
+        app.data.global.aaa.tacacs_source_interface = document.getElementById('aaa_tacacs_source_interface')?.value || '';
+    }
+
+    // RADIUS Servers
+    const radiusServersText = document.getElementById('aaa_radius_servers')?.value || '';
+    if (radiusServersText.trim()) {
+        app.data.global.aaa.radius_servers = [];
+        const lines = radiusServersText.trim().split('\n');
+        for (const line of lines) {
+            const [host, key, authPort, acctPort] = line.split(':').map(s => s.trim());
+            if (host && key) {
+                app.data.global.aaa.radius_servers.push({
+                    host: host,
+                    key: key,
+                    auth_port: authPort || '1812',
+                    acct_port: acctPort || '1813'
+                });
+            }
+        }
+        app.data.global.aaa.radius_timeout = parseInt(document.getElementById('aaa_radius_timeout')?.value) || 5;
+        app.data.global.aaa.radius_retransmit = parseInt(document.getElementById('aaa_radius_retransmit')?.value) || 3;
+        app.data.global.aaa.radius_source_interface = document.getElementById('aaa_radius_source_interface')?.value || '';
+    }
+
+    // Server Groups
+    app.data.global.aaa.server_groups = {};
+
+    const tacacsGroupName = document.getElementById('aaa_tacacs_group_name')?.value || 'TACACS-GROUP';
+    const radiusGroupName = document.getElementById('aaa_radius_group_name')?.value || 'RADIUS-GROUP';
+
+    if (app.data.global.aaa.tacacs_servers && app.data.global.aaa.tacacs_servers.length > 0) {
+        app.data.global.aaa.server_groups[tacacsGroupName] = {
+            type: 'tacacs+',
+            servers: app.data.global.aaa.tacacs_servers.map(s => s.host)
+        };
+    }
+
+    if (app.data.global.aaa.radius_servers && app.data.global.aaa.radius_servers.length > 0) {
+        app.data.global.aaa.server_groups[radiusGroupName] = {
+            type: 'radius',
+            servers: app.data.global.aaa.radius_servers.map(s => s.host)
+        };
+    }
+
+    // Custom Server Groups
+    const customGroupsText = document.getElementById('aaa_custom_groups')?.value || '';
+    if (customGroupsText.trim()) {
+        const lines = customGroupsText.trim().split('\n');
+        for (const line of lines) {
+            const [groupName, type, serversStr] = line.split(':').map(s => s.trim());
+            if (groupName && type && serversStr) {
+                app.data.global.aaa.server_groups[groupName] = {
+                    type: type,
+                    servers: serversStr.split(',').map(s => s.trim())
+                };
+            }
+        }
+    }
+
+    // Authentication Method Lists
+    app.data.global.aaa.authentication = {};
+
+    // Login Authentication
+    const loginList = document.getElementById('aaa_auth_login_list')?.value || 'default';
+    const loginMethod1 = document.getElementById('aaa_auth_login_method1')?.value || 'group tacacs+';
+    const loginMethod2 = document.getElementById('aaa_auth_login_method2')?.value || 'local';
+
+    app.data.global.aaa.authentication.login = {
+        list_name: loginList,
+        methods: [loginMethod1]
+    };
+    if (loginMethod2) {
+        app.data.global.aaa.authentication.login.methods.push(loginMethod2);
+    }
+    app.data.global.aaa.login_authentication = loginList;
+
+    // Enable Authentication
+    const enableList = document.getElementById('aaa_auth_enable_list')?.value || 'default';
+    const enableMethod1 = document.getElementById('aaa_auth_enable_method1')?.value || 'enable';
+    const enableMethod2 = document.getElementById('aaa_auth_enable_method2')?.value || '';
+
+    app.data.global.aaa.authentication.enable = {
+        list_name: enableList,
+        methods: [enableMethod1]
+    };
+    if (enableMethod2) {
+        app.data.global.aaa.authentication.enable.methods.push(enableMethod2);
+    }
+    app.data.global.aaa.enable_authentication = enableList;
+
+    // Console Authentication
+    if (document.getElementById('aaa_console_auth')?.checked) {
+        const consoleMethod = document.getElementById('aaa_console_auth_method')?.value || 'local';
+        app.data.global.aaa.authentication.console = {
+            list_name: 'console',
+            methods: [consoleMethod]
+        };
+        app.data.global.aaa.console_authentication = true;
+    }
+
+    // PPP Authentication
+    if (document.getElementById('aaa_ppp_auth')?.checked) {
+        const pppList = document.getElementById('aaa_ppp_auth_list')?.value || 'ppp-authen';
+        app.data.global.aaa.authentication.ppp = {
+            list_name: pppList,
+            methods: [loginMethod1, 'local']
+        };
+    }
+
+    // 802.1X Authentication
+    if (document.getElementById('aaa_dot1x_auth')?.checked) {
+        const dot1xList = document.getElementById('aaa_dot1x_auth_list')?.value || 'dot1x-authen';
+        app.data.global.aaa.authentication.dot1x = {
+            list_name: dot1xList,
+            methods: [loginMethod1, 'local']
+        };
+    }
+
+    // Authorization Method Lists
+    app.data.global.aaa.authorization = {};
+
+    // Exec Authorization
+    if (document.getElementById('aaa_authz_exec')?.checked) {
+        const execMethod = document.getElementById('aaa_authz_exec_method')?.value || 'group tacacs+';
+        const execFallback = document.getElementById('aaa_authz_exec_fallback')?.value || 'local';
+
+        app.data.global.aaa.authorization.exec = {
+            list_name: 'default',
+            methods: [execMethod]
+        };
+        if (execFallback) {
+            app.data.global.aaa.authorization.exec.methods.push(execFallback);
+        }
+    }
+
+    // Commands Authorization
+    const commandsLevelsStr = document.getElementById('aaa_authz_commands_levels')?.value || '1,15';
+    const commandsLevels = commandsLevelsStr.split(',').map(l => l.trim());
+    const commandsMethod = document.getElementById('aaa_authz_commands_method')?.value || 'group tacacs+';
+    const commandsFallback = document.getElementById('aaa_authz_commands_fallback')?.value || 'local';
+
+    app.data.global.aaa.authorization.commands = [];
+    for (const level of commandsLevels) {
+        if (level) {
+            const cmdAuthz = {
+                level: parseInt(level),
+                list_name: 'default',
+                methods: [commandsMethod]
+            };
+            if (commandsFallback) {
+                cmdAuthz.methods.push(commandsFallback);
+            }
+            app.data.global.aaa.authorization.commands.push(cmdAuthz);
+        }
+    }
+
+    // Network Authorization
+    if (document.getElementById('aaa_authz_network')?.checked) {
+        const networkMethod = document.getElementById('aaa_authz_network_method')?.value || 'group tacacs+';
+        app.data.global.aaa.authorization.network = {
+            list_name: 'default',
+            methods: [networkMethod]
+        };
+    }
+
+    // Configuration Authorization
+    if (document.getElementById('aaa_authz_config')?.checked) {
+        app.data.global.aaa.authorization.configuration = {
+            enabled: true,
+            list_name: 'default',
+            methods: [commandsMethod]
+        };
+    }
+
+    // Accounting
+    app.data.global.aaa.accounting = {};
+
+    // Exec Accounting
+    if (document.getElementById('aaa_acct_exec')?.checked) {
+        const execAcctType = document.getElementById('aaa_acct_exec_type')?.value || 'start-stop';
+        const execAcctMethod = document.getElementById('aaa_acct_exec_method')?.value || 'group tacacs+';
+
+        app.data.global.aaa.accounting.exec = {
+            list_name: 'default',
+            type: execAcctType,
+            methods: [execAcctMethod]
+        };
+    }
+
+    // Commands Accounting
+    if (document.getElementById('aaa_acct_commands')?.checked) {
+        const acctCommandsLevelsStr = document.getElementById('aaa_acct_commands_levels')?.value || '1,15';
+        const acctCommandsLevels = acctCommandsLevelsStr.split(',').map(l => l.trim());
+        const acctCommandsType = document.getElementById('aaa_acct_commands_type')?.value || 'start-stop';
+        const acctCommandsMethod = document.getElementById('aaa_acct_commands_method')?.value || 'group tacacs+';
+
+        app.data.global.aaa.accounting.commands = [];
+        for (const level of acctCommandsLevels) {
+            if (level) {
+                app.data.global.aaa.accounting.commands.push({
+                    level: parseInt(level),
+                    list_name: 'default',
+                    type: acctCommandsType,
+                    methods: [acctCommandsMethod]
+                });
+            }
+        }
+    }
+
+    // Connection Accounting
+    if (document.getElementById('aaa_acct_connection')?.checked) {
+        const connAcctType = document.getElementById('aaa_acct_connection_type')?.value || 'start-stop';
+        app.data.global.aaa.accounting.connection = {
+            list_name: 'default',
+            type: connAcctType,
+            methods: ['group tacacs+']
+        };
+    }
+
+    // System Accounting
+    if (document.getElementById('aaa_acct_system')?.checked) {
+        app.data.global.aaa.accounting.system = {
+            enabled: true,
+            methods: ['group tacacs+']
+        };
+    }
+
+    // Advanced AAA Settings
+    app.data.global.aaa.advanced = {};
+
+    // Session ID
+    const sessionId = document.getElementById('aaa_session_id')?.value || 'common';
+    app.data.global.aaa.advanced.session_id = sessionId;
+
+    // AAA Cache
+    if (document.getElementById('aaa_cache')?.checked) {
+        const cacheTimer = parseInt(document.getElementById('aaa_cache_timer')?.value) || 60;
+        app.data.global.aaa.advanced.cache = {
+            enabled: true,
+            timer: cacheTimer
+        };
+    }
+
+    // Local Username Override
+    if (document.getElementById('aaa_local_override')?.checked) {
+        app.data.global.aaa.advanced.local_override = true;
+    }
+
+    // AAA Update Watchdog
+    if (document.getElementById('aaa_update_watchdog')?.checked) {
+        app.data.global.aaa.advanced.update_watchdog = true;
+    }
+
+    // Dead Time
+    const deadTime = parseInt(document.getElementById('aaa_dead_time')?.value) || 0;
+    if (deadTime > 0) {
+        app.data.global.aaa.advanced.dead_time = deadTime;
+    }
+
+    console.log('AAA saved (complete):', app.data.global.aaa);
+    alert('✅ Complete AAA configuration saved!');
 }
 
 function saveIaclsData() {
@@ -6782,6 +7077,349 @@ SOO:100:1"></textarea>
 
                 <button class="btn btn-primary" onclick="saveCoppData()" style="width: 100%;">
                     💾 Save CoPP Configuration
+                </button>
+            `;
+            break;
+
+        case 'aaa':
+            html += `
+                <h4>AAA Configuration</h4>
+                <p class="help-text">Authentication, Authorization, and Accounting</p>
+
+                {# Basic AAA Configuration #}
+                <div class="form-group">
+                    <label><input type="checkbox" id="aaa_enabled" checked> Enable AAA (aaa new-model)</label>
+                    <small class="help-text">Enables AAA access control model</small>
+                </div>
+
+                {# TACACS+ Server Configuration #}
+                <details class="advanced-section" open>
+                    <summary>🔐 TACACS+ Servers</summary>
+                    <div class="form-group">
+                        <label>TACACS+ Servers</label>
+                        <textarea id="aaa_tacacs_servers" rows="4" placeholder="192.168.1.10:shared-secret-key1
+192.168.1.11:shared-secret-key2"></textarea>
+                        <small class="help-text">Format: IP:key (one per line)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>TACACS+ Timeout (seconds)</label>
+                        <input type="number" id="aaa_tacacs_timeout" min="1" max="300" placeholder="5">
+                    </div>
+                    <div class="form-group">
+                        <label>TACACS+ Source Interface</label>
+                        <input type="text" id="aaa_tacacs_source_interface" placeholder="Loopback0">
+                    </div>
+                </details>
+
+                {# RADIUS Server Configuration #}
+                <details class="advanced-section">
+                    <summary>📡 RADIUS Servers</summary>
+                    <div class="form-group">
+                        <label>RADIUS Servers</label>
+                        <textarea id="aaa_radius_servers" rows="4" placeholder="192.168.1.20:shared-secret-key1:1812:1813
+192.168.1.21:shared-secret-key2:1812:1813"></textarea>
+                        <small class="help-text">Format: IP:key:auth-port:acct-port (one per line)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>RADIUS Timeout (seconds)</label>
+                        <input type="number" id="aaa_radius_timeout" min="1" max="300" placeholder="5">
+                    </div>
+                    <div class="form-group">
+                        <label>RADIUS Retransmit Count</label>
+                        <input type="number" id="aaa_radius_retransmit" min="1" max="100" placeholder="3">
+                    </div>
+                    <div class="form-group">
+                        <label>RADIUS Source Interface</label>
+                        <input type="text" id="aaa_radius_source_interface" placeholder="Loopback0">
+                    </div>
+                </details>
+
+                {# Server Groups #}
+                <details class="advanced-section">
+                    <summary>👥 Server Groups</summary>
+                    <div class="form-group">
+                        <label>TACACS+ Group Name</label>
+                        <input type="text" id="aaa_tacacs_group_name" value="TACACS-GROUP" placeholder="TACACS-GROUP">
+                    </div>
+                    <div class="form-group">
+                        <label>RADIUS Group Name</label>
+                        <input type="text" id="aaa_radius_group_name" value="RADIUS-GROUP" placeholder="RADIUS-GROUP">
+                    </div>
+                    <div class="form-group">
+                        <label>Custom Server Groups</label>
+                        <textarea id="aaa_custom_groups" rows="3" placeholder="ISE-GROUP:radius:192.168.1.30,192.168.1.31
+ACS-GROUP:tacacs:192.168.1.40,192.168.1.41"></textarea>
+                        <small class="help-text">Format: group-name:type:server1,server2 (one per line)</small>
+                    </div>
+                </details>
+
+                {# Authentication Method Lists #}
+                <details class="advanced-section" open>
+                    <summary>🔑 Authentication Method Lists</summary>
+
+                    <h5>Login Authentication</h5>
+                    <div class="form-group">
+                        <label>Default Login Method List</label>
+                        <input type="text" id="aaa_auth_login_list" value="default" placeholder="default">
+                    </div>
+                    <div class="form-group">
+                        <label>Login Authentication Methods (in order)</label>
+                        <select id="aaa_auth_login_method1">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                            <option value="local">Local</option>
+                            <option value="enable">Enable Secret</option>
+                            <option value="line">Line Password</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fallback Method</label>
+                        <select id="aaa_auth_login_method2">
+                            <option value="">No Fallback</option>
+                            <option value="local" selected>Local</option>
+                            <option value="enable">Enable Secret</option>
+                            <option value="line">Line Password</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <h5>Enable Authentication</h5>
+                    <div class="form-group">
+                        <label>Enable Method List</label>
+                        <input type="text" id="aaa_auth_enable_list" value="default" placeholder="default">
+                    </div>
+                    <div class="form-group">
+                        <label>Enable Authentication Methods (in order)</label>
+                        <select id="aaa_auth_enable_method1">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                            <option value="enable" selected>Enable Secret</option>
+                            <option value="line">Line Password</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Enable Fallback</label>
+                        <select id="aaa_auth_enable_method2">
+                            <option value="">No Fallback</option>
+                            <option value="enable" selected>Enable Secret</option>
+                            <option value="line">Line Password</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <h5>Console Authentication</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_console_auth"> Use Console Authentication</label>
+                        <small class="help-text">Separate authentication for console (typically local-only)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Console Auth Method</label>
+                        <select id="aaa_console_auth_method">
+                            <option value="local" selected>Local</option>
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <h5>Additional Authentication Types</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_ppp_auth"> PPP Authentication</label>
+                        <input type="text" id="aaa_ppp_auth_list" placeholder="ppp-authen" style="margin-left: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_dot1x_auth"> 802.1X Authentication</label>
+                        <input type="text" id="aaa_dot1x_auth_list" placeholder="dot1x-authen" style="margin-left: 10px;">
+                    </div>
+                </details>
+
+                {# Authorization Method Lists #}
+                <details class="advanced-section" open>
+                    <summary>✅ Authorization Method Lists</summary>
+
+                    <h5>Exec Authorization</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_authz_exec" checked> Enable Exec Authorization</label>
+                        <small class="help-text">Authorize user EXEC sessions</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Exec Method</label>
+                        <select id="aaa_authz_exec_method">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                            <option value="local">Local</option>
+                            <option value="if-authenticated">If-Authenticated</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Exec Fallback</label>
+                        <select id="aaa_authz_exec_fallback">
+                            <option value="">No Fallback</option>
+                            <option value="local" selected>Local</option>
+                            <option value="if-authenticated">If-Authenticated</option>
+                        </select>
+                    </div>
+
+                    <h5>Commands Authorization</h5>
+                    <div class="form-group">
+                        <label>Authorize Privilege Levels (comma-separated)</label>
+                        <input type="text" id="aaa_authz_commands_levels" value="1,15" placeholder="0,1,15">
+                        <small class="help-text">Common: 0=user exec, 1=user, 15=privileged</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Commands Method</label>
+                        <select id="aaa_authz_commands_method">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                            <option value="local">Local</option>
+                            <option value="if-authenticated">If-Authenticated</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Commands Fallback</label>
+                        <select id="aaa_authz_commands_fallback">
+                            <option value="">No Fallback</option>
+                            <option value="local" selected>Local</option>
+                            <option value="if-authenticated">If-Authenticated</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+
+                    <h5>Network Authorization</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_authz_network"> Network Authorization (PPP, VPDN)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Network Method</label>
+                        <select id="aaa_authz_network_method">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                            <option value="if-authenticated">If-Authenticated</option>
+                        </select>
+                    </div>
+
+                    <h5>Configuration Authorization</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_authz_config"> Configuration Commands Authorization</label>
+                        <small class="help-text">Authorize configuration mode commands</small>
+                    </div>
+                </details>
+
+                {# Accounting #}
+                <details class="advanced-section" open>
+                    <summary>📊 Accounting</summary>
+
+                    <h5>Exec Accounting</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_acct_exec" checked> Enable Exec Accounting</label>
+                        <small class="help-text">Log user EXEC sessions</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Exec Accounting Type</label>
+                        <select id="aaa_acct_exec_type">
+                            <option value="start-stop" selected>Start-Stop</option>
+                            <option value="stop-only">Stop-Only</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Exec Accounting Method</label>
+                        <select id="aaa_acct_exec_method">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                        </select>
+                    </div>
+
+                    <h5>Commands Accounting</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_acct_commands" checked> Enable Commands Accounting</label>
+                        <small class="help-text">Log commands executed by users</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Log Commands for Levels (comma-separated)</label>
+                        <input type="text" id="aaa_acct_commands_levels" value="1,15" placeholder="0,1,15">
+                    </div>
+                    <div class="form-group">
+                        <label>Commands Accounting Type</label>
+                        <select id="aaa_acct_commands_type">
+                            <option value="start-stop" selected>Start-Stop</option>
+                            <option value="stop-only">Stop-Only</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Commands Accounting Method</label>
+                        <select id="aaa_acct_commands_method">
+                            <option value="group tacacs+">Group TACACS+</option>
+                            <option value="group radius">Group RADIUS</option>
+                        </select>
+                    </div>
+
+                    <h5>Connection Accounting</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_acct_connection"> Connection Accounting</label>
+                        <small class="help-text">Log outbound connections (telnet, SSH)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Connection Accounting Type</label>
+                        <select id="aaa_acct_connection_type">
+                            <option value="start-stop" selected>Start-Stop</option>
+                            <option value="stop-only">Stop-Only</option>
+                        </select>
+                    </div>
+
+                    <h5>System Accounting</h5>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_acct_system"> System Accounting</label>
+                        <small class="help-text">Log system-level events (reload, etc.)</small>
+                    </div>
+                </details>
+
+                {# Advanced AAA Settings #}
+                <details class="advanced-section">
+                    <summary>⚙️ Advanced AAA Settings</summary>
+
+                    <div class="form-group">
+                        <label>Session ID</label>
+                        <select id="aaa_session_id">
+                            <option value="common">Common</option>
+                            <option value="unique">Unique</option>
+                        </select>
+                        <small class="help-text">Session ID format for accounting</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_cache"> Enable AAA Cache</label>
+                        <small class="help-text">Cache credentials for fast-failover</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cache Timer (minutes)</label>
+                        <input type="number" id="aaa_cache_timer" min="1" max="1440" placeholder="60">
+                    </div>
+
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_local_override"> Local Username Override</label>
+                        <small class="help-text">Local DB takes precedence over AAA servers</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label><input type="checkbox" id="aaa_update_watchdog"> AAA Update Watchdog</label>
+                        <small class="help-text">Monitor AAA server reachability</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dead Time (minutes)</label>
+                        <input type="number" id="aaa_dead_time" min="0" max="1440" placeholder="0">
+                        <small class="help-text">Mark unreachable servers dead for this duration (0=disabled)</small>
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveAaaData()" style="width: 100%;">
+                    💾 Save Complete AAA Configuration
                 </button>
             `;
             break;
