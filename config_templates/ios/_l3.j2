@@ -204,85 +204,85 @@ interface {{ iface }}
 {# OSPF #}
 {% if l3.ospf %}
 {% for ospf in l3.ospf %}
-{% include 'ios/_ospf.j2' %}
+{% include '_ospf.j2' %}
 {% endfor %}
 {% endif %}
 
 {# IS-IS #}
 {% if l3.isis %}
 {% for isis in l3.isis %}
-{% include 'ios/_isis.j2' %}
+{% include '_isis.j2' %}
 {% endfor %}
 {% endif %}
 
 {# EIGRP #}
 {% if l3.eigrp %}
 {% for eigrp in l3.eigrp %}
-{% include 'ios/_eigrp.j2' %}
+{% include '_eigrp.j2' %}
 {% endfor %}
 {% endif %}
 
 {# BGP #}
 {% if l3.bgp %}
-{% include 'ios/_bgp.j2' %}
+{% include '_bgp.j2' %}
 {% endif %}
 
 {# RIP #}
 {% if l3.rip and l3.rip.enabled %}
-{% include 'ios/_rip.j2' %}
+{% include '_rip.j2' %}
 {% endif %}
 
 {# Multicast #}
 {% if l3.multicast %}
-{% include 'ios/_multicast.j2' %}
+{% include '_multicast.j2' %}
 {% endif %}
 
 {# NAT #}
 {% if l3.nat %}
-{% include 'ios/_nat.j2' %}
+{% include '_nat.j2' %}
 {% endif %}
 
 {# MPLS #}
 {% if l3.mpls %}
-{% include 'ios/_mpls.j2' %}
+{% include '_mpls.j2' %}
 {% endif %}
 
 {# Segment Routing #}
 {% if l3.segment_routing and l3.segment_routing.enabled %}
-{% include 'ios/_segment_routing.j2' %}
+{% include '_segment_routing.j2' %}
 {% endif %}
 
 {# BFD #}
 {% if l3.bfd and l3.bfd.enabled %}
-{% include 'ios/_bfd.j2' %}
+{% include '_bfd.j2' %}
 {% endif %}
 
 {# Tunnels (GRE, IP-in-IP, DMVPN) #}
 {% if l3.tunnels %}
-{% include 'ios/_tunnels.j2' %}
+{% include '_tunnels.j2' %}
 {% endif %}
 
 {# IPsec (IKEv1, IKEv2, Crypto Maps) #}
 {% if l3.ipsec %}
-{% include 'ios/_ipsec.j2' %}
+{% include '_ipsec.j2' %}
 {% endif %}
 
 {# LISP (Locator/ID Separation Protocol) #}
 {% if l3.lisp and l3.lisp.enabled %}
-{% include 'ios/_lisp.j2' %}
+{% include '_lisp.j2' %}
 {% endif %}
 
 {# Monitoring (IP-SLA, ERSPAN, TWAMP) #}
 {% if l3.monitoring and l3.monitoring.enabled %}
-{% include 'ios/_monitoring.j2' %}
+{% include '_monitoring.j2' %}
 {% endif %}
 
 {# Telemetry (NetFlow/IPFIX, sFlow, gNMI, NETCONF) #}
 {% if l3.telemetry and l3.telemetry.enabled %}
-{% include 'ios/_telemetry.j2' %}
+{% include '_telemetry.j2' %}
 {% endif %}
 
 {# QoS #}
 {% if l3.qos %}
-{% include 'ios/_qos.j2' %}
+{% include '_qos.j2' %}
 {% endif %}

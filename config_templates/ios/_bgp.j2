@@ -194,7 +194,7 @@ router bgp {{ l3.bgp.asn }}
 
 {# BGP Policies #}
 {% if l3.bgp.policies %}
-{% include 'ios/_bgp_policies.j2' %}
+{% include '_bgp_policies.j2' %}
 {% endif %}
 
 {# RPKI #}
@@ -209,5 +209,5 @@ router bgp {{ l3.bgp.asn }}
 
 {# Advanced BGP Features #}
 {% if l3.bgp.advanced %}
-{% include 'ios/_bgp_advanced.j2' %}
+{% include '_bgp_advanced.j2' %}
 {% endif %}

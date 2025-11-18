@@ -207,7 +207,7 @@ no cdp run
 
 {# Layer 2 Security #}
 {% if l2.security %}
-{% include 'ios/_l2_security.j2' %}
+{% include '_l2_security.j2' %}
 {% endif %}
 
 {# IGMP Snooping #}
@@ -235,5 +235,5 @@ interface {{ port }}
 
 {# REP (Resilient Ethernet Protocol) Ring Protection #}
 {% if l2.rep and l2.rep.enabled %}
-{% include 'ios/_rep.j2' %}
+{% include '_rep.j2' %}
 {% endif %}

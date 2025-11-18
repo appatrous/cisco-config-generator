@@ -131,12 +131,12 @@ interface {{ iface.interface }}
 
 {# Data Center Bridging (DCB) #}
 {% if l2.dcb and l2.dcb.enabled %}
-{% include 'nxos/_dcb.j2' %}
+{% include '_dcb.j2' %}
 {% endif %}
 
 {# VXLAN/EVPN #}
 {% if vxlan and vxlan.enabled %}
-{% include 'nxos/_vxlan.j2' %}
+{% include '_vxlan.j2' %}
 {% endif %}
 
 {# OSPF #}

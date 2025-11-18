@@ -39,14 +39,14 @@ logging host {{ log_server }}
 {# SNMP #}
 {% if 'snmp' in global and global.snmp %}
 {% if 'enabled' in global.snmp and global.snmp.enabled %}
-{% include 'ios/_snmp.j2' %}
+{% include '_snmp.j2' %}
 {% endif %}
 {% endif %}
 
 {# AAA #}
 {% if 'aaa' in global and global.aaa %}
 {% if 'enabled' in global.aaa and global.aaa.enabled %}
-{% include 'ios/_aaa.j2' %}
+{% include '_aaa.j2' %}
 {% endif %}
 {% endif %}
 
@@ -67,22 +67,22 @@ ip ssh pubkey-chain
 
 {# Layer 2 Configuration #}
 {% if l2 %}
-{% include 'ios/_l2.j2' %}
+{% include '_l2.j2' %}
 {% endif %}
 
 {# Layer 3 Configuration #}
 {% if l3 %}
-{% include 'ios/_l3.j2' %}
+{% include '_l3.j2' %}
 {% endif %}
 
 {# VXLAN / EVPN Configuration #}
 {% if vxlan and vxlan.enabled %}
-{% include 'ios/_vxlan.j2' %}
+{% include '_vxlan.j2' %}
 {% endif %}
 
 {# ACLs #}
 {% if acls %}
-{% include 'ios/_acls.j2' %}
+{% include '_acls.j2' %}
 {% endif %}
 
 !
