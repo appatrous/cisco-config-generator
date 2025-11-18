@@ -3559,6 +3559,824 @@ function generateForm(protocolPath, protocolData) {
             `;
             break;
 
+        // ===== LAYER 2 ADVANCED =====
+
+        case 'lacp_advanced':
+            html += `
+                <h4>LACP Advanced Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="lacp_adv_enabled" checked> Enable LACP Advanced Features</label>
+                </div>
+
+                <div class="form-group">
+                    <label>LACP System Priority</label>
+                    <input type="number" id="lacp_system_priority" value="32768" min="1" max="65535" placeholder="32768">
+                    <small class="help-text">Lower value = higher priority (default: 32768)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Global Load Balance Algorithm</label>
+                    <select id="lacp_load_balance">
+                        <option value="src-dst-ip">Source-Destination IP</option>
+                        <option value="src-dst-mac">Source-Destination MAC</option>
+                        <option value="src-ip">Source IP</option>
+                        <option value="dst-ip">Destination IP</option>
+                        <option value="src-mac">Source MAC</option>
+                        <option value="dst-mac">Destination MAC</option>
+                        <option value="src-dst-port">Source-Destination Port</option>
+                    </select>
+                </div>
+
+                <h5>Port-Channel Configuration</h5>
+                <div class="form-group">
+                    <label>Port-Channel ID</label>
+                    <input type="number" id="lacp_po_id" min="1" max="4096" placeholder="1">
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="lacp_po_desc" placeholder="Uplink to Core">
+                </div>
+
+                <div class="form-group">
+                    <label>Minimum Links</label>
+                    <input type="number" id="lacp_min_links" min="1" max="16" value="1" placeholder="1">
+                    <small class="help-text">Minimum active members required</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Maximum Bundle</label>
+                    <input type="number" id="lacp_max_bundle" min="1" max="16" value="8" placeholder="8">
+                </div>
+
+                <div class="form-group">
+                    <label>LACP Mode</label>
+                    <select id="lacp_mode">
+                        <option value="active">Active</option>
+                        <option value="passive">Passive</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>LACP Rate</label>
+                    <select id="lacp_rate">
+                        <option value="normal">Normal (30s)</option>
+                        <option value="fast">Fast (1s)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Member Interfaces (comma-separated)</label>
+                    <input type="text" id="lacp_members" placeholder="Gi0/1,Gi0/2,Gi0/3,Gi0/4">
+                </div>
+
+                <div class="form-group">
+                    <label>Member Port Priority</label>
+                    <input type="number" id="lacp_port_priority" min="1" max="65535" value="32768" placeholder="32768">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveLacpAdvancedData()" style="width: 100%;">
+                    💾 Save LACP Advanced Configuration
+                </button>
+            `;
+            break;
+
+        case 'mst':
+            html += `
+                <h4>Multiple Spanning Tree (MST) Configuration</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="mst_enabled" checked> Enable MST</label>
+                </div>
+
+                <h5>MST Region Configuration</h5>
+                <div class="form-group">
+                    <label>Region Name</label>
+                    <input type="text" id="mst_region_name" placeholder="REGION1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Revision Number</label>
+                    <input type="number" id="mst_revision" min="0" max="65535" value="1" placeholder="1">
+                </div>
+
+                <h5>MST Instance Configuration</h5>
+                <div class="form-group">
+                    <label>Instance ID</label>
+                    <input type="number" id="mst_instance_id" min="1" max="4094" placeholder="1">
+                </div>
+
+                <div class="form-group">
+                    <label>VLANs (comma-separated or range)</label>
+                    <input type="text" id="mst_instance_vlans" placeholder="10,20,30-40">
+                </div>
+
+                <div class="form-group">
+                    <label>Instance Priority</label>
+                    <input type="number" id="mst_instance_priority" min="0" max="61440" step="4096" value="32768">
+                </div>
+
+                <details class="advanced-section">
+                    <summary>Advanced MST Timers</summary>
+                    <div class="form-group">
+                        <label>Hello Time (seconds)</label>
+                        <input type="number" id="mst_hello_time" min="1" max="10" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label>Forward Time (seconds)</label>
+                        <input type="number" id="mst_forward_time" min="4" max="30" value="15">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Age (seconds)</label>
+                        <input type="number" id="mst_max_age" min="6" max="40" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Hops</label>
+                        <input type="number" id="mst_max_hops" min="1" max="255" value="20">
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveMstData()" style="width: 100%;">
+                    💾 Save MST Configuration
+                </button>
+            `;
+            break;
+
+        case 'udld':
+            html += `
+                <h4>UniDirectional Link Detection (UDLD)</h4>
+                <div class="form-group">
+                    <label><input type="checkbox" id="udld_enabled" checked> Enable UDLD</label>
+                </div>
+
+                <div class="form-group">
+                    <label>UDLD Mode</label>
+                    <select id="udld_mode">
+                        <option value="normal">Normal</option>
+                        <option value="aggressive">Aggressive</option>
+                    </select>
+                    <small class="help-text">Aggressive mode brings down the port on failure</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Message Time (seconds)</label>
+                    <input type="number" id="udld_message_time" min="7" max="90" value="15">
+                    <small class="help-text">Interval between UDLD probe messages</small>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="udld_recovery" checked> Enable Error Disable Recovery</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Recovery Interval (seconds)</label>
+                    <input type="number" id="udld_recovery_interval" min="30" max="86400" value="300">
+                </div>
+
+                <h5>Per-Interface UDLD</h5>
+                <div class="form-group">
+                    <label>Interface</label>
+                    <input type="text" id="udld_interface" placeholder="GigabitEthernet0/1">
+                </div>
+
+                <div class="form-group">
+                    <label>Interface UDLD Mode</label>
+                    <select id="udld_interface_mode">
+                        <option value="enable">Enable</option>
+                        <option value="aggressive">Aggressive</option>
+                        <option value="disable">Disable</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveUdldData()" style="width: 100%;">
+                    💾 Save UDLD Configuration
+                </button>
+            `;
+            break;
+
+        case 'storm_control':
+            html += `
+                <h4>Storm Control Configuration</h4>
+                <p class="help-text">Prevent broadcast/multicast/unicast storms</p>
+
+                <div class="form-group">
+                    <label>Interface</label>
+                    <input type="text" id="storm_interface" placeholder="GigabitEthernet0/1" required>
+                </div>
+
+                <h5>Traffic Thresholds (%)</h5>
+                <div class="form-group">
+                    <label>Broadcast Level</label>
+                    <input type="number" id="storm_broadcast_level" min="0" max="100" step="0.01" placeholder="1.00">
+                    <small class="help-text">Percentage of bandwidth (e.g., 1.00 = 1%)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Multicast Level</label>
+                    <input type="number" id="storm_multicast_level" min="0" max="100" step="0.01" placeholder="1.00">
+                </div>
+
+                <div class="form-group">
+                    <label>Unicast Level</label>
+                    <input type="number" id="storm_unicast_level" min="0" max="100" step="0.01" placeholder="1.00">
+                </div>
+
+                <div class="form-group">
+                    <label>Action on Violation</label>
+                    <select id="storm_action">
+                        <option value="shutdown">Shutdown Port</option>
+                        <option value="trap">Send SNMP Trap</option>
+                        <option value="shutdown trap">Shutdown + Trap</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveStormControlData()" style="width: 100%;">
+                    💾 Save Storm Control Configuration
+                </button>
+            `;
+            break;
+
+        case 'flexlinks':
+            html += `
+                <h4>FlexLinks (Layer 2 Backup Links)</h4>
+                <p class="help-text">Configure backup interfaces for link redundancy</p>
+
+                <div class="form-group">
+                    <label>Primary Interface</label>
+                    <input type="text" id="flexlink_primary" placeholder="GigabitEthernet0/1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Backup Interface</label>
+                    <input type="text" id="flexlink_backup" placeholder="GigabitEthernet0/2" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Preemption Mode</label>
+                    <select id="flexlink_preemption_mode">
+                        <option value="forced">Forced</option>
+                        <option value="bandwidth">Bandwidth</option>
+                        <option value="off">Off (No Preemption)</option>
+                    </select>
+                    <small class="help-text">When primary comes back, should it take over?</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Preemption Delay (seconds)</label>
+                    <input type="number" id="flexlink_preemption_delay" min="1" max="300" value="35">
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="flexlink_multicast_fast" checked> Multicast Fast Convergence</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="flexlink_mac_move" checked> MAC Address Move Update</label>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveFlexLinksData()" style="width: 100%;">
+                    💾 Save FlexLinks Configuration
+                </button>
+            `;
+            break;
+
+        case 'stp_protection':
+            html += `
+                <h4>STP Protection Mechanisms</h4>
+                <p class="help-text">PortFast, BPDU Guard, Root Guard, Loop Guard</p>
+
+                <h5>Global STP Protection</h5>
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_portfast_default" checked> PortFast Default</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_bpduguard_default" checked> BPDU Guard Default</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_bpdufilter_default"> BPDU Filter Default</label>
+                    <small class="help-text">⚠️ Use with caution - disables STP on edge ports</small>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_loopguard_default"> Loop Guard Default</label>
+                </div>
+
+                <h5>Per-Interface STP Protection</h5>
+                <div class="form-group">
+                    <label>Interface</label>
+                    <input type="text" id="stp_prot_interface" placeholder="GigabitEthernet0/1">
+                </div>
+
+                <div class="form-group">
+                    <label>PortFast Type</label>
+                    <select id="stp_prot_portfast_type">
+                        <option value="">None</option>
+                        <option value="edge">Edge (Access Port)</option>
+                        <option value="trunk">Trunk</option>
+                        <option value="network">Network (Point-to-Point)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_bpduguard"> BPDU Guard</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_bpdufilter"> BPDU Filter</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_rootguard"> Root Guard</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="stp_prot_loopguard"> Loop Guard</label>
+                </div>
+
+                <div class="form-group">
+                    <label>STP Cost</label>
+                    <input type="number" id="stp_prot_cost" min="1" max="200000000" placeholder="Auto">
+                </div>
+
+                <div class="form-group">
+                    <label>Port Priority</label>
+                    <input type="number" id="stp_prot_port_priority" min="0" max="240" step="16" value="128">
+                </div>
+
+                <details class="advanced-section">
+                    <summary>Error Disable Recovery</summary>
+                    <div class="form-group">
+                        <label>BPDU Guard Timeout (seconds)</label>
+                        <input type="number" id="stp_prot_bpduguard_timeout" min="30" max="86400" value="300">
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveStpProtectionData()" style="width: 100%;">
+                    💾 Save STP Protection Configuration
+                </button>
+            `;
+            break;
+
+        // ===== LAYER 3 ADVANCED =====
+
+        case 'route_maps':
+            html += `
+                <h4>Route Maps Configuration</h4>
+                <p class="help-text">Define routing policies with match/set conditions</p>
+
+                <div class="form-group">
+                    <label>Route-Map Name</label>
+                    <input type="text" id="rm_name" placeholder="RM-REDISTRIBUTE" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Action</label>
+                    <select id="rm_action">
+                        <option value="permit">Permit</option>
+                        <option value="deny">Deny</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Sequence Number</label>
+                    <input type="number" id="rm_sequence" min="1" max="65535" value="10" placeholder="10">
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="rm_description" placeholder="Redistribute OSPF to BGP">
+                </div>
+
+                <details class="advanced-section" open>
+                    <summary>Match Conditions</summary>
+
+                    <div class="form-group">
+                        <label>Match IP Address (ACL)</label>
+                        <input type="text" id="rm_match_acl" placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match IP Address (Prefix-list)</label>
+                        <input type="text" id="rm_match_prefix_list" placeholder="PREFIX-LIST-1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match Interface</label>
+                        <input type="text" id="rm_match_interface" placeholder="GigabitEthernet0/0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match Metric</label>
+                        <input type="number" id="rm_match_metric" placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match Route Type</label>
+                        <select id="rm_match_route_type">
+                            <option value="">None</option>
+                            <option value="external">External</option>
+                            <option value="internal">Internal</option>
+                            <option value="level-1">Level-1</option>
+                            <option value="level-2">Level-2</option>
+                            <option value="local">Local</option>
+                            <option value="nssa-external">NSSA External</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match Tag</label>
+                        <input type="number" id="rm_match_tag" placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match AS-Path</label>
+                        <input type="text" id="rm_match_as_path" placeholder="AS-PATH-LIST">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Match Community</label>
+                        <input type="text" id="rm_match_community" placeholder="COMMUNITY-LIST">
+                    </div>
+                </details>
+
+                <details class="advanced-section">
+                    <summary>Set Actions</summary>
+
+                    <div class="form-group">
+                        <label>Set Next-Hop</label>
+                        <input type="text" id="rm_set_next_hop" placeholder="10.0.0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Default Next-Hop</label>
+                        <input type="text" id="rm_set_default_next_hop" placeholder="10.0.0.254">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Interface</label>
+                        <input type="text" id="rm_set_interface" placeholder="Null0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Metric</label>
+                        <input type="number" id="rm_set_metric" placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Metric Type</label>
+                        <select id="rm_set_metric_type">
+                            <option value="">None</option>
+                            <option value="type-1">Type-1</option>
+                            <option value="type-2">Type-2</option>
+                            <option value="internal">Internal</option>
+                            <option value="external">External</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Tag</label>
+                        <input type="number" id="rm_set_tag" placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Local-Preference</label>
+                        <input type="number" id="rm_set_local_pref" placeholder="200">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Weight</label>
+                        <input type="number" id="rm_set_weight" placeholder="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set AS-Path Prepend</label>
+                        <input type="text" id="rm_set_as_path_prepend" placeholder="65000 65000">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Set Community</label>
+                        <input type="text" id="rm_set_community" placeholder="65000:100">
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveRouteMapData()" style="width: 100%;">
+                    💾 Save Route-Map Configuration
+                </button>
+            `;
+            break;
+
+        case 'prefix_lists':
+            html += `
+                <h4>Prefix Lists Configuration</h4>
+                <p class="help-text">Filter prefixes based on length and value</p>
+
+                <div class="form-group">
+                    <label>Prefix-List Name</label>
+                    <input type="text" id="pl_name" placeholder="PREFIX-FILTER" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="pl_description" placeholder="Filter internal routes">
+                </div>
+
+                <h5>Prefix Entry</h5>
+                <div class="form-group">
+                    <label>Sequence Number</label>
+                    <input type="number" id="pl_sequence" min="1" max="4294967295" value="10" placeholder="10">
+                </div>
+
+                <div class="form-group">
+                    <label>Action</label>
+                    <select id="pl_action">
+                        <option value="permit">Permit</option>
+                        <option value="deny">Deny</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Network Prefix (CIDR)</label>
+                    <input type="text" id="pl_prefix" placeholder="10.0.0.0/8" required>
+                </div>
+
+                <details class="advanced-section">
+                    <summary>Advanced Matching (ge/le)</summary>
+                    <div class="form-group">
+                        <label>Greater or Equal (ge)</label>
+                        <input type="number" id="pl_ge" min="0" max="32" placeholder="Optional">
+                        <small class="help-text">Match prefixes with length >= this value</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Less or Equal (le)</label>
+                        <input type="number" id="pl_le" min="0" max="32" placeholder="Optional">
+                        <small class="help-text">Match prefixes with length <= this value</small>
+                    </div>
+
+                    <p class="help-text">Example: 10.0.0.0/8 ge 24 le 32 = Match 10.x.x.x/24 to /32</p>
+                </details>
+
+                <button class="btn btn-primary" onclick="savePrefixListData()" style="width: 100%;">
+                    💾 Save Prefix-List Configuration
+                </button>
+            `;
+            break;
+
+        case 'vrf_lite':
+            html += `
+                <h4>VRF-Lite Configuration</h4>
+                <p class="help-text">Virtual Routing and Forwarding without MPLS</p>
+
+                <div class="form-group">
+                    <label>VRF Name</label>
+                    <input type="text" id="vrf_name" placeholder="CUSTOMER-A" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="vrf_description" placeholder="Customer A Network">
+                </div>
+
+                <div class="form-group">
+                    <label>Use VRF Definition (IOS-XE Modern)</label>
+                    <select id="vrf_use_definition">
+                        <option value="true">vrf definition (IOS-XE)</option>
+                        <option value="false">ip vrf (Legacy)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Route Distinguisher (RD)</label>
+                    <input type="text" id="vrf_rd" placeholder="65000:100">
+                    <small class="help-text">Format: ASN:nn or IP:nn</small>
+                </div>
+
+                <details class="advanced-section">
+                    <summary>Route Targets</summary>
+                    <div class="form-group">
+                        <label>RT Export</label>
+                        <input type="text" id="vrf_rt_export" placeholder="65000:100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>RT Import</label>
+                        <input type="text" id="vrf_rt_import" placeholder="65000:100">
+                    </div>
+                </details>
+
+                <details class="advanced-section">
+                    <summary>VRF Interfaces</summary>
+                    <div class="form-group">
+                        <label>Interface</label>
+                        <input type="text" id="vrf_interface" placeholder="GigabitEthernet0/1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>IP Address (CIDR)</label>
+                        <input type="text" id="vrf_ip_address" placeholder="192.168.1.1/24">
+                    </div>
+                </details>
+
+                <details class="advanced-section">
+                    <summary>Route Leaking</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="vrf_route_leak_enabled"> Enable Route Leaking</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Import from VRF</label>
+                        <input type="text" id="vrf_import_from_vrf" placeholder="GLOBAL">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Import Route-Map</label>
+                        <input type="text" id="vrf_import_map" placeholder="IMPORT-FILTER">
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveVrfLiteData()" style="width: 100%;">
+                    💾 Save VRF-Lite Configuration
+                </button>
+            `;
+            break;
+
+        case 'ipv6_advanced':
+            html += `
+                <h4>IPv6 Advanced Configuration</h4>
+                <p class="help-text">DHCPv6, SLAAC, ND, First-Hop Security</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="ipv6_enabled" checked> Enable IPv6</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="ipv6_unicast_routing" checked> IPv6 Unicast Routing</label>
+                </div>
+
+                <h5>DHCPv6 Server</h5>
+                <div class="form-group">
+                    <label><input type="checkbox" id="ipv6_dhcpv6_server_enabled"> Enable DHCPv6 Server</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Pool Name</label>
+                    <input type="text" id="ipv6_dhcpv6_pool_name" placeholder="DHCPV6-POOL1">
+                </div>
+
+                <div class="form-group">
+                    <label>Address Prefix</label>
+                    <input type="text" id="ipv6_dhcpv6_prefix" placeholder="2001:db8::/64">
+                </div>
+
+                <div class="form-group">
+                    <label>DNS Server</label>
+                    <input type="text" id="ipv6_dhcpv6_dns" placeholder="2001:4860:4860::8888">
+                </div>
+
+                <div class="form-group">
+                    <label>Domain Name</label>
+                    <input type="text" id="ipv6_dhcpv6_domain" placeholder="example.com">
+                </div>
+
+                <h5>SLAAC (Stateless Address Autoconfiguration)</h5>
+                <div class="form-group">
+                    <label><input type="checkbox" id="ipv6_slaac_enabled"> Enable SLAAC</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Interface for SLAAC</label>
+                    <input type="text" id="ipv6_slaac_interface" placeholder="GigabitEthernet0/0">
+                </div>
+
+                <div class="form-group">
+                    <label>ND Prefix</label>
+                    <input type="text" id="ipv6_nd_prefix" placeholder="2001:db8::/64">
+                </div>
+
+                <details class="advanced-section">
+                    <summary>First-Hop Security</summary>
+
+                    <h6>RA Guard</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ipv6_ra_guard_enabled"> Enable RA Guard</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Policy Name</label>
+                        <input type="text" id="ipv6_ra_guard_policy" placeholder="RA-GUARD-POLICY">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Device Role</label>
+                        <select id="ipv6_ra_guard_role">
+                            <option value="host">Host</option>
+                            <option value="router">Router</option>
+                        </select>
+                    </div>
+
+                    <h6>ND Inspection</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ipv6_nd_inspection_enabled"> Enable ND Inspection</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Policy Name</label>
+                        <input type="text" id="ipv6_nd_inspection_policy" placeholder="ND-INSPECTION">
+                    </div>
+
+                    <h6>Source Guard</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ipv6_source_guard_enabled"> Enable IPv6 Source Guard</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Policy Name</label>
+                        <input type="text" id="ipv6_source_guard_policy" placeholder="SOURCE-GUARD">
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveIpv6AdvancedData()" style="width: 100%;">
+                    💾 Save IPv6 Advanced Configuration
+                </button>
+            `;
+            break;
+
+        case 'route_filtering':
+            html += `
+                <h4>Route Filtering Configuration</h4>
+                <p class="help-text">Distribute-lists for OSPF/EIGRP/BGP</p>
+
+                <div class="form-group">
+                    <label>Routing Protocol</label>
+                    <select id="rf_protocol">
+                        <option value="ospf">OSPF</option>
+                        <option value="eigrp">EIGRP</option>
+                        <option value="bgp">BGP</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="rf_ospf_process_group">
+                    <label>OSPF Process ID</label>
+                    <input type="number" id="rf_ospf_process" min="1" max="65535" placeholder="1">
+                </div>
+
+                <div class="form-group" id="rf_eigrp_asn_group" style="display:none;">
+                    <label>EIGRP AS Number</label>
+                    <input type="number" id="rf_eigrp_asn" min="1" max="65535" placeholder="100">
+                </div>
+
+                <div class="form-group" id="rf_bgp_asn_group" style="display:none;">
+                    <label>BGP AS Number</label>
+                    <input type="number" id="rf_bgp_asn" min="1" max="4294967295" placeholder="65000">
+                </div>
+
+                <h5>Distribute-List Configuration</h5>
+                <div class="form-group">
+                    <label>Direction</label>
+                    <select id="rf_direction">
+                        <option value="in">Inbound</option>
+                        <option value="out">Outbound</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Filter Type</label>
+                    <select id="rf_filter_type">
+                        <option value="acl">Access List</option>
+                        <option value="prefix-list">Prefix List</option>
+                        <option value="route-map">Route Map</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>ACL/Prefix-List/Route-Map Name</label>
+                    <input type="text" id="rf_filter_name" placeholder="FILTER-LIST" required>
+                </div>
+
+                <details class="advanced-section">
+                    <summary>Per-Interface Filtering</summary>
+                    <div class="form-group">
+                        <label>Interface (optional)</label>
+                        <input type="text" id="rf_interface" placeholder="GigabitEthernet0/0">
+                        <small class="help-text">Leave empty for global filtering</small>
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveRouteFilteringData()" style="width: 100%;">
+                    💾 Save Route Filtering Configuration
+                </button>
+
+                <script>
+                    document.getElementById('rf_protocol')?.addEventListener('change', function() {
+                        document.getElementById('rf_ospf_process_group').style.display = this.value === 'ospf' ? 'block' : 'none';
+                        document.getElementById('rf_eigrp_asn_group').style.display = this.value === 'eigrp' ? 'block' : 'none';
+                        document.getElementById('rf_bgp_asn_group').style.display = this.value === 'bgp' ? 'block' : 'none';
+                    });
+                </script>
+            `;
+            break;
+
         default:
             html += `
                 <p>📝 Configuration form for ${protocolData.name}</p>
