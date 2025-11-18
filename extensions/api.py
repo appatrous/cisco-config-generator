@@ -20,13 +20,16 @@ import traceback
 from utils.config_export import render_cli_config, serialize_config
 from device_manager import DeviceManager, DeviceConnectionError
 from config_comparison import ConfigComparator, ChangeTracker
+from config_validator import ConfigValidator, ComplianceChecker
 
 api_bp = Blueprint('api', __name__)
 
-# Initialize device manager and comparator
+# Initialize managers
 device_manager = DeviceManager()
 config_comparator = ConfigComparator()
 change_tracker = ChangeTracker()
+config_validator = ConfigValidator()
+compliance_checker = ComplianceChecker()
 
 @api_bp.route('/generate', methods=['POST'])
 def api_generate() -> Any:
@@ -524,6 +527,99 @@ def get_change_history(device_id: str) -> Any:
     except Exception as e:
         return jsonify({
             'error': 'Failed to retrieve change history',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+# ============================================
+# Configuration Validation API Endpoints
+# ============================================
+
+@api_bp.route('/validate/config', methods=['POST'])
+def validate_configuration() -> Any:
+    """
+    Validate configuration for conflicts, best practices, and security
+
+    POST /api/validate/config
+    Body: {
+        "config": "! Configuration to validate...",
+        "vendor": "cisco"  // Optional
+    }
+
+    Returns: {
+        "valid": true,
+        "score": 85,
+        "risk_level": "LOW",
+        "errors": [],
+        "warnings": [],
+        "conflicts": [...],
+        "best_practices": [...],
+        "security_issues": [...]
+    }
+    """
+    if not request.is_json:
+        return jsonify({'error': 'Expected JSON payload'}), 400
+
+    data = request.get_json() or {}
+    config = data.get('config', '')
+    vendor = data.get('vendor', 'cisco')
+
+    if not config:
+        return jsonify({'error': 'config is required'}), 400
+
+    try:
+        results = config_validator.validate_config(config, vendor)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({
+            'error': 'Validation failed',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+@api_bp.route('/validate/compliance', methods=['POST'])
+def check_compliance() -> Any:
+    """
+    Check configuration compliance against standards
+
+    POST /api/validate/compliance
+    Body: {
+        "config": "! Configuration to check...",
+        "standards": ["pci_dss", "hipaa", "general"]  // Optional
+    }
+
+    Returns: {
+        "compliant": false,
+        "compliance_score": 75,
+        "standards_checked": ["pci_dss", "general"],
+        "violations": [
+            {
+                "standard": "PCI-DSS",
+                "requirement": "2.3",
+                "severity": "HIGH",
+                "message": "Telnet detected - PCI-DSS requires encrypted protocols"
+            }
+        ]
+    }
+    """
+    if not request.is_json:
+        return jsonify({'error': 'Expected JSON payload'}), 400
+
+    data = request.get_json() or {}
+    config = data.get('config', '')
+    standards = data.get('standards', ['general'])
+
+    if not config:
+        return jsonify({'error': 'config is required'}), 400
+
+    try:
+        results = compliance_checker.check_compliance(config, standards)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({
+            'error': 'Compliance check failed',
             'details': str(e),
             'traceback': traceback.format_exc()
         }), 500
