@@ -1,0 +1,181 @@
+{# Cisco NX-OS Base Configuration Template #}
+{# ========================================= #}
+
+{% if global %}
+hostname {{ global.hostname }}
+{% if global.domain_name %}
+ip domain-name {{ global.domain_name }}
+{% endif %}
+
+feature telnet
+feature ssh
+{% if l2.lag %}feature lacp{% endif %}
+{% if l2.mlag and l2.mlag.enabled %}feature vpc{% endif %}
+{% if l3.ospf %}feature ospf{% endif %}
+{% if l3.isis %}feature isis{% endif %}
+{% if l3.bgp %}feature bgp{% endif %}
+{% if l3.multicast %}feature pim{% endif %}
+{% if vxlan and vxlan.enabled %}
+feature nv overlay
+feature vn-segment-vlan-based
+{% endif %}
+{% if l3.bfd and l3.bfd.enabled %}feature bfd{% endif %}
+
+{# Users #}
+{% for user in global.users | default([]) %}
+username {{ user.username }} password {{ user.secret }} role {{ 'network-admin' if user.privilege >= 15 else 'network-operator' }}
+{% endfor %}
+
+{# NTP #}
+{% for ntp in global.ntp_servers | default([]) %}
+ntp server {{ ntp }}
+{% endfor %}
+
+{# DNS #}
+{% for dns in global.dns_servers | default([]) %}
+ip name-server {{ dns }}
+{% endfor %}
+
+{% endif %}
+
+{# VLANs #}
+{% if l2 and l2.vlans %}
+{% for vlan in l2.vlans %}
+vlan {{ vlan.id }}
+  name {{ vlan.name }}
+{% if vlan.state and vlan.state != 'active' %}
+  state {{ vlan.state }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# vPC (MLAG) #}
+{% if l2.mlag and l2.mlag.enabled %}
+vpc domain {{ l2.mlag.domain_id }}
+  peer-keepalive destination {{ l2.mlag.keepalive.destination }}{% if l2.mlag.keepalive.source %} source {{ l2.mlag.keepalive.source }}{% endif %}{% if l2.mlag.keepalive.vrf %} vrf {{ l2.mlag.keepalive.vrf }}{% endif %}
+
+  role priority {{ 100 if l2.mlag.role == 'primary' else 200 }}
+{% if l2.mlag.peer_link %}
+  peer-gateway
+  layer3 peer-router
+  ip arp synchronize
+{% endif %}
+{% if l2.mlag.anycast_vtep %}
+  peer-switch
+{% endif %}
+
+interface {{ l2.mlag.peer_link }}
+  vpc peer-link
+!
+{% endif %}
+
+{# LAG/Port-Channels #}
+{% if l2.lag %}
+{% for bundle in l2.lag %}
+interface port-channel{{ bundle.bundle_id }}
+{% if bundle.description %}
+  description {{ bundle.description }}
+{% endif %}
+  no shutdown
+!
+{% for member in bundle.members %}
+interface {{ member }}
+  channel-group {{ bundle.bundle_id }} mode {% if bundle.mode == 'on' %}on{% else %}active{% endif %}
+
+!
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# L3 Interfaces #}
+{% if l3 and l3.interfaces %}
+{% for iface in l3.interfaces %}
+interface {{ iface.interface }}
+{% if iface.description %}
+  description {{ iface.description }}
+{% endif %}
+  no switchport
+{% if iface.vrf %}
+  vrf member {{ iface.vrf }}
+{% endif %}
+{% for ipv4 in iface.ipv4 | default([]) %}
+  ip address {{ ipv4.address }}{% if ipv4.secondary | default(false) %} secondary{% endif %}
+
+{% endfor %}
+{% for ipv6 in iface.ipv6 | default([]) %}
+  ipv6 address {{ ipv6.address }}
+{% endfor %}
+{% if iface.mtu %}
+  mtu {{ iface.mtu }}
+{% endif %}
+{% if not iface.shutdown %}
+  no shutdown
+{% else %}
+  shutdown
+{% endif %}
+
+{# HSRP for NX-OS #}
+{% if iface.fhrp and iface.fhrp.protocol == 'hsrp' %}
+  hsrp {{ iface.fhrp.group }}
+    ip {{ iface.fhrp.virtual_ip }}
+{% if iface.fhrp.priority %}
+    priority {{ iface.fhrp.priority }}
+{% endif %}
+{% if iface.fhrp.preempt %}
+    preempt
+{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# VXLAN/EVPN #}
+{% if vxlan and vxlan.enabled %}
+{% include 'nxos/_vxlan.j2' %}
+{% endif %}
+
+{# OSPF #}
+{% if l3.ospf %}
+{% for ospf in l3.ospf %}
+feature ospf
+router ospf {{ ospf.process_id }}
+{% if ospf.router_id %}
+  router-id {{ ospf.router_id }}
+{% endif %}
+!
+{% for iface in ospf.interfaces | default([]) %}
+interface {{ iface.interface }}
+  ip router ospf {{ ospf.process_id }} area {{ iface.area }}
+!
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# BGP #}
+{% if l3.bgp %}
+feature bgp
+router bgp {{ l3.bgp.asn }}
+{% if l3.bgp.router_id %}
+  router-id {{ l3.bgp.router_id }}
+{% endif %}
+{% for neighbor in l3.bgp.neighbors | default([]) %}
+  neighbor {{ neighbor.ip }}
+    remote-as {{ neighbor.remote_as }}
+{% if neighbor.description %}
+    description {{ neighbor.description }}
+{% endif %}
+{% if neighbor.update_source %}
+    update-source {{ neighbor.update_source }}
+{% endif %}
+{% endfor %}
+{% if l3.bgp.address_families and l3.bgp.address_families.l2vpn_evpn and l3.bgp.address_families.l2vpn_evpn.enabled %}
+  address-family l2vpn evpn
+{% for neigh in l3.bgp.address_families.l2vpn_evpn.neighbors_activate | default([]) %}
+    neighbor {{ neigh }}
+      send-community extended
+{% endfor %}
+{% endif %}
+!
+{% endif %}
+
+!

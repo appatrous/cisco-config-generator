@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Configuration Generator - Multi-Vendor NetDevOps Tool</title>
+    <link rel="stylesheet" href="/static/css/modern-style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🌐 Network Config Generator</h1>
+                <p class="tagline">Multi-Vendor NetDevOps Configuration Tool</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="importJson()" class="btn btn-secondary">📥 Import JSON</button>
+                <button onclick="exportJson()" class="btn btn-secondary">📤 Export JSON</button>
+                <button onclick="loadExample()" class="btn btn-secondary">📋 Load Example</button>
+            </div>
+        </header>
+
+        <!-- Vendor Selector -->
+        <section class="vendor-section">
+            <h2>Select Target Platform</h2>
+            <div id="vendor-selector" class="vendor-selector"></div>
+        </section>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Protocol Selection -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Active Protocols</h3>
+                </div>
+                <div id="active-protocols-list" class="active-protocols">
+                    <p class="empty-state">No protocols selected</p>
+                </div>
+
+                <div class="sidebar-section">
+                    <h4>Global Settings</h4>
+                    <div class="form-group">
+                        <label>Hostname</label>
+                        <input type="text" id="hostname" placeholder="router1" value="campus-dist1">
+                    </div>
+                    <div class="form-group">
+                        <label>Domain Name</label>
+                        <input type="text" id="domain_name" placeholder="example.com" value="example.com">
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button onclick="generateConfig()" class="btn btn-primary btn-lg">
+                        ⚡ Generate Configuration
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Center: Protocol Tiles -->
+            <main class="content-area">
+                <div class="content-header">
+                    <h2>Configure Network Protocols</h2>
+                    <p>Click on tiles to activate protocols and configure them</p>
+                </div>
+
+                <div id="protocol-tiles" class="protocol-tiles"></div>
+
+                <div id="generation-status" class="generation-status"></div>
+            </main>
+
+            <!-- Right Panel: Configuration Form (collapsible) -->
+            <aside id="config-panel" class="config-panel" style="display: none;">
+                <div class="panel-header">
+                    <h3 id="protocol-form-title">Protocol Configuration</h3>
+                    <button onclick="document.getElementById('config-panel').style.display='none'" class="btn-close">×</button>
+                </div>
+                <div id="protocol-form-container" class="panel-content">
+                    <!-- Dynamic form content -->
+                </div>
+            </aside>
+        </div>
+
+        <!-- Configuration Preview Panel (Bottom) -->
+        <section id="preview-panel" class="preview-panel" style="display: none;">
+            <div class="preview-header">
+                <h3>📄 Configuration Preview</h3>
+                <div class="preview-actions">
+                    <button onclick="downloadConfig()" class="btn btn-primary">💾 Download</button>
+                    <button onclick="copyToClipboard()" class="btn btn-secondary">📋 Copy</button>
+                    <button onclick="document.getElementById('preview-panel').style.display='none'" class="btn btn-secondary">✕ Close</button>
+                </div>
+            </div>
+
+            <div class="preview-content">
+                <div class="preview-tabs">
+                    <button class="tab-btn active" data-tab="config">Configuration</button>
+                    <button class="tab-btn" data-tab="validation">Validation</button>
+                    <button class="tab-btn" data-tab="diff">Diff</button>
+                </div>
+
+                <div class="tab-content active" id="config-tab">
+                    <pre id="config-output" class="config-output"></pre>
+                </div>
+
+                <div class="tab-content" id="validation-tab">
+                    <div id="validation-results" class="validation-results"></div>
+                </div>
+
+                <div class="tab-content" id="diff-tab">
+                    <div id="diff-results" class="diff-results">
+                        <p class="empty-state">No previous configuration to compare</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Network Configuration Generator v2.0 | Multi-Vendor NetDevOps Tool</p>
+            <p>Supports: Cisco IOS/IOS-XE/NX-OS • Arista EOS • Juniper Junos • FRRouting</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

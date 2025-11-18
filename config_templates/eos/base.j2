@@ -1,0 +1,209 @@
+{# Arista EOS Base Configuration Template #}
+{# ======================================== #}
+
+{% if global %}
+hostname {{ global.hostname }}
+{% if global.domain_name %}
+ip domain-name {{ global.domain_name }}
+{% endif %}
+
+{# Users #}
+{% for user in global.users | default([]) %}
+username {{ user.username }} privilege {{ user.privilege | default(15) }} secret {{ user.secret }}
+{% endfor %}
+
+{# NTP #}
+{% for ntp in global.ntp_servers | default([]) %}
+ntp server {{ ntp }}
+{% endfor %}
+
+{# DNS #}
+{% for dns in global.dns_servers | default([]) %}
+ip name-server {{ dns }}
+{% endfor %}
+
+{% endif %}
+
+{# Spanning Tree #}
+{% if l2.stp %}
+spanning-tree mode {% if l2.stp.mode == 'mst' %}mstp{% elif l2.stp.mode == 'rapid-pvst' %}rapid-pvst{% else %}stp{% endif %}
+
+{% if l2.stp.mode == 'mst' and l2.stp.mst_config %}
+spanning-tree mst configuration
+  name {{ l2.stp.mst_config.name }}
+  revision {{ l2.stp.mst_config.revision }}
+{% for inst in l2.stp.mst_config.instances | default([]) %}
+  instance {{ inst.id }} vlan {% for v in inst.vlans %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}
+
+{% endfor %}
+!
+{% endif %}
+{% endif %}
+
+{# VLANs #}
+{% if l2.vlans %}
+{% for vlan in l2.vlans %}
+vlan {{ vlan.id }}
+  name {{ vlan.name }}
+{% if vlan.state and vlan.state != 'active' %}
+  state {{ vlan.state }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# MLAG #}
+{% if l2.mlag and l2.mlag.enabled %}
+mlag configuration
+  domain-id {{ l2.mlag.domain_id }}
+  local-interface {{ l2.mlag.peer_link }}
+  peer-address {{ l2.mlag.peer_address }}
+  peer-link {{ l2.mlag.peer_link }}
+!
+{% endif %}
+
+{# LAG/Port-Channels #}
+{% if l2.lag %}
+{% for bundle in l2.lag %}
+interface Port-Channel{{ bundle.bundle_id }}
+{% if bundle.description %}
+  description {{ bundle.description }}
+{% endif %}
+  no shutdown
+{% if l2.mlag and l2.mlag.enabled %}
+  mlag {{ bundle.bundle_id }}
+{% endif %}
+!
+{% for member in bundle.members %}
+interface {{ member }}
+  channel-group {{ bundle.bundle_id }} mode {% if bundle.mode == 'on' %}on{% else %}active{% endif %}
+
+  lacp {% if bundle.lacp_rate == 'fast' %}rate fast{% else %}rate normal{% endif %}
+
+!
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# VRFs #}
+{% if l3.vrfs %}
+{% for vrf in l3.vrfs %}
+vrf instance {{ vrf.name }}
+{% if vrf.description %}
+  description {{ vrf.description }}
+{% endif %}
+{% if vrf.rd %}
+  rd {{ vrf.rd }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# L3 Interfaces #}
+{% if l3.interfaces %}
+{% for iface in l3.interfaces %}
+interface {{ iface.interface }}
+{% if iface.description %}
+  description {{ iface.description }}
+{% endif %}
+  no switchport
+{% if iface.vrf %}
+  vrf {{ iface.vrf }}
+{% endif %}
+{% for ipv4 in iface.ipv4 | default([]) %}
+  ip address {{ ipv4.address }}{% if ipv4.secondary | default(false) %} secondary{% endif %}
+
+{% endfor %}
+{% for ipv6 in iface.ipv6 | default([]) %}
+  ipv6 address {{ ipv6.address }}
+{% endfor %}
+{% if iface.mtu %}
+  mtu {{ iface.mtu }}
+{% endif %}
+{% if not iface.shutdown %}
+  no shutdown
+{% else %}
+  shutdown
+{% endif %}
+
+{# VRRP for EOS #}
+{% if iface.fhrp and iface.fhrp.protocol == 'vrrp' %}
+  vrrp {{ iface.fhrp.group }} priority-level {{ iface.fhrp.priority | default(100) }}
+  vrrp {{ iface.fhrp.group }} ipv4 {{ iface.fhrp.virtual_ip }}
+{% if iface.fhrp.preempt %}
+  vrrp {{ iface.fhrp.group }} preempt delay minimum {{ iface.fhrp.preempt_delay | default(0) }}
+{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# OSPF #}
+{% if l3.ospf %}
+{% for ospf in l3.ospf %}
+router ospf {{ ospf.process_id }}{% if ospf.vrf %} vrf {{ ospf.vrf }}{% endif %}
+
+{% if ospf.router_id %}
+  router-id {{ ospf.router_id }}
+{% endif %}
+{% if ospf.reference_bandwidth %}
+  max-lsa {{ ospf.reference_bandwidth }}
+{% endif %}
+{% for iface in ospf.interfaces | default([]) %}
+  network {{ iface.interface | replace('Ethernet', '0.0.0.0') }} area {{ iface.area }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# BGP #}
+{% if l3.bgp %}
+router bgp {{ l3.bgp.asn }}
+{% if l3.bgp.router_id %}
+  router-id {{ l3.bgp.router_id }}
+{% endif %}
+{% for neighbor in l3.bgp.neighbors | default([]) %}
+  neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
+{% if neighbor.description %}
+  neighbor {{ neighbor.ip }} description {{ neighbor.description }}
+{% endif %}
+{% if neighbor.update_source %}
+  neighbor {{ neighbor.ip }} update-source {{ neighbor.update_source }}
+{% endif %}
+{% endfor %}
+{% if l3.bgp.address_families %}
+{% if l3.bgp.address_families.ipv4_unicast and l3.bgp.address_families.ipv4_unicast.enabled %}
+  address-family ipv4
+{% for neigh in l3.bgp.address_families.ipv4_unicast.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+{% for net in l3.bgp.address_families.ipv4_unicast.networks | default([]) %}
+    network {{ net.prefix }}
+{% endfor %}
+  !
+{% endif %}
+{% if l3.bgp.address_families.l2vpn_evpn and l3.bgp.address_families.l2vpn_evpn.enabled %}
+  address-family evpn
+{% for neigh in l3.bgp.address_families.l2vpn_evpn.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+  !
+{% endif %}
+{% endif %}
+!
+{% endif %}
+
+{# VXLAN #}
+{% if vxlan and vxlan.enabled %}
+interface Vxlan1
+  vxlan source-interface {{ vxlan.vtep.source_interface }}
+{% for l2vni in vxlan.l2vnis | default([]) %}
+  vxlan vlan {{ l2vni.vlan }} vni {{ l2vni.vni }}
+{% endfor %}
+{% for l3vni in vxlan.l3vnis | default([]) %}
+  vxlan vrf {{ l3vni.vrf }} vni {{ l3vni.vni }}
+{% endfor %}
+!
+{% endif %}
+
+!

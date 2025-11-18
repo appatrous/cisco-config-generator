@@ -1,0 +1,121 @@
+{# OSPF Configuration for Cisco IOS/IOS-XE #}
+router ospf {{ ospf.process_id }}{% if ospf.vrf %} vrf {{ ospf.vrf }}{% endif %}
+
+{% if ospf.router_id %}
+  router-id {{ ospf.router_id }}
+{% endif %}
+{% if ospf.reference_bandwidth %}
+  auto-cost reference-bandwidth {{ ospf.reference_bandwidth }}
+{% endif %}
+{% if ospf.spf_timers %}
+  timers throttle spf {{ ospf.spf_timers.initial_delay | default(5000) }} {{ ospf.spf_timers.min_hold | default(10000) }} {{ ospf.spf_timers.max_hold | default(10000) }}
+{% endif %}
+{% if ospf.lsa_timers and ospf.lsa_timers.arrival %}
+  timers lsa arrival {{ ospf.lsa_timers.arrival }}
+{% endif %}
+{% if ospf.lsa_timers and ospf.lsa_timers.group_pacing %}
+  timers pacing lsa-group {{ ospf.lsa_timers.group_pacing }}
+{% endif %}
+{% if ospf.graceful_restart %}
+  nsf cisco
+{% endif %}
+{% if ospf.max_metric %}
+{% if ospf.max_metric.on_startup %}
+  max-metric router-lsa on-startup {{ ospf.max_metric.on_startup }}
+{% endif %}
+{% if ospf.max_metric.always %}
+  max-metric router-lsa
+{% endif %}
+{% endif %}
+
+{# Areas #}
+{% for area in ospf.areas | default([]) %}
+{% if area.type == 'stub' %}
+  area {{ area.id }} stub{% if area.no_summary %} no-summary{% endif %}
+
+{% elif area.type == 'totally-stub' %}
+  area {{ area.id }} stub no-summary
+{% elif area.type == 'nssa' %}
+  area {{ area.id }} nssa{% if area.no_summary %} no-summary{% endif %}{% if area.nssa and area.nssa.default_originate %} default-information-originate{% endif %}
+
+{% elif area.type == 'totally-nssa' %}
+  area {{ area.id }} nssa no-summary
+{% endif %}
+{% if area.default_cost %}
+  area {{ area.id }} default-cost {{ area.default_cost }}
+{% endif %}
+{% endfor %}
+
+{# Summaries (ABR/ASBR) #}
+{% for summary in ospf.summaries | default([]) %}
+{% if summary.area %}
+  area {{ summary.area }} range {{ summary.prefix }}{% if summary.not_advertise %} not-advertise{% endif %}
+
+{% else %}
+  summary-address {{ summary.prefix }}{% if summary.not_advertise %} not-advertise{% endif %}{% if summary.tag %} tag {{ summary.tag }}{% endif %}
+
+{% endif %}
+{% endfor %}
+
+{# Redistribution #}
+{% for redist in ospf.redistribute | default([]) %}
+  redistribute {{ redist.protocol }}{% if redist.route_map %} route-map {{ redist.route_map }}{% endif %}{% if redist.metric %} metric {{ redist.metric }}{% endif %}{% if redist.metric_type %} metric-type {{ redist.metric_type }}{% endif %}{% if redist.protocol == 'bgp' %} {{ l3.bgp.asn }}{% elif redist.protocol in ['eigrp', 'rip'] and l3[redist.protocol] %} {{ l3[redist.protocol][0].asn | default(l3[redist.protocol][0].process_id) }}{% endif %}
+
+{% endfor %}
+
+{# Default Route Origination #}
+{% if ospf.default_originate and ospf.default_originate.enabled %}
+  default-information originate{% if ospf.default_originate.always %} always{% endif %}{% if ospf.default_originate.route_map %} route-map {{ ospf.default_originate.route_map }}{% endif %}{% if ospf.default_originate.metric %} metric {{ ospf.default_originate.metric }}{% endif %}{% if ospf.default_originate.metric_type %} metric-type {{ ospf.default_originate.metric_type }}{% endif %}
+
+{% endif %}
+!
+
+{# Interface Configuration #}
+{% for iface in ospf.interfaces | default([]) %}
+interface {{ iface.interface }}
+  ip ospf {{ ospf.process_id }} area {{ iface.area }}
+{% if iface.network_type %}
+  ip ospf network {{ iface.network_type }}
+{% endif %}
+{% if iface.cost %}
+  ip ospf cost {{ iface.cost }}
+{% endif %}
+{% if iface.priority %}
+  ip ospf priority {{ iface.priority }}
+{% endif %}
+{% if iface.passive %}
+  ip ospf passive-interface
+{% endif %}
+{% if iface.authentication %}
+{% if iface.authentication.type == 'md5' %}
+  ip ospf authentication message-digest
+  ip ospf message-digest-key {{ iface.authentication.key_id | default(1) }} md5 {{ iface.authentication.key }}
+{% elif iface.authentication.type == 'text' %}
+  ip ospf authentication
+  ip ospf authentication-key {{ iface.authentication.key }}
+{% elif iface.authentication.type == 'null' %}
+  ip ospf authentication null
+{% endif %}
+{% endif %}
+{% if iface.timers %}
+{% if iface.timers.hello %}
+  ip ospf hello-interval {{ iface.timers.hello }}
+{% endif %}
+{% if iface.timers.dead %}
+  ip ospf dead-interval {{ iface.timers.dead }}
+{% endif %}
+{% if iface.timers.retransmit %}
+  ip ospf retransmit-interval {{ iface.timers.retransmit }}
+{% endif %}
+{% if iface.timers.transmit_delay %}
+  ip ospf transmit-delay {{ iface.timers.transmit_delay }}
+{% endif %}
+{% endif %}
+{% if iface.bfd %}
+  ip ospf bfd
+{% endif %}
+{% if iface.mtu_ignore %}
+  ip ospf mtu-ignore
+{% endif %}
+!
+{% endfor %}

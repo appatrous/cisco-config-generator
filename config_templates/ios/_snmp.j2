@@ -1,0 +1,21 @@
+{# SNMP Configuration for Cisco IOS/IOS-XE #}
+{% if global.snmp.community_ro %}
+snmp-server community {{ global.snmp.community_ro }} RO
+{% endif %}
+{% if global.snmp.community_rw %}
+snmp-server community {{ global.snmp.community_rw }} RW
+{% endif %}
+{% if global.snmp.location %}
+snmp-server location {{ global.snmp.location }}
+{% endif %}
+{% if global.snmp.contact %}
+snmp-server contact {{ global.snmp.contact }}
+{% endif %}
+{% for trap in global.snmp.trap_servers | default([]) %}
+snmp-server host {{ trap.host }} version 2c {{ trap.community }}
+{% endfor %}
+snmp-server enable traps snmp linkdown linkup
+snmp-server enable traps entity
+snmp-server enable traps hsrp
+snmp-server enable traps config
+!

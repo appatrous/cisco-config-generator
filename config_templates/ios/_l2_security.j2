@@ -1,0 +1,174 @@
+{# Layer 2 Security Features for Cisco IOS/IOS-XE #}
+
+{# Port Security #}
+{% if l2.security.port_security %}
+{% for iface in l2.security.port_security.per_interface | default([]) %}
+{% if iface.enabled %}
+interface {{ iface.interface }}
+  switchport port-security
+  switchport port-security maximum {{ iface.max_macs | default(l2.security.port_security.default_max_macs | default(1)) }}
+{% if l2.security.port_security.sticky %}
+  switchport port-security mac-address sticky
+{% endif %}
+{% for mac in iface.allowed_macs | default([]) %}
+  switchport port-security mac-address {{ mac }}
+{% endfor %}
+  switchport port-security violation {{ l2.security.port_security.violation_action | default('shutdown') }}
+{% if l2.security.port_security.aging_time %}
+  switchport port-security aging time {{ l2.security.port_security.aging_time }}
+{% endif %}
+{% if l2.security.port_security.aging_type %}
+  switchport port-security aging type {{ l2.security.port_security.aging_type }}
+{% endif %}
+!
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# DHCP Snooping #}
+{% if l2.security.dhcp_snooping and l2.security.dhcp_snooping.enabled %}
+ip dhcp snooping
+{% for vlan_id in l2.security.dhcp_snooping.vlans | default([]) %}
+ip dhcp snooping vlan {{ vlan_id }}
+{% endfor %}
+{% if l2.security.dhcp_snooping.verify_mac %}
+ip dhcp snooping verify mac-address
+{% endif %}
+{% if l2.security.dhcp_snooping.option_82 and l2.security.dhcp_snooping.option_82.enabled %}
+ip dhcp snooping information option
+{% if l2.security.dhcp_snooping.option_82.remote_id %}
+ip dhcp snooping information option format remote-id {{ l2.security.dhcp_snooping.option_82.remote_id }}
+{% endif %}
+{% endif %}
+{% if l2.security.dhcp_snooping.database and l2.security.dhcp_snooping.database.persistent %}
+ip dhcp snooping database {{ l2.security.dhcp_snooping.database.file | default('flash:dhcp_snooping.db') }}
+{% endif %}
+{% for iface in l2.security.dhcp_snooping.trusted_interfaces | default([]) %}
+interface {{ iface }}
+  ip dhcp snooping trust
+!
+{% endfor %}
+{% if l2.security.dhcp_snooping.rate_limit %}
+! Apply rate-limit to untrusted interfaces (default: {{ l2.security.dhcp_snooping.rate_limit }} pps)
+{% endif %}
+!
+{% endif %}
+
+{# Dynamic ARP Inspection (DAI) #}
+{% if l2.security.dai and l2.security.dai.enabled %}
+ip arp inspection vlan {% for v in l2.security.dai.vlans %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}
+
+{% if l2.security.dai.validate %}
+ip arp inspection validate {% if l2.security.dai.validate.src_mac %}src-mac {% endif %}{% if l2.security.dai.validate.dst_mac %}dst-mac {% endif %}{% if l2.security.dai.validate.ip %}ip{% endif %}
+
+{% endif %}
+{% for iface in l2.security.dai.trusted_interfaces | default([]) %}
+interface {{ iface }}
+  ip arp inspection trust
+!
+{% endfor %}
+{% if l2.security.dai.arp_acl %}
+arp access-list {{ l2.security.dai.arp_acl }}
+! Define ARP ACL entries for static bindings
+{% endif %}
+{% if l2.security.dai.rate_limit %}
+! DAI rate-limit: {{ l2.security.dai.rate_limit }} pps (default: 15)
+{% endif %}
+!
+{% endif %}
+
+{# IP Source Guard (IPSG) #}
+{% if l2.security.ipsg and l2.security.ipsg.enabled %}
+{% for binding in l2.security.ipsg.bindings | default([]) %}
+interface {{ binding.interface }}
+  ip verify source
+{% if binding.mac %}
+  ip source binding {{ binding.mac }} vlan {{ binding.vlan }} {{ binding.ip }} interface {{ binding.interface }}
+{% endif %}
+!
+{% endfor %}
+{% for exc in l2.security.ipsg.exceptions | default([]) %}
+ip source binding {{ exc.mac }} vlan {{ exc.vlan | default('any') }} {{ exc.ip }} interface {{ exc.interface }}
+{% endfor %}
+!
+{% endif %}
+
+{# 802.1X #}
+{% if l2.security.dot1x and l2.security.dot1x.enabled %}
+aaa new-model
+{% if l2.security.dot1x.system_auth_control %}
+dot1x system-auth-control
+{% endif %}
+
+{# Global 802.1X settings #}
+{% if l2.security.dot1x.reauth_interval %}
+dot1x reauth-period {{ l2.security.dot1x.reauth_interval }}
+{% endif %}
+{% if l2.security.dot1x.quiet_period %}
+dot1x quiet-period {{ l2.security.dot1x.quiet_period }}
+{% endif %}
+{% if l2.security.dot1x.tx_period %}
+dot1x tx-period {{ l2.security.dot1x.tx_period }}
+{% endif %}
+{% if l2.security.dot1x.max_reauth_req %}
+dot1x max-reauth-req {{ l2.security.dot1x.max_reauth_req }}
+{% endif %}
+
+{# Per-Interface 802.1X #}
+{% for iface in l2.security.dot1x.per_interface | default([]) %}
+{% if iface.enabled %}
+interface {{ iface.interface }}
+  authentication port-control {{ iface.port_control | default('auto') }}
+{% if iface.host_mode %}
+  authentication host-mode {{ iface.host_mode }}
+{% endif %}
+{% if iface.violation_mode %}
+  authentication violation {{ iface.violation_mode }}
+{% endif %}
+{% if l2.security.dot1x.mab %}
+  mab
+{% endif %}
+{% if l2.security.dot1x.guest_vlan %}
+  authentication event fail action authorize vlan {{ l2.security.dot1x.guest_vlan }}
+{% endif %}
+{% if l2.security.dot1x.critical_vlan %}
+  authentication event server dead action authorize vlan {{ l2.security.dot1x.critical_vlan }}
+{% endif %}
+  dot1x pae authenticator
+!
+{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# MACsec (802.1AE) #}
+{% if l2.security.macsec and l2.security.macsec.enabled %}
+! MACsec configuration (platform dependent)
+{% if l2.security.macsec.policy %}
+macsec policy {{ l2.security.macsec.policy }}
+{% if l2.security.macsec.cipher_suite %}
+  cipher-suite {{ l2.security.macsec.cipher_suite }}
+{% endif %}
+!
+{% endif %}
+
+{% for iface in l2.security.macsec.per_interface | default([]) %}
+{% if iface.enabled %}
+interface {{ iface.interface }}
+  macsec
+{% if l2.security.macsec.mka %}
+  mka policy {{ l2.security.macsec.policy | default('default') }}
+  mka pre-shared-key key-chain {{ l2.security.macsec.policy }}_keychain
+{% endif %}
+!
+{% endif %}
+{% endfor %}
+
+{% if l2.security.macsec.mka and l2.security.macsec.mka.cak %}
+key chain {{ l2.security.macsec.policy }}_keychain macsec
+  key 1
+    cryptographic-algorithm aes-{{ l2.security.macsec.cipher_suite | regex_replace('.*aes-([0-9]+).*', '\\1') | default('128') }}-cmac
+    key-string {{ l2.security.macsec.mka.cak }}
+!
+{% endif %}
+{% endif %}

@@ -1,0 +1,296 @@
+{# FRRouting (FRR) Base Configuration Template #}
+{# ============================================= #}
+
+frr version 8.0
+frr defaults traditional
+{% if global %}
+hostname {{ global.hostname }}
+{% if global.domain_name %}
+ip domain-name {{ global.domain_name }}
+{% endif %}
+
+{# Users #}
+{% for user in global.users | default([]) %}
+username {{ user.username }} password {{ user.secret }}
+{% if user.privilege >= 15 %}
+username {{ user.username }} privilege 15
+{% endif %}
+{% endfor %}
+
+log syslog informational
+service integrated-vtysh-config
+!
+{% endif %}
+
+{# VRFs #}
+{% if l3.vrfs %}
+{% for vrf in l3.vrfs %}
+vrf {{ vrf.name }}
+{% if vrf.description %}
+  description {{ vrf.description }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# L3 Interfaces #}
+{% if l3.interfaces %}
+{% for iface in l3.interfaces %}
+interface {{ iface.interface }}
+{% if iface.description %}
+  description {{ iface.description }}
+{% endif %}
+{% if iface.vrf %}
+  vrf {{ iface.vrf }}
+{% endif %}
+{% for ipv4 in iface.ipv4 | default([]) %}
+  ip address {{ ipv4.address }}
+{% endfor %}
+{% for ipv6 in iface.ipv6 | default([]) %}
+  ipv6 address {{ ipv6.address }}
+{% endfor %}
+{% if iface.mtu %}
+  mtu {{ iface.mtu }}
+{% endif %}
+{% if not iface.shutdown %}
+  no shutdown
+{% else %}
+  shutdown
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Static Routes #}
+{% if l3.static_routes %}
+{% for route in l3.static_routes %}
+{% if route.vrf %}
+ip route {{ route.prefix }} {{ route.next_hop }} vrf {{ route.vrf }}{% if route.distance %} {{ route.distance }}{% endif %}
+
+{% else %}
+ip route {{ route.prefix }} {{ route.next_hop }}{% if route.distance %} {{ route.distance }}{% endif %}
+
+{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# OSPF #}
+{% if l3.ospf %}
+{% for ospf in l3.ospf %}
+router ospf{% if ospf.vrf %} vrf {{ ospf.vrf }}{% endif %}
+
+{% if ospf.router_id %}
+  ospf router-id {{ ospf.router_id }}
+{% endif %}
+{% if ospf.reference_bandwidth %}
+  auto-cost reference-bandwidth {{ ospf.reference_bandwidth }}
+{% endif %}
+{% if ospf.graceful_restart %}
+  capability opaque
+  capability graceful-restart
+{% endif %}
+
+{# Areas #}
+{% for area in ospf.areas | default([]) %}
+{% if area.type == 'stub' %}
+  area {{ area.id }} stub{% if area.no_summary %} no-summary{% endif %}
+
+{% elif area.type == 'nssa' %}
+  area {{ area.id }} nssa{% if area.no_summary %} no-summary{% endif %}
+
+{% endif %}
+{% endfor %}
+
+{# Networks / Interface mode #}
+{% for iface in ospf.interfaces | default([]) %}
+  network {{ iface.interface | regex_replace('.*', '0.0.0.0') }}/32 area {{ iface.area }}
+{% endfor %}
+
+{# Redistribution #}
+{% for redist in ospf.redistribute | default([]) %}
+  redistribute {{ redist.protocol }}{% if redist.route_map %} route-map {{ redist.route_map }}{% endif %}
+
+{% endfor %}
+
+{# Default Route #}
+{% if ospf.default_originate and ospf.default_originate.enabled %}
+  default-information originate{% if ospf.default_originate.always %} always{% endif %}{% if ospf.default_originate.metric %} metric {{ ospf.default_originate.metric }}{% endif %}
+
+{% endif %}
+!
+
+{# Interface-specific OSPF settings #}
+{% for iface in ospf.interfaces | default([]) %}
+interface {{ iface.interface }}
+  ip ospf area {{ iface.area }}
+{% if iface.network_type %}
+  ip ospf network {{ iface.network_type }}
+{% endif %}
+{% if iface.cost %}
+  ip ospf cost {{ iface.cost }}
+{% endif %}
+{% if iface.priority %}
+  ip ospf priority {{ iface.priority }}
+{% endif %}
+{% if iface.passive %}
+  ip ospf passive
+{% endif %}
+{% if iface.timers %}
+{% if iface.timers.hello %}
+  ip ospf hello-interval {{ iface.timers.hello }}
+{% endif %}
+{% if iface.timers.dead %}
+  ip ospf dead-interval {{ iface.timers.dead }}
+{% endif %}
+{% endif %}
+{% if iface.authentication and iface.authentication.type == 'md5' %}
+  ip ospf authentication message-digest
+  ip ospf message-digest-key {{ iface.authentication.key_id | default(1) }} md5 {{ iface.authentication.key }}
+{% endif %}
+{% if iface.bfd %}
+  ip ospf bfd
+{% endif %}
+!
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# BGP #}
+{% if l3.bgp %}
+router bgp {{ l3.bgp.asn }}
+{% if l3.bgp.router_id %}
+  bgp router-id {{ l3.bgp.router_id }}
+{% endif %}
+{% if l3.bgp.log_neighbor_changes %}
+  bgp log-neighbor-changes
+{% endif %}
+{% if l3.bgp.graceful_restart %}
+  bgp graceful-restart
+{% endif %}
+
+{# Neighbors #}
+{% for neighbor in l3.bgp.neighbors | default([]) %}
+  neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
+{% if neighbor.description %}
+  neighbor {{ neighbor.ip }} description {{ neighbor.description }}
+{% endif %}
+{% if neighbor.update_source %}
+  neighbor {{ neighbor.ip }} update-source {{ neighbor.update_source }}
+{% endif %}
+{% if neighbor.ebgp_multihop %}
+  neighbor {{ neighbor.ip }} ebgp-multihop {{ neighbor.ebgp_multihop }}
+{% endif %}
+{% if neighbor.password %}
+  neighbor {{ neighbor.ip }} password {{ neighbor.password }}
+{% endif %}
+{% if neighbor.bfd %}
+  neighbor {{ neighbor.ip }} bfd
+{% endif %}
+{% endfor %}
+
+{# Address Families #}
+{% if l3.bgp.address_families %}
+{% if l3.bgp.address_families.ipv4_unicast and l3.bgp.address_families.ipv4_unicast.enabled %}
+  address-family ipv4 unicast
+{% for neigh in l3.bgp.address_families.ipv4_unicast.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+{% for net in l3.bgp.address_families.ipv4_unicast.networks | default([]) %}
+    network {{ net.prefix }}
+{% endfor %}
+{% if l3.bgp.address_families.ipv4_unicast.maximum_paths %}
+    maximum-paths {{ l3.bgp.address_families.ipv4_unicast.maximum_paths }}
+{% endif %}
+  exit-address-family
+{% endif %}
+
+{% if l3.bgp.address_families.ipv6_unicast and l3.bgp.address_families.ipv6_unicast.enabled %}
+  address-family ipv6 unicast
+{% for neigh in l3.bgp.address_families.ipv6_unicast.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+{% for net in l3.bgp.address_families.ipv6_unicast.networks | default([]) %}
+    network {{ net.prefix }}
+{% endfor %}
+  exit-address-family
+{% endif %}
+
+{% if l3.bgp.address_families.l2vpn_evpn and l3.bgp.address_families.l2vpn_evpn.enabled %}
+  address-family l2vpn evpn
+{% for neigh in l3.bgp.address_families.l2vpn_evpn.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+{% if l3.bgp.address_families.l2vpn_evpn.advertise_all_vni %}
+    advertise-all-vni
+{% endif %}
+  exit-address-family
+{% endif %}
+{% endif %}
+!
+{% endif %}
+
+{# IS-IS #}
+{% if l3.isis %}
+{% for isis in l3.isis %}
+router isis {{ isis.tag | default('1') }}
+{% if isis.net %}
+  net {{ isis.net }}
+{% endif %}
+{% if isis.is_type %}
+  is-type {{ isis.is_type }}
+{% endif %}
+{% if isis.metric_style == 'wide' %}
+  metric-style wide
+{% endif %}
+!
+{% for iface in isis.interfaces | default([]) %}
+interface {{ iface.interface }}
+  ip router isis {{ isis.tag | default('1') }}
+{% if iface.circuit_type %}
+  isis circuit-type {{ iface.circuit_type }}
+{% endif %}
+{% if iface.metric %}
+  isis metric {{ iface.metric }}
+{% endif %}
+{% if iface.passive %}
+  isis passive
+{% endif %}
+{% if iface.bfd %}
+  isis bfd
+{% endif %}
+!
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# PIM Multicast #}
+{% if l3.multicast and l3.multicast.pim %}
+{% for iface in l3.multicast.pim.interfaces | default([]) %}
+interface {{ iface.interface }}
+  ip pim {{ l3.multicast.pim.mode | default('sparse-mode') | replace('-', ' ') }}
+!
+{% endfor %}
+{% if l3.multicast.pim.rp and l3.multicast.pim.rp.static %}
+{% for rp in l3.multicast.pim.rp.static %}
+ip pim rp {{ rp.address }}{% if rp.groups %} {{ rp.groups | join(' ') }}{% endif %}
+
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{# BFD #}
+{% if l3.bfd and l3.bfd.enabled %}
+bfd
+{% if l3.bfd.default_timers %}
+  profile default
+    detect-multiplier {{ l3.bfd.default_timers.multiplier | default(3) }}
+    receive-interval {{ l3.bfd.default_timers.min_rx | default(300) }}
+    transmit-interval {{ l3.bfd.default_timers.min_tx | default(300) }}
+{% endif %}
+!
+{% endif %}
+
+line vty
+!
+end

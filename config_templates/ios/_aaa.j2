@@ -1,0 +1,47 @@
+{# AAA Configuration for Cisco IOS/IOS-XE #}
+aaa new-model
+
+{# TACACS+ Servers #}
+{% for server in global.aaa.tacacs_servers | default([]) %}
+tacacs server {{ server.host }}
+  address ipv4 {{ server.host }}
+  key {{ server.key }}
+{% endfor %}
+
+{# RADIUS Servers #}
+{% for server in global.aaa.radius_servers | default([]) %}
+radius server {{ server.host }}
+  address ipv4 {{ server.host }} auth-port 1812 acct-port 1813
+  key {{ server.key }}
+{% endfor %}
+
+{# AAA Server Groups #}
+{% if global.aaa.tacacs_servers %}
+aaa group server tacacs+ TACACS-GROUP
+{% for server in global.aaa.tacacs_servers %}
+  server name {{ server.host }}
+{% endfor %}
+{% endif %}
+
+{% if global.aaa.radius_servers %}
+aaa group server radius RADIUS-GROUP
+{% for server in global.aaa.radius_servers %}
+  server name {{ server.host }}
+{% endfor %}
+{% endif %}
+
+{# Authentication #}
+aaa authentication login {{ global.aaa.login_authentication | default('default') }} group {% if global.aaa.tacacs_servers %}TACACS-GROUP{% else %}RADIUS-GROUP{% endif %} local
+aaa authentication enable {{ global.aaa.enable_authentication | default('default') }} group {% if global.aaa.tacacs_servers %}TACACS-GROUP{% else %}RADIUS-GROUP{% endif %} enable
+{% if global.aaa.console_authentication %}
+aaa authentication login console local
+{% endif %}
+
+{# Authorization #}
+aaa authorization exec default group {% if global.aaa.tacacs_servers %}TACACS-GROUP{% else %}RADIUS-GROUP{% endif %} local
+aaa authorization commands 15 default group {% if global.aaa.tacacs_servers %}TACACS-GROUP{% else %}RADIUS-GROUP{% endif %} local
+
+{# Accounting #}
+aaa accounting exec default start-stop group {% if global.aaa.tacacs_servers %}TACACS-GROUP{% else %}RADIUS-GROUP{% endif %}
+aaa accounting commands 15 default start-stop group {% if global.aaa.tacacs_servers %}TACACS-GROUP{% else %}RADIUS-GROUP{% endif %}
+!

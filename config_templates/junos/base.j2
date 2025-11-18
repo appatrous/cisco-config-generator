@@ -1,0 +1,241 @@
+{# Juniper Junos Base Configuration Template (set-style) #}
+{# ======================================================= #}
+
+{% if global %}
+set system host-name {{ global.hostname }}
+{% if global.domain_name %}
+set system domain-name {{ global.domain_name }}
+{% endif %}
+
+{# Users #}
+{% for user in global.users | default([]) %}
+set system login user {{ user.username }} class {% if user.privilege >= 15 %}super-user{% else %}operator{% endif %}
+
+set system login user {{ user.username }} authentication encrypted-password "{{ user.secret }}"
+{% if user.ssh_key %}
+set system login user {{ user.username }} authentication ssh-rsa "{{ user.ssh_key }}"
+{% endif %}
+{% endfor %}
+
+{# NTP #}
+{% for ntp in global.ntp_servers | default([]) %}
+set system ntp server {{ ntp }}
+{% endfor %}
+
+{# DNS #}
+{% for dns in global.dns_servers | default([]) %}
+set system name-server {{ dns }}
+{% endfor %}
+
+{# Timezone #}
+{% if global.timezone %}
+set system time-zone {{ global.timezone }}
+{% endif %}
+
+{% endif %}
+
+{# VLANs #}
+{% if l2.vlans %}
+{% for vlan in l2.vlans %}
+set vlans {{ vlan.name }} vlan-id {{ vlan.id }}
+{% if vlan.description %}
+set vlans {{ vlan.name }} description "{{ vlan.description }}"
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# LAG/Aggregated Ethernet #}
+{% if l2.lag %}
+{% for bundle in l2.lag %}
+set interfaces ae{{ bundle.bundle_id }} description "{{ bundle.description | default('Port-Channel ' ~ bundle.bundle_id) }}"
+set interfaces ae{{ bundle.bundle_id }} aggregated-ether-options lacp {% if bundle.mode == 'active' %}active{% else %}passive{% endif %}
+
+{% if bundle.min_links %}
+set interfaces ae{{ bundle.bundle_id }} aggregated-ether-options minimum-links {{ bundle.min_links }}
+{% endif %}
+{% for member in bundle.members %}
+set interfaces {{ member }} ether-options 802.3ad ae{{ bundle.bundle_id }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# MC-LAG (Junos) #}
+{% if l2.mlag and l2.mlag.enabled %}
+set chassis cluster cluster-id {{ l2.mlag.domain_id }}
+set chassis cluster reth-count 2
+set chassis cluster redundancy-group 0 node 0 priority {{ 100 if l2.mlag.role == 'primary' else 50 }}
+set chassis cluster redundancy-group 0 node 1 priority {{ 50 if l2.mlag.role == 'primary' else 100 }}
+{# TODO Junos MC-LAG configuration varies by platform (EX vs. QFX) #}
+{% endif %}
+
+{# Routing Instances (VRFs) #}
+{% if l3.vrfs %}
+{% for vrf in l3.vrfs %}
+set routing-instances {{ vrf.name }} instance-type vrf
+{% if vrf.rd %}
+set routing-instances {{ vrf.name }} route-distinguisher {{ vrf.rd }}
+{% endif %}
+{% if vrf.rt_import %}
+{% for rt in vrf.rt_import %}
+set routing-instances {{ vrf.name }} vrf-import {{ rt }}
+{% endfor %}
+{% endif %}
+{% if vrf.rt_export %}
+{% for rt in vrf.rt_export %}
+set routing-instances {{ vrf.name }} vrf-export {{ rt }}
+{% endfor %}
+{% endif %}
+{% for iface_name in vrf.interfaces | default([]) %}
+set routing-instances {{ vrf.name }} interface {{ iface_name }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# L3 Interfaces #}
+{% if l3.interfaces %}
+{% for iface in l3.interfaces %}
+set interfaces {{ iface.interface }} description "{{ iface.description | default('') }}"
+set interfaces {{ iface.interface }} unit 0 family inet
+{% for ipv4 in iface.ipv4 | default([]) %}
+set interfaces {{ iface.interface }} unit 0 family inet address {{ ipv4.address }}
+{% endfor %}
+set interfaces {{ iface.interface }} unit 0 family inet6
+{% for ipv6 in iface.ipv6 | default([]) %}
+set interfaces {{ iface.interface }} unit 0 family inet6 address {{ ipv6.address }}
+{% endfor %}
+{% if iface.mtu %}
+set interfaces {{ iface.interface }} mtu {{ iface.mtu }}
+{% endif %}
+
+{# VRRP for Junos #}
+{% if iface.fhrp and iface.fhrp.protocol == 'vrrp' %}
+set interfaces {{ iface.interface }} unit 0 family inet address {{ iface.ipv4[0].address }} vrrp-group {{ iface.fhrp.group }} virtual-address {{ iface.fhrp.virtual_ip }}
+set interfaces {{ iface.interface }} unit 0 family inet address {{ iface.ipv4[0].address }} vrrp-group {{ iface.fhrp.group }} priority {{ iface.fhrp.priority | default(100) }}
+{% if iface.fhrp.preempt %}
+set interfaces {{ iface.interface }} unit 0 family inet address {{ iface.ipv4[0].address }} vrrp-group {{ iface.fhrp.group }} preempt
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Static Routes #}
+{% if l3.static_routes %}
+{% for route in l3.static_routes %}
+{% if route.vrf %}
+set routing-instances {{ route.vrf }} routing-options static route {{ route.prefix }} next-hop {{ route.next_hop }}
+{% else %}
+set routing-options static route {{ route.prefix }} next-hop {{ route.next_hop }}
+{% endif %}
+{% if route.distance %}
+{# Junos uses preference instead of distance #}
+set routing-options static route {{ route.prefix }} preference {{ route.distance }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# OSPF #}
+{% if l3.ospf %}
+{% for ospf in l3.ospf %}
+{% if ospf.vrf %}
+set routing-instances {{ ospf.vrf }} protocols ospf
+{% if ospf.router_id %}
+set routing-instances {{ ospf.vrf }} protocols ospf router-id {{ ospf.router_id }}
+{% endif %}
+{% for area in ospf.areas | default([]) %}
+set routing-instances {{ ospf.vrf }} protocols ospf area {{ area.id }}
+{% for iface in ospf.interfaces | default([]) %}
+{% if iface.area == area.id %}
+set routing-instances {{ ospf.vrf }} protocols ospf area {{ area.id }} interface {{ iface.interface }}
+{% if iface.passive %}
+set routing-instances {{ ospf.vrf }} protocols ospf area {{ area.id }} interface {{ iface.interface }} passive
+{% endif %}
+{% if iface.cost %}
+set routing-instances {{ ospf.vrf }} protocols ospf area {{ area.id }} interface {{ iface.interface }} metric {{ iface.cost }}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% else %}
+set protocols ospf
+{% if ospf.router_id %}
+set protocols ospf router-id {{ ospf.router_id }}
+{% endif %}
+{% if ospf.reference_bandwidth %}
+set protocols ospf reference-bandwidth {{ ospf.reference_bandwidth }}m
+{% endif %}
+{% for area in ospf.areas | default([]) %}
+set protocols ospf area {{ area.id }}
+{% if area.type == 'stub' %}
+set protocols ospf area {{ area.id }} stub
+{% if area.no_summary %}
+set protocols ospf area {{ area.id }} stub no-summaries
+{% endif %}
+{% elif area.type == 'nssa' %}
+set protocols ospf area {{ area.id }} nssa
+{% endif %}
+{% for iface in ospf.interfaces | default([]) %}
+{% if iface.area == area.id %}
+set protocols ospf area {{ area.id }} interface {{ iface.interface }}
+{% if iface.passive %}
+set protocols ospf area {{ area.id }} interface {{ iface.interface }} passive
+{% endif %}
+{% if iface.cost %}
+set protocols ospf area {{ area.id }} interface {{ iface.interface }} metric {{ iface.cost }}
+{% endif %}
+{% if iface.bfd %}
+set protocols ospf area {{ area.id }} interface {{ iface.interface }} bfd-liveness-detection minimum-interval 300
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# BGP #}
+{% if l3.bgp %}
+set protocols bgp group internal type internal
+set protocols bgp group external type external
+{% if l3.bgp.router_id %}
+set routing-options router-id {{ l3.bgp.router_id }}
+{% endif %}
+set routing-options autonomous-system {{ l3.bgp.asn }}
+{% for neighbor in l3.bgp.neighbors | default([]) %}
+{% set group_type = 'internal' if neighbor.remote_as == l3.bgp.asn else 'external' %}
+set protocols bgp group {{ group_type }} neighbor {{ neighbor.ip }}
+{% if neighbor.description %}
+set protocols bgp group {{ group_type }} neighbor {{ neighbor.ip }} description "{{ neighbor.description }}"
+{% endif %}
+{% if neighbor.remote_as != l3.bgp.asn %}
+set protocols bgp group {{ group_type }} neighbor {{ neighbor.ip }} peer-as {{ neighbor.remote_as }}
+{% endif %}
+{% endfor %}
+{% if l3.bgp.address_families and l3.bgp.address_families.l2vpn_evpn and l3.bgp.address_families.l2vpn_evpn.enabled %}
+set protocols bgp group internal family evpn signaling
+{% endif %}
+{% endif %}
+
+{# IS-IS #}
+{% if l3.isis %}
+{% for isis in l3.isis %}
+set protocols isis
+{% if isis.net %}
+set protocols isis net {{ isis.net }}
+{% endif %}
+{% for iface in isis.interfaces | default([]) %}
+set protocols isis interface {{ iface.interface }}
+{% if iface.passive %}
+set protocols isis interface {{ iface.interface }} passive
+{% endif %}
+{% if iface.metric %}
+set protocols isis interface {{ iface.interface }} level {{ iface.circuit_type | default('2') }} metric {{ iface.metric }}
+{% endif %}
+{% if iface.bfd %}
+set protocols isis interface {{ iface.interface }} bfd-liveness-detection minimum-interval 300
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# Commit the configuration #}
+commit

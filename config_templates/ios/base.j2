@@ -1,0 +1,85 @@
+{# Cisco IOS-XE/IOS Base Configuration Template #}
+{# ============================================== #}
+
+{# Global Configuration #}
+{% if global %}
+hostname {{ global.hostname }}
+{% if global.domain_name %}
+ip domain-name {{ global.domain_name }}
+{% endif %}
+{% if global.enable_secret %}
+enable secret {{ global.enable_secret }}
+{% endif %}
+
+{# Banner #}
+{% if global.banner_motd %}
+banner motd ^
+{{ global.banner_motd }}
+^
+{% endif %}
+
+{# Timezone & NTP #}
+{% if global.timezone %}
+clock timezone {{ global.timezone }}
+{% endif %}
+{% for ntp in global.ntp_servers | default([]) %}
+ntp server {{ ntp }}
+{% endfor %}
+
+{# DNS #}
+{% for dns in global.dns_servers | default([]) %}
+ip name-server {{ dns }}
+{% endfor %}
+
+{# Logging #}
+{% for log_server in global.logging_servers | default([]) %}
+logging host {{ log_server }}
+{% endfor %}
+
+{# SNMP #}
+{% if global.snmp and global.snmp.enabled %}
+{% include 'ios/_snmp.j2' %}
+{% endif %}
+
+{# AAA #}
+{% if global.aaa and global.aaa.enabled %}
+{% include 'ios/_aaa.j2' %}
+{% endif %}
+
+{# Users #}
+{% for user in global.users | default([]) %}
+username {{ user.username }} privilege {{ user.privilege | default(15) }} secret {{ user.secret }}
+{% if user.ssh_key %}
+ip ssh pubkey-chain
+  username {{ user.username }}
+    key-string
+{{ user.ssh_key | indent(6, first=true) }}
+    exit
+  exit
+{% endif %}
+{% endfor %}
+
+{% endif %}{# end global #}
+
+{# Layer 2 Configuration #}
+{% if l2 %}
+{% include 'ios/_l2.j2' %}
+{% endif %}
+
+{# Layer 3 Configuration #}
+{% if l3 %}
+{% include 'ios/_l3.j2' %}
+{% endif %}
+
+{# VXLAN / EVPN Configuration #}
+{% if vxlan and vxlan.enabled %}
+{% include 'ios/_vxlan.j2' %}
+{% endif %}
+
+{# ACLs #}
+{% if acls %}
+{% include 'ios/_acls.j2' %}
+{% endif %}
+
+!
+end

@@ -1,0 +1,154 @@
+{
+  "description": "Campus Access Switch - Typical enterprise access layer configuration",
+  "vendor": "ios",
+  "scenario": "campus_access",
+  "global": {
+    "hostname": "campus-access-sw01",
+    "domain_name": "corp.example.com",
+    "enable_secret": "EnCrYpT3dP@ssw0rd",
+    "banner_motd": "Authorized Access Only - Campus Access Switch",
+    "timezone": "EST -5 0",
+    "ntp_servers": ["10.0.0.1", "10.0.0.2"],
+    "dns_servers": ["10.0.1.10", "10.0.1.11"],
+    "logging_servers": ["10.0.1.100"],
+    "snmp": {
+      "enabled": true,
+      "community_ro": "public_ro",
+      "community_rw": "private_rw",
+      "location": "Building A, Floor 2, IDF-01",
+      "contact": "netops@example.com"
+    },
+    "users": [
+      {
+        "username": "admin",
+        "privilege": 15,
+        "secret": "Str0ngAdm1nP@ss"
+      },
+      {
+        "username": "netops",
+        "privilege": 10,
+        "secret": "N3t0psP@ss"
+      }
+    ]
+  },
+  "l2": {
+    "vlans": [
+      {"id": 10, "name": "DATA", "state": "active"},
+      {"id": 20, "name": "VOICE", "state": "active"},
+      {"id": 30, "name": "GUEST", "state": "active"},
+      {"id": 40, "name": "IOT", "state": "active"},
+      {"id": 99, "name": "MANAGEMENT", "state": "active"}
+    ],
+    "trunks": [
+      {
+        "interface": "GigabitEthernet0/1",
+        "native_vlan": 99,
+        "allowed_vlans": [10, 20, 30, 40, 99],
+        "storm_control": {
+          "broadcast": 10.0,
+          "multicast": 10.0
+        }
+      }
+    ],
+    "stp": {
+      "mode": "rapid-pvst",
+      "portfast_default": true,
+      "guards": {
+        "bpduguard_default": true,
+        "loopguard_default": false
+      }
+    },
+    "discovery": {
+      "lldp": {
+        "enabled": true,
+        "transmit_interval": 30,
+        "holdtime": 120,
+        "tlvs": {
+          "port_description": true,
+          "system_name": true,
+          "med_policy": true
+        }
+      },
+      "cdp": {
+        "enabled": true
+      }
+    },
+    "security": {
+      "port_security": {
+        "default_max_macs": 3,
+        "sticky": true,
+        "violation_action": "restrict",
+        "aging_time": 30,
+        "per_interface": [
+          {
+            "interface": "GigabitEthernet0/10",
+            "enabled": true,
+            "max_macs": 1
+          }
+        ]
+      },
+      "dhcp_snooping": {
+        "enabled": true,
+        "vlans": [10, 20, 30, 40],
+        "trusted_interfaces": ["GigabitEthernet0/1"],
+        "option_82": {
+          "enabled": true
+        },
+        "rate_limit": 15,
+        "verify_mac": true
+      },
+      "dai": {
+        "enabled": true,
+        "vlans": [10, 30, 40],
+        "trusted_interfaces": ["GigabitEthernet0/1"],
+        "rate_limit": 15,
+        "validate": {
+          "src_mac": true,
+          "dst_mac": true,
+          "ip": true
+        }
+      },
+      "dot1x": {
+        "enabled": true,
+        "system_auth_control": true,
+        "method": "eap-peap",
+        "mab": true,
+        "guest_vlan": 30,
+        "critical_vlan": 99,
+        "reauth_interval": 3600,
+        "per_interface": [
+          {
+            "interface": "GigabitEthernet0/10",
+            "enabled": true,
+            "port_control": "auto",
+            "host_mode": "multi-auth"
+          }
+        ]
+      }
+    },
+    "igmp_snooping": {
+      "enabled": true,
+      "vlans": [10, 20],
+      "immediate_leave": true
+    }
+  },
+  "l3": {
+    "interfaces": [
+      {
+        "interface": "Vlan99",
+        "description": "Management Interface",
+        "ipv4": [
+          {"address": "10.99.1.10/24"}
+        ],
+        "shutdown": false
+      }
+    ],
+    "static_routes": [
+      {
+        "prefix": "0.0.0.0/0",
+        "next_hop": "10.99.1.1",
+        "name": "Default Route to Core"
+      }
+    ]
+  }
+}

@@ -1,0 +1,208 @@
+{# BGP Configuration for Cisco IOS/IOS-XE #}
+router bgp {{ l3.bgp.asn }}
+{% if l3.bgp.router_id %}
+  bgp router-id {{ l3.bgp.router_id }}
+{% endif %}
+{% if l3.bgp.log_neighbor_changes %}
+  bgp log-neighbor-changes
+{% endif %}
+{% if l3.bgp.graceful_restart %}
+  bgp graceful-restart
+{% endif %}
+{% if l3.bgp.confederation %}
+  bgp confederation identifier {{ l3.bgp.confederation.id }}
+{% if l3.bgp.confederation.peers %}
+  bgp confederation peers {% for peer in l3.bgp.confederation.peers %}{{ peer }} {% endfor %}
+
+{% endif %}
+{% endif %}
+{% if l3.bgp.route_reflector and l3.bgp.route_reflector.cluster_id %}
+  bgp cluster-id {{ l3.bgp.route_reflector.cluster_id }}
+{% endif %}
+
+{# Peer Groups #}
+{% for pg in l3.bgp.peer_groups | default([]) %}
+  neighbor {{ pg.name }} peer-group
+{% if pg.remote_as %}
+  neighbor {{ pg.name }} remote-as {{ pg.remote_as }}
+{% endif %}
+{% if pg.description %}
+  neighbor {{ pg.name }} description {{ pg.description }}
+{% endif %}
+{% if pg.update_source %}
+  neighbor {{ pg.name }} update-source {{ pg.update_source }}
+{% endif %}
+{% if pg.ebgp_multihop %}
+  neighbor {{ pg.name }} ebgp-multihop {{ pg.ebgp_multihop }}
+{% endif %}
+{% if pg.next_hop_self %}
+  neighbor {{ pg.name }} next-hop-self
+{% endif %}
+{% if pg.remove_private_as %}
+  neighbor {{ pg.name }} remove-private-as
+{% endif %}
+{% if pg.password %}
+  neighbor {{ pg.name }} password {{ pg.password }}
+{% endif %}
+{% if pg.ttl_security %}
+  neighbor {{ pg.name }} ttl-security hops {{ pg.ttl_security }}
+{% endif %}
+{% if pg.timers %}
+  neighbor {{ pg.name }} timers {{ pg.timers.keepalive | default(60) }} {{ pg.timers.holdtime | default(180) }}{% if pg.timers.connect %} {{ pg.timers.connect }}{% endif %}
+
+{% endif %}
+{% if pg.bfd %}
+  neighbor {{ pg.name }} fall-over bfd
+{% endif %}
+{% if pg.send_community %}
+{% for comm_type in pg.send_community %}
+  neighbor {{ pg.name }} send-community {{ comm_type }}
+{% endfor %}
+{% endif %}
+{% if pg.route_map_in %}
+  neighbor {{ pg.name }} route-map {{ pg.route_map_in }} in
+{% endif %}
+{% if pg.route_map_out %}
+  neighbor {{ pg.name }} route-map {{ pg.route_map_out }} out
+{% endif %}
+{% if pg.prefix_list_in %}
+  neighbor {{ pg.name }} prefix-list {{ pg.prefix_list_in }} in
+{% endif %}
+{% if pg.prefix_list_out %}
+  neighbor {{ pg.name }} prefix-list {{ pg.prefix_list_out }} out
+{% endif %}
+{% if pg.filter_list_in %}
+  neighbor {{ pg.name }} filter-list {{ pg.filter_list_in }} in
+{% endif %}
+{% if pg.filter_list_out %}
+  neighbor {{ pg.name }} filter-list {{ pg.filter_list_out }} out
+{% endif %}
+{% if pg.default_originate %}
+  neighbor {{ pg.name }} default-originate
+{% endif %}
+{% if pg.soft_reconfiguration %}
+  neighbor {{ pg.name }} soft-reconfiguration inbound
+{% endif %}
+{% if pg.allowas_in %}
+  neighbor {{ pg.name }} allowas-in {{ pg.allowas_in }}
+{% endif %}
+{% endfor %}
+
+{# Neighbors #}
+{% for neighbor in l3.bgp.neighbors | default([]) %}
+  neighbor {{ neighbor.ip }} remote-as {{ neighbor.remote_as }}
+{% if neighbor.peer_group %}
+  neighbor {{ neighbor.ip }} peer-group {{ neighbor.peer_group }}
+{% endif %}
+{% if neighbor.description %}
+  neighbor {{ neighbor.ip }} description {{ neighbor.description }}
+{% endif %}
+{% if neighbor.shutdown %}
+  neighbor {{ neighbor.ip }} shutdown
+{% endif %}
+{# Override peer-group settings if specified per-neighbor #}
+{% if neighbor.update_source %}
+  neighbor {{ neighbor.ip }} update-source {{ neighbor.update_source }}
+{% endif %}
+{% if neighbor.ebgp_multihop %}
+  neighbor {{ neighbor.ip }} ebgp-multihop {{ neighbor.ebgp_multihop }}
+{% endif %}
+{% if neighbor.password %}
+  neighbor {{ neighbor.ip }} password {{ neighbor.password }}
+{% endif %}
+{% if neighbor.bfd %}
+  neighbor {{ neighbor.ip }} fall-over bfd
+{% endif %}
+{% endfor %}
+!
+
+{# Address Families #}
+{% if l3.bgp.address_families %}
+
+{# IPv4 Unicast #}
+{% if l3.bgp.address_families.ipv4_unicast and l3.bgp.address_families.ipv4_unicast.enabled %}
+  address-family ipv4 unicast
+{% for neigh in l3.bgp.address_families.ipv4_unicast.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+{% for net in l3.bgp.address_families.ipv4_unicast.networks | default([]) %}
+    network {{ net.prefix | ipaddr('network') }} mask {{ net.prefix | ipaddr('netmask') }}{% if net.route_map %} route-map {{ net.route_map }}{% endif %}
+
+{% endfor %}
+{% for agg in l3.bgp.address_families.ipv4_unicast.aggregates | default([]) %}
+    aggregate-address {{ agg.prefix | ipaddr('network') }} {{ agg.prefix | ipaddr('netmask') }}{% if agg.summary_only %} summary-only{% endif %}{% if agg.as_set %} as-set{% endif %}
+
+{% endfor %}
+{% for redist in l3.bgp.address_families.ipv4_unicast.redistribute | default([]) %}
+    redistribute {{ redist.protocol }}{% if redist.route_map %} route-map {{ redist.route_map }}{% endif %}
+
+{% endfor %}
+{% if l3.bgp.address_families.ipv4_unicast.maximum_paths %}
+    maximum-paths {{ l3.bgp.address_families.ipv4_unicast.maximum_paths }}
+{% endif %}
+{% if l3.bgp.address_families.ipv4_unicast.maximum_paths_ibgp %}
+    maximum-paths ibgp {{ l3.bgp.address_families.ipv4_unicast.maximum_paths_ibgp }}
+{% endif %}
+{% if l3.bgp.address_families.ipv4_unicast.dampening %}
+    bgp dampening
+{% endif %}
+{% if l3.bgp.address_families.ipv4_unicast.default_information_originate %}
+    default-information originate
+{% endif %}
+  exit-address-family
+!
+{% endif %}
+
+{# IPv6 Unicast #}
+{% if l3.bgp.address_families.ipv6_unicast and l3.bgp.address_families.ipv6_unicast.enabled %}
+  address-family ipv6 unicast
+{% for neigh in l3.bgp.address_families.ipv6_unicast.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+{% endfor %}
+{% for net in l3.bgp.address_families.ipv6_unicast.networks | default([]) %}
+    network {{ net.prefix }}{% if net.route_map %} route-map {{ net.route_map }}{% endif %}
+
+{% endfor %}
+{% for agg in l3.bgp.address_families.ipv6_unicast.aggregates | default([]) %}
+    aggregate-address {{ agg.prefix }}{% if agg.summary_only %} summary-only{% endif %}{% if agg.as_set %} as-set{% endif %}
+
+{% endfor %}
+{% for redist in l3.bgp.address_families.ipv6_unicast.redistribute | default([]) %}
+    redistribute {{ redist.protocol }}{% if redist.route_map %} route-map {{ redist.route_map }}{% endif %}
+
+{% endfor %}
+{% if l3.bgp.address_families.ipv6_unicast.maximum_paths %}
+    maximum-paths {{ l3.bgp.address_families.ipv6_unicast.maximum_paths }}
+{% endif %}
+  exit-address-family
+!
+{% endif %}
+
+{# L2VPN EVPN #}
+{% if l3.bgp.address_families.l2vpn_evpn and l3.bgp.address_families.l2vpn_evpn.enabled %}
+  address-family l2vpn evpn
+{% for neigh in l3.bgp.address_families.l2vpn_evpn.neighbors_activate | default([]) %}
+    neighbor {{ neigh }} activate
+    neighbor {{ neigh }} send-community extended
+{% endfor %}
+  exit-address-family
+!
+{# TODO IOS L2VPN EVPN - limited platform support; check IOS-XE version #}
+{% endif %}
+
+{% endif %}{# end address_families #}
+
+{# BGP Policies #}
+{% if l3.bgp.policies %}
+{% include 'ios/_bgp_policies.j2' %}
+{% endif %}
+
+{# RPKI #}
+{% if l3.bgp.rpki and l3.bgp.rpki.enabled %}
+! RPKI/ROV Configuration (IOS-XE 17.x+)
+{% for cache in l3.bgp.rpki.caches | default([]) %}
+router bgp {{ l3.bgp.asn }}
+  bgp rpki server tcp {{ cache.host }} port {{ cache.port | default(323) }} refresh {{ cache.preference | default(10) }}
+{% endfor %}
+! Apply RPKI validation in route-map (set/match origin-as validity)
+{% endif %}

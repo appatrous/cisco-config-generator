@@ -1,0 +1,174 @@
+{
+  "description": "Data Center Leaf Switch - VXLAN EVPN with BGP",
+  "vendor": "nxos",
+  "scenario": "dc_leaf_evpn",
+  "global": {
+    "hostname": "dc-leaf-01",
+    "domain_name": "dc.example.com",
+    "ntp_servers": ["10.1.0.1"]
+  },
+  "l2": {
+    "vlans": [
+      {"id": 10, "name": "WEB", "state": "active"},
+      {"id": 20, "name": "APP", "state": "active"},
+      {"id": 30, "name": "DB", "state": "active"}
+    ],
+    "lag": [
+      {
+        "bundle_id": 100,
+        "members": ["Ethernet1/1", "Ethernet1/2"],
+        "mode": "active",
+        "description": "vPC Peer-Link"
+      },
+      {
+        "bundle_id": 10,
+        "members": ["Ethernet1/10"],
+        "mode": "active",
+        "description": "Server01"
+      }
+    ],
+    "mlag": {
+      "enabled": true,
+      "domain_id": 1,
+      "peer_link": "port-channel100",
+      "keepalive": {
+        "source": "10.255.255.1",
+        "destination": "10.255.255.2",
+        "vrf": "management"
+      },
+      "role": "primary",
+      "anycast_vtep": true
+    }
+  },
+  "l3": {
+    "vrfs": [
+      {
+        "name": "PROD",
+        "rd": "65001:1000",
+        "rt_import": ["65001:1000"],
+        "rt_export": ["65001:1000"],
+        "description": "Production VRF"
+      }
+    ],
+    "interfaces": [
+      {
+        "interface": "loopback0",
+        "description": "Router ID",
+        "ipv4": [{"address": "10.1.1.1/32"}],
+        "shutdown": false
+      },
+      {
+        "interface": "loopback1",
+        "description": "VTEP Source",
+        "ipv4": [{"address": "10.1.2.1/32"}],
+        "shutdown": false
+      },
+      {
+        "interface": "Ethernet1/49",
+        "description": "Uplink to Spine-01",
+        "ipv4": [{"address": "10.10.1.1/30"}],
+        "mtu": 9216,
+        "shutdown": false
+      },
+      {
+        "interface": "Ethernet1/50",
+        "description": "Uplink to Spine-02",
+        "ipv4": [{"address": "10.10.1.5/30"}],
+        "mtu": 9216,
+        "shutdown": false
+      }
+    ],
+    "bgp": {
+      "asn": 65001,
+      "router_id": "10.1.1.1",
+      "log_neighbor_changes": true,
+      "graceful_restart": true,
+      "neighbors": [
+        {
+          "ip": "10.10.1.2",
+          "remote_as": 65000,
+          "description": "Spine-01",
+          "update_source": "Ethernet1/49",
+          "ebgp_multihop": 1,
+          "bfd": true
+        },
+        {
+          "ip": "10.10.1.6",
+          "remote_as": 65000,
+          "description": "Spine-02",
+          "update_source": "Ethernet1/50",
+          "ebgp_multihop": 1,
+          "bfd": true
+        }
+      ],
+      "address_families": {
+        "ipv4_unicast": {
+          "enabled": true,
+          "neighbors_activate": ["10.10.1.2", "10.10.1.6"],
+          "networks": [
+            {"prefix": "10.1.1.1/32"},
+            {"prefix": "10.1.2.1/32"}
+          ],
+          "maximum_paths": 4
+        },
+        "l2vpn_evpn": {
+          "enabled": true,
+          "neighbors_activate": ["10.10.1.2", "10.10.1.6"],
+          "advertise_all_vni": true,
+          "rd_auto": true,
+          "rt_auto": true,
+          "anycast_gateway_mac": "0000.1111.2222"
+        }
+      }
+    },
+    "bfd": {
+      "enabled": true,
+      "default_timers": {
+        "min_tx": 300,
+        "min_rx": 300,
+        "multiplier": 3
+      }
+    }
+  },
+  "vxlan": {
+    "enabled": true,
+    "vtep": {
+      "source_interface": "loopback1",
+      "nve_interface": "nve1"
+    },
+    "global_ingress_replication": true,
+    "l2vnis": [
+      {
+        "vni": 10010,
+        "vlan": 10,
+        "ingress_replication": true,
+        "suppress_arp": true
+      },
+      {
+        "vni": 10020,
+        "vlan": 20,
+        "ingress_replication": true,
+        "suppress_arp": true
+      },
+      {
+        "vni": 10030,
+        "vlan": 30,
+        "ingress_replication": true,
+        "suppress_arp": true
+      }
+    ],
+    "l3vnis": [
+      {
+        "vni": 50000,
+        "vrf": "PROD",
+        "rd": "65001:1000",
+        "rt_import": ["65001:1000"],
+        "rt_export": ["65001:1000"]
+      }
+    ],
+    "anycast_gateway": {
+      "enabled": true,
+      "mac": "0000.1111.2222"
+    }
+  }
+}

@@ -1,0 +1,263 @@
+{# Layer 3 Configuration for Cisco IOS/IOS-XE #}
+
+{# VRFs #}
+{% if l3.vrfs %}
+{% for vrf in l3.vrfs %}
+ip vrf {{ vrf.name }}
+{% if vrf.rd %}
+  rd {{ vrf.rd }}
+{% endif %}
+{% if vrf.rt_import %}
+{% for rt in vrf.rt_import %}
+  route-target import {{ rt }}
+{% endfor %}
+{% endif %}
+{% if vrf.rt_export %}
+{% for rt in vrf.rt_export %}
+  route-target export {{ rt }}
+{% endfor %}
+{% endif %}
+{% if vrf.description %}
+  description {{ vrf.description }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Layer 3 Interfaces #}
+{% if l3.interfaces %}
+{% for iface in l3.interfaces %}
+interface {{ iface.interface }}
+{% if iface.description %}
+  description {{ iface.description }}
+{% endif %}
+{% if iface.vrf %}
+  ip vrf forwarding {{ iface.vrf }}
+{% endif %}
+{% if not iface.shutdown %}
+  no shutdown
+{% else %}
+  shutdown
+{% endif %}
+{% for ipv4 in iface.ipv4 | default([]) %}
+  ip address {{ ipv4.address | regex_replace('/.*', '') }} {{ ipv4.address | ipaddr('netmask') }}{% if ipv4.secondary | default(false) %} secondary{% endif %}
+
+{% endfor %}
+{% for ipv6 in iface.ipv6 | default([]) %}
+{% if ipv6.link_local %}
+  ipv6 address {{ ipv6.address }} link-local
+{% elif ipv6.eui64 %}
+  ipv6 address {{ ipv6.address }} eui-64
+{% else %}
+  ipv6 address {{ ipv6.address }}
+{% endif %}
+{% endfor %}
+{% if iface.ipv6 | default([]) | length > 0 %}
+  ipv6 enable
+{% endif %}
+{% if iface.mtu %}
+  mtu {{ iface.mtu }}
+{% endif %}
+{% if iface.bandwidth %}
+  bandwidth {{ iface.bandwidth }}
+{% endif %}
+{% if iface.delay %}
+  delay {{ iface.delay }}
+{% endif %}
+{% if iface.proxy_arp %}
+  ip proxy-arp
+{% endif %}
+{% if iface.directed_broadcast %}
+  ip directed-broadcast
+{% endif %}
+{% for helper in iface.helper_addresses | default([]) %}
+  ip helper-address {{ helper }}
+{% endfor %}
+{% if iface.arp_timeout %}
+  arp timeout {{ iface.arp_timeout }}
+{% endif %}
+
+{# FHRP Configuration #}
+{% if iface.fhrp %}
+{% if iface.fhrp.protocol == 'hsrp' %}
+  standby {{ iface.fhrp.group }} ip {{ iface.fhrp.virtual_ip }}
+{% if iface.fhrp.priority %}
+  standby {{ iface.fhrp.group }} priority {{ iface.fhrp.priority }}
+{% endif %}
+{% if iface.fhrp.preempt %}
+  standby {{ iface.fhrp.group }} preempt{% if iface.fhrp.preempt_delay %} delay minimum {{ iface.fhrp.preempt_delay }}{% endif %}
+
+{% endif %}
+{% if iface.fhrp.timers %}
+  standby {{ iface.fhrp.group }} timers {% if iface.fhrp.timers.hello %}{{ iface.fhrp.timers.hello }}{% else %}3{% endif %} {% if iface.fhrp.timers.hold %}{{ iface.fhrp.timers.hold }}{% else %}10{% endif %}
+
+{% endif %}
+{% if iface.fhrp.authentication %}
+  standby {{ iface.fhrp.group }} authentication {{ iface.fhrp.authentication.type }} {{ iface.fhrp.authentication.key }}
+{% endif %}
+{% for track in iface.fhrp.track | default([]) %}
+  standby {{ iface.fhrp.group }} track {{ track.object }} decrement {{ track.decrement | default(10) }}
+{% endfor %}
+
+{% elif iface.fhrp.protocol == 'vrrp' %}
+  vrrp {{ iface.fhrp.group }} ip {{ iface.fhrp.virtual_ip }}
+{% if iface.fhrp.priority %}
+  vrrp {{ iface.fhrp.group }} priority {{ iface.fhrp.priority }}
+{% endif %}
+{% if iface.fhrp.preempt %}
+  vrrp {{ iface.fhrp.group }} preempt{% if iface.fhrp.preempt_delay %} delay minimum {{ iface.fhrp.preempt_delay }}{% endif %}
+
+{% endif %}
+{% if iface.fhrp.timers %}
+  vrrp {{ iface.fhrp.group }} timers advertise {% if iface.fhrp.timers.hello %}{{ iface.fhrp.timers.hello }}{% else %}1{% endif %}
+
+{% endif %}
+{% if iface.fhrp.authentication %}
+  vrrp {{ iface.fhrp.group }} authentication {{ iface.fhrp.authentication.type }} {{ iface.fhrp.authentication.key }}
+{% endif %}
+{% for track in iface.fhrp.track | default([]) %}
+  vrrp {{ iface.fhrp.group }} track {{ track.object }} decrement {{ track.decrement | default(10) }}
+{% endfor %}
+
+{% elif iface.fhrp.protocol == 'glbp' %}
+  glbp {{ iface.fhrp.group }} ip {{ iface.fhrp.virtual_ip }}
+{% if iface.fhrp.priority %}
+  glbp {{ iface.fhrp.group }} priority {{ iface.fhrp.priority }}
+{% endif %}
+{% if iface.fhrp.preempt %}
+  glbp {{ iface.fhrp.group }} preempt{% if iface.fhrp.preempt_delay %} delay minimum {{ iface.fhrp.preempt_delay }}{% endif %}
+
+{% endif %}
+{% if iface.fhrp.timers %}
+  glbp {{ iface.fhrp.group }} timers {% if iface.fhrp.timers.hello %}{{ iface.fhrp.timers.hello }}{% else %}3{% endif %} {% if iface.fhrp.timers.hold %}{{ iface.fhrp.timers.hold }}{% else %}10{% endif %}
+
+{% endif %}
+{% if iface.fhrp.authentication %}
+  glbp {{ iface.fhrp.group }} authentication {{ iface.fhrp.authentication.type }} {{ iface.fhrp.authentication.key }}
+{% endif %}
+{% for track in iface.fhrp.track | default([]) %}
+  glbp {{ iface.fhrp.group }} weighting track {{ track.object }} decrement {{ track.decrement | default(10) }}
+{% endfor %}
+{% endif %}{# end fhrp.protocol #}
+{% endif %}{# end fhrp #}
+!
+{% endfor %}
+{% endif %}
+
+{# Static Routes #}
+{% if l3.static_routes %}
+{% for route in l3.static_routes %}
+{% if route.vrf %}
+ip route vrf {{ route.vrf }} {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmask') }} {{ route.next_hop }}{% if route.distance %} {{ route.distance }}{% endif %}{% if route.permanent %} permanent{% endif %}{% if route.name %} name {{ route.name }}{% endif %}{% if route.track %} track {{ route.track }}{% endif %}
+
+{% else %}
+ip route {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmask') }} {{ route.next_hop }}{% if route.distance %} {{ route.distance }}{% endif %}{% if route.permanent %} permanent{% endif %}{% if route.name %} name {{ route.name }}{% endif %}{% if route.track %} track {{ route.track }}{% endif %}
+
+{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# Policy-Based Routing (PBR) #}
+{% if l3.pbr %}
+{% for policy in l3.pbr %}
+route-map {{ policy.name }} permit {{ policy.sequence | default(10) }}
+{% if policy.match %}
+{% if policy.match.acl %}
+  match ip address {{ policy.match.acl }}
+{% endif %}
+{% if policy.match.src_prefix_list %}
+{% for pl in policy.match.src_prefix_list %}
+  match ip address prefix-list {{ pl }}
+{% endfor %}
+{% endif %}
+{% if policy.match.dscp %}
+  match ip dscp {% for d in policy.match.dscp %}{{ d }} {% endfor %}
+
+{% endif %}
+{% endif %}
+{% if policy.set %}
+{% if policy.set.next_hop %}
+{% for nh in policy.set.next_hop %}
+  set ip next-hop {{ nh }}
+{% endfor %}
+{% endif %}
+{% if policy.set.vrf %}
+  set vrf {{ policy.set.vrf }}
+{% endif %}
+{% if policy.set.dscp %}
+  set ip dscp {{ policy.set.dscp }}
+{% endif %}
+{% if policy.set.ip_precedence %}
+  set ip precedence {{ policy.set.ip_precedence }}
+{% endif %}
+{% endif %}
+!
+{% for iface in policy.interfaces | default([]) %}
+interface {{ iface }}
+  ip policy route-map {{ policy.name }}
+!
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# OSPF #}
+{% if l3.ospf %}
+{% for ospf in l3.ospf %}
+{% include 'ios/_ospf.j2' %}
+{% endfor %}
+{% endif %}
+
+{# IS-IS #}
+{% if l3.isis %}
+{% for isis in l3.isis %}
+{% include 'ios/_isis.j2' %}
+{% endfor %}
+{% endif %}
+
+{# EIGRP #}
+{% if l3.eigrp %}
+{% for eigrp in l3.eigrp %}
+{% include 'ios/_eigrp.j2' %}
+{% endfor %}
+{% endif %}
+
+{# BGP #}
+{% if l3.bgp %}
+{% include 'ios/_bgp.j2' %}
+{% endif %}
+
+{# RIP #}
+{% if l3.rip and l3.rip.enabled %}
+{% include 'ios/_rip.j2' %}
+{% endif %}
+
+{# Multicast #}
+{% if l3.multicast %}
+{% include 'ios/_multicast.j2' %}
+{% endif %}
+
+{# NAT #}
+{% if l3.nat %}
+{% include 'ios/_nat.j2' %}
+{% endif %}
+
+{# MPLS #}
+{% if l3.mpls %}
+{% include 'ios/_mpls.j2' %}
+{% endif %}
+
+{# Segment Routing #}
+{% if l3.segment_routing and l3.segment_routing.enabled %}
+{% include 'ios/_segment_routing.j2' %}
+{% endif %}
+
+{# BFD #}
+{% if l3.bfd and l3.bfd.enabled %}
+{% include 'ios/_bfd.j2' %}
+{% endif %}
+
+{# QoS #}
+{% if l3.qos %}
+{% include 'ios/_qos.j2' %}
+{% endif %}

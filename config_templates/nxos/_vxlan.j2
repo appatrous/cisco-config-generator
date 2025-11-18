@@ -1,0 +1,95 @@
+{# VXLAN Configuration for Cisco NX-OS #}
+
+feature nv overlay
+feature vn-segment-vlan-based
+
+{# VNI to VLAN mappings #}
+{% for l2vni in vxlan.l2vnis | default([]) %}
+vlan {{ l2vni.vlan }}
+  vn-segment {{ l2vni.vni }}
+{% endfor %}
+
+{# NVE Interface #}
+interface {{ vxlan.vtep.nve_interface | default('nve1') }}
+  no shutdown
+  source-interface {{ vxlan.vtep.source_interface }}
+{% if vxlan.evpn_multi_homing and vxlan.evpn_multi_homing.enabled %}
+  host-reachability protocol bgp
+{% endif %}
+
+{# L2 VNI Configuration #}
+{% for l2vni in vxlan.l2vnis | default([]) %}
+  member vni {{ l2vni.vni }}
+{% if vxlan.global_ingress_replication or l2vni.ingress_replication %}
+    ingress-replication protocol bgp
+{% elif l2vni.mcast_group %}
+    mcast-group {{ l2vni.mcast_group }}
+{% endif %}
+{% if l2vni.suppress_arp %}
+    suppress-arp
+{% endif %}
+{% endfor %}
+
+{# L3 VNI Configuration #}
+{% for l3vni in vxlan.l3vnis | default([]) %}
+  member vni {{ l3vni.vni }} associate-vrf
+{% endfor %}
+!
+
+{# VRF Configuration for L3VNI #}
+{% for l3vni in vxlan.l3vnis | default([]) %}
+vrf context {{ l3vni.vrf }}
+  vni {{ l3vni.vni }}
+{% if l3vni.rd %}
+  rd {{ l3vni.rd }}
+{% else %}
+  rd auto
+{% endif %}
+{% if l3vni.rt_import %}
+{% for rt in l3vni.rt_import %}
+  address-family ipv4 unicast
+    route-target import {{ rt }}
+  address-family ipv6 unicast
+    route-target import {{ rt }}
+{% endfor %}
+{% else %}
+  address-family ipv4 unicast
+    route-target import auto
+  address-family ipv6 unicast
+    route-target import auto
+{% endif %}
+{% if l3vni.rt_export %}
+{% for rt in l3vni.rt_export %}
+  address-family ipv4 unicast
+    route-target export {{ rt }}
+  address-family ipv6 unicast
+    route-target export {{ rt }}
+{% endfor %}
+{% else %}
+  address-family ipv4 unicast
+    route-target export auto
+  address-family ipv6 unicast
+    route-target export auto
+{% endif %}
+!
+{% endfor %}
+
+{# Anycast Gateway #}
+{% if vxlan.anycast_gateway and vxlan.anycast_gateway.enabled %}
+fabric forwarding anycast-gateway-mac {{ vxlan.anycast_gateway.mac }}
+
+{% for l2vni in vxlan.l2vnis | default([]) %}
+interface Vlan{{ l2vni.vlan }}
+  fabric forwarding mode anycast-gateway
+{% endfor %}
+{% endif %}
+
+{# EVPN Multi-Homing (ESI-LAG) #}
+{% if vxlan.evpn_multi_homing and vxlan.evpn_multi_homing.enabled %}
+evpn
+  vni {% for l2vni in vxlan.l2vnis | default([]) %}{{ l2vni.vni }} {% endfor %}l2
+    rd auto
+    route-target import auto
+    route-target export auto
+{% endif %}
+!

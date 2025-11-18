@@ -1,0 +1,1117 @@
+# Schéma complet du modèle de données pour la configuration réseau
+# Ce schéma définit tous les protocoles L2/L3 supportés
+
+version: "1.0"
+description: "Network Configuration Data Model - Multi-Vendor (IOS-XE/IOS, NX-OS, EOS, Junos, FRR)"
+
+# ==================== GLOBAL ====================
+global:
+  hostname: string  # required
+  domain_name: string
+  enable_secret: string
+  banner_motd: string
+  timezone: string
+  ntp_servers: [string]
+  dns_servers: [string]
+  logging_servers: [string]
+  snmp:
+    enabled: boolean
+    community_ro: string
+    community_rw: string
+    location: string
+    contact: string
+    trap_servers: [{host: string, community: string}]
+  aaa:
+    enabled: boolean
+    tacacs_servers: [{host: string, key: string}]
+    radius_servers: [{host: string, key: string}]
+    login_authentication: string  # default, local, tacacs, radius
+    enable_authentication: string
+    console_authentication: string
+  users:
+    - username: string
+      privilege: int  # 0-15
+      secret: string
+      ssh_key: string
+
+# ==================== LAYER 2 ====================
+l2:
+  # VLANs (802.1Q)
+  vlans:
+    - id: int  # 1-4094
+      name: string
+      state: string  # active, suspend (default: active)
+      mtu: int  # 1500-9216 (default: 1500)
+      voice_vlan: boolean
+
+  # Private VLAN
+  private_vlans:
+    - primary_vlan: int
+      type: string  # isolated, community, promiscuous
+      secondary_vlans: [int]
+      promiscuous_ports: [string]  # interfaces
+
+  # Trunk ports (802.1Q)
+  trunks:
+    - interface: string
+      allowed_vlans: [int] or string  # "all", "1-10,20"
+      native_vlan: int  # default: 1
+      pruning: boolean
+      cos_mapping: {int: int}  # CoS to internal priority
+      dscp_mapping: {int: int}
+      storm_control:
+        broadcast: float  # percentage
+        multicast: float
+        unicast: float
+      qinq:  # 802.1ad
+        enabled: boolean
+        s_vlan: int
+        c_vlan_rewrite: {int: int}  # old → new
+
+  # Spanning Tree (802.1D/w/s, PVST+, MSTP)
+  stp:
+    mode: string  # pvst, rapid-pvst, mst (default: rapid-pvst)
+    mst_config:
+      name: string
+      revision: int
+      instances:
+        - id: int
+          vlans: [int]
+          priority: int  # 0-61440, multiple of 4096
+    root_priority:
+      global: int  # 0-61440
+      per_vlan:
+        - vlan: int
+          priority: int
+    guards:
+      bpduguard_default: boolean  # enable on all portfast edges
+      loopguard_default: boolean
+      rootguard_default: boolean
+      bpdufilter_default: boolean
+    portfast_default: boolean
+    bridge_assurance: boolean
+    timers:
+      hello: int  # seconds (default: 2)
+      forward_delay: int  # seconds (default: 15)
+      max_age: int  # seconds (default: 20)
+    per_interface:
+      - interface: string
+        portfast: boolean
+        bpduguard: boolean
+        rootguard: boolean
+        loopguard: boolean
+        cost: int
+        port_priority: int  # 0-240, multiple of 16
+
+  # LAG / LACP (802.1AX)
+  lag:
+    - bundle_id: int
+      members: [string]  # interface names
+      mode: string  # active, passive, on (default: active)
+      lacp_rate: string  # fast, normal (default: normal)
+      min_links: int  # default: 1
+      load_balance: string  # src-mac, dst-mac, src-dst-mac, src-ip, dst-ip, src-dst-ip, src-dst-port (default: src-dst-ip)
+      system_priority: int  # 1-65535 (default: 32768)
+      port_priority: int
+      fallback: boolean  # individual mode if LACP fails
+      description: string
+
+  # MLAG / vPC / MC-LAG
+  mlag:
+    enabled: boolean
+    domain_id: int or string
+    peer_link: string  # Port-Channel interface
+    peer_address: string  # IP of peer
+    keepalive:
+      source: string  # IP or interface
+      destination: string
+      interval: int  # milliseconds (default: 1000)
+      timeout: int  # milliseconds (default: 5000)
+      vrf: string
+    role: string  # primary, secondary (for NX-OS vPC)
+    orphan_ports_policy: string  # suspend, shutdown, forward
+    consistency_checks: boolean
+    arp_sync: boolean
+    nd_sync: boolean  # IPv6 Neighbor Discovery
+    anycast_vtep: boolean  # for EVPN Multi-Homing
+
+  # Discovery (LLDP 802.1AB / CDP)
+  discovery:
+    lldp:
+      enabled: boolean
+      transmit_interval: int  # seconds (default: 30)
+      holdtime: int  # seconds (default: 120)
+      tlvs:
+        port_description: boolean
+        system_name: boolean
+        system_description: boolean
+        system_capabilities: boolean
+        management_address: boolean
+        med_policy: boolean  # LLDP-MED
+        med_location: boolean
+      per_interface:
+        - interface: string
+          enabled: boolean
+    cdp:
+      enabled: boolean
+      transmit_interval: int  # seconds (default: 60)
+      holdtime: int  # seconds (default: 180)
+      per_interface:
+        - interface: string
+          enabled: boolean
+
+  # Layer 2 Security
+  security:
+    # Port Security
+    port_security:
+      default_max_macs: int  # per port (default: 1)
+      sticky: boolean
+      violation_action: string  # protect, restrict, shutdown (default: shutdown)
+      aging_time: int  # minutes
+      aging_type: string  # absolute, inactivity
+      per_interface:
+        - interface: string
+          enabled: boolean
+          max_macs: int
+          allowed_macs: [string]  # static MAC addresses
+
+    # DHCP Snooping
+    dhcp_snooping:
+      enabled: boolean
+      vlans: [int]
+      trusted_interfaces: [string]
+      option_82:
+        enabled: boolean
+        remote_id: string
+        circuit_id: string
+      rate_limit: int  # pps (default: 15)
+      database:
+        persistent: boolean
+        file: string
+      verify_mac: boolean
+
+    # Dynamic ARP Inspection (DAI)
+    dai:
+      enabled: boolean
+      vlans: [int]
+      trusted_interfaces: [string]
+      arp_acl: string  # name of ACL for static bindings
+      rate_limit: int  # pps (default: 15)
+      validate:
+        src_mac: boolean
+        dst_mac: boolean
+        ip: boolean
+
+    # IP Source Guard (IPSG)
+    ipsg:
+      enabled: boolean
+      bindings:
+        - interface: string
+          ip: string
+          mac: string
+          vlan: int
+      exceptions:  # static entries
+        - interface: string
+          ip: string
+          mac: string
+
+    # 802.1X
+    dot1x:
+      enabled: boolean
+      system_auth_control: boolean
+      method: string  # eap-tls, eap-peap, eap-fast
+      mab: boolean  # MAC Authentication Bypass
+      guest_vlan: int
+      critical_vlan: int  # auth-fail VLAN
+      auth_fail_action: string  # authorize, next-method
+      multi_auth: boolean
+      max_reauth_req: int
+      reauth_interval: int  # seconds (default: 3600)
+      quiet_period: int  # seconds (default: 60)
+      tx_period: int  # seconds (default: 30)
+      per_interface:
+        - interface: string
+          enabled: boolean
+          port_control: string  # auto, force-authorized, force-unauthorized
+          host_mode: string  # single-host, multi-host, multi-auth, multi-domain
+          violation_mode: string  # protect, replace, restrict, shutdown
+
+    # MACsec (802.1AE)
+    macsec:
+      enabled: boolean
+      policy: string
+      mka:
+        priority: int  # 0-255 (default: 16)
+        key_server_priority: int
+        cak: string  # Connectivity Association Key (hex)
+        ckn: string  # CAK Name (hex)
+      cipher_suite: string  # gcm-aes-128, gcm-aes-256, gcm-aes-xpn-256
+      per_interface:
+        - interface: string
+          enabled: boolean
+
+  # IGMP/MLD Snooping
+  igmp_snooping:
+    enabled: boolean
+    vlans: [int]
+    querier:
+      enabled: boolean
+      vlan: int
+      address: string
+    mrouter_interfaces: [string]  # static multicast router ports
+    immediate_leave: boolean  # fast-leave on access ports
+    timers:
+      query_interval: int  # seconds (default: 125)
+      query_max_response: int  # seconds (default: 10)
+      last_member_query_interval: int  # milliseconds (default: 1000)
+    filters:  # per VLAN
+      - vlan: int
+        groups: [string]  # multicast groups allowed/denied
+        action: string  # permit, deny
+
+  # Timing / OAM
+  timing:
+    # PTP (IEEE 1588v2)
+    ptp:
+      enabled: boolean
+      mode: string  # boundary-clock, transparent-clock, ordinary-clock
+      profile: string  # default, power, telecom-g8275.1
+      domain: int  # 0-127 (default: 0)
+      priority1: int  # 0-255 (default: 128)
+      priority2: int  # 0-255 (default: 128)
+      clock_class: int  # 6-255 (default: 248)
+      interfaces:
+        - interface: string
+          enabled: boolean
+
+  # CFM / Y.1731 (Ethernet OAM)
+  cfm:
+    enabled: boolean
+    domains:
+      - name: string
+        level: int  # 0-7
+        mep:
+          - id: int
+            interface: string
+            direction: string  # up, down
+            ccm_interval: string  # 3.3ms, 10ms, 100ms, 1s, 10s, 1m, 10m
+        mip:
+          - interface: string
+
+# ==================== LAYER 3 ====================
+l3:
+  # Interfaces L3
+  interfaces:
+    - interface: string
+      description: string
+      vrf: string
+      shutdown: boolean
+      ipv4:
+        - address: string  # CIDR notation x.x.x.x/mask
+          secondary: boolean
+      ipv6:
+        - address: string  # CIDR notation
+          eui64: boolean
+          link_local: boolean
+      mtu: int
+      bandwidth: int  # kbps (for routing metric calculation)
+      delay: int  # microseconds
+      helper_addresses: [string]  # DHCP/BOOTP relay
+      arp_timeout: int  # seconds (default: 14400)
+      nd_reachable_time: int  # milliseconds (IPv6)
+      proxy_arp: boolean
+      directed_broadcast: boolean
+
+      # FHRP (First Hop Redundancy Protocol)
+      fhrp:
+        protocol: string  # hsrp, vrrp, glbp
+        group: int
+        virtual_ip: string
+        priority: int  # 1-255 (default: 100)
+        preempt: boolean
+        preempt_delay: int  # seconds
+        timers:
+          hello: int  # seconds
+          hold: int  # seconds
+        authentication:
+          type: string  # text, md5
+          key: string
+        track:
+          - object: string  # tracking object name
+            decrement: int  # priority decrement
+        bfd: boolean
+
+  # VRF / VRF-Lite
+  vrfs:
+    - name: string
+      rd: string  # Route Distinguisher (ASN:nn or IP:nn)
+      rt_import: [string]  # Route Targets
+      rt_export: [string]
+      description: string
+      interfaces: [string]
+
+  # Static Routes
+  static_routes:
+    - vrf: string  # optional, default = global
+      prefix: string  # CIDR
+      next_hop: string  # IP or interface or "Null0"
+      distance: int  # 1-255 (default: 1)
+      permanent: boolean
+      track: string  # object name
+      tag: int
+      name: string
+
+  # Policy-Based Routing (PBR)
+  pbr:
+    - name: string
+      sequence: int
+      match:
+        src_prefix_list: [string]
+        dst_prefix_list: [string]
+        acl: string
+        dscp: [int]
+        cos: [int]
+        packet_length: {min: int, max: int}
+      set:
+        next_hop: [string]  # ordered list for failover
+        vrf: string
+        dscp: int
+        cos: int
+        ip_precedence: int
+      track: string
+      fallback: boolean
+      interfaces: [string]  # where to apply
+
+  # OSPFv2 / OSPFv3
+  ospf:
+    - process_id: int
+      router_id: string
+      vrf: string
+      reference_bandwidth: int  # Mbps (default: 100000 for 100G)
+      auto_cost: boolean
+      spf_timers:
+        initial_delay: int  # milliseconds (default: 5000)
+        min_hold: int
+        max_hold: int
+      lsa_timers:
+        arrival: int  # milliseconds
+        group_pacing: int  # seconds
+      max_metric:
+        on_startup: int  # seconds
+        always: boolean
+      graceful_restart: boolean  # NSF/GR
+      areas:
+        - id: string  # 0.0.0.0 or integer
+          type: string  # normal, stub, totally-stub, nssa, totally-nssa
+          default_cost: int  # for stub areas
+          no_summary: boolean
+          nssa:
+            default_originate: boolean
+            translate: string  # always, candidate (for NSSA ABR)
+      interfaces:
+        - interface: string
+          area: string
+          network_type: string  # broadcast, point-to-point, non-broadcast, point-to-multipoint
+          cost: int
+          priority: int  # 0-255 (default: 1)
+          passive: boolean
+          authentication:
+            type: string  # null, text, md5, hmac-sha (v2), ipsec (v3)
+            key_id: int
+            key: string
+          timers:
+            hello: int  # seconds (default: 10)
+            dead: int  # seconds (default: 40)
+            retransmit: int  # seconds (default: 5)
+            transmit_delay: int  # seconds (default: 1)
+          bfd: boolean
+          mtu_ignore: boolean
+      redistribute:
+        - protocol: string  # connected, static, bgp, eigrp, rip
+          route_map: string
+          metric: int
+          metric_type: int  # 1 (E1), 2 (E2)
+      summaries:  # ABR/ASBR summarization
+        - prefix: string  # CIDR
+          area: string  # for ABR summary
+          not_advertise: boolean
+          tag: int
+      default_originate:
+        enabled: boolean
+        always: boolean
+        route_map: string
+        metric: int
+        metric_type: int
+
+  # IS-IS
+  isis:
+    - tag: string  # IS-IS process tag
+      net: string  # Network Entity Title (49.0001.1921.6800.1001.00)
+      is_type: string  # level-1, level-2, level-1-2 (default: level-1-2)
+      metric_style: string  # narrow, wide, transition (default: wide)
+      spf_timers:
+        initial_delay: int  # milliseconds
+        min_hold: int
+        max_hold: int
+      lsp_timers:
+        refresh: int  # seconds (default: 900)
+        max_lifetime: int  # seconds (default: 1200)
+      overload_bit:
+        on_startup: int  # seconds
+        always: boolean
+      graceful_restart: boolean
+      authentication:
+        mode: string  # text, md5
+        key: string
+        level: string  # level-1, level-2, both
+      interfaces:
+        - interface: string
+          circuit_type: string  # level-1, level-2, level-1-2
+          metric: int
+          priority: int  # 0-127 (default: 64)
+          passive: boolean
+          hello_interval: int  # seconds (default: 10)
+          hello_multiplier: int  # default: 3
+          authentication:
+            mode: string
+            key: string
+          bfd: boolean
+      redistribute:
+        - protocol: string
+          route_map: string
+          metric: int
+      summaries:
+        - prefix: string
+          level: string  # level-1, level-2
+
+      # Segment Routing (SR-MPLS / SRv6)
+      segment_routing:
+        enabled: boolean
+        type: string  # mpls, srv6
+        srgb:  # Segment Routing Global Block
+          start: int  # default: 16000
+          end: int    # default: 23999
+        prefix_sids:
+          - prefix: string
+            index: int
+            algorithm: int  # 0 (SPF), 128+ (Flex-Algo)
+        adjacency_sids:
+          - interface: string
+            label: int
+        ti_lfa: boolean  # Topology Independent Loop-Free Alternate
+
+  # EIGRP (Cisco proprietary)
+  eigrp:
+    - asn: int
+      router_id: string
+      named_mode: boolean  # "named mode" (recommended)
+      vrf: string
+      stub:
+        enabled: boolean
+        types: [string]  # connected, static, summary, redistributed, receive-only
+      authentication:
+        mode: string  # md5, hmac-sha-256
+        key_chain: string
+      variance: int  # 1-128 (default: 1) for unequal-cost load-balancing
+      k_values: [int]  # [K1, K2, K3, K4, K5] (default: [1,0,1,0,0])
+      interfaces:
+        - interface: string
+          passive: boolean
+          hello_interval: int  # seconds
+          hold_time: int  # seconds
+          bandwidth_percent: int  # percentage of bandwidth for EIGRP (default: 50)
+          authentication:
+            mode: string
+            key: string
+          bfd: boolean
+      redistribute:
+        - protocol: string
+          route_map: string
+          metric: {bandwidth: int, delay: int, reliability: int, load: int, mtu: int}
+      summaries:
+        - interface: string
+          prefix: string
+      offset_lists:
+        - acl: string
+          direction: string  # in, out
+          offset: int
+
+  # RIP v2 / RIPng (legacy, optional)
+  rip:
+    enabled: boolean
+    version: int  # 2 (IPv4) or ng (IPv6)
+    networks: [string]  # classful networks
+    passive_interfaces: [string]
+    default_metric: int
+    timers:
+      update: int  # seconds (default: 30)
+      invalid: int  # seconds (default: 180)
+      holddown: int  # seconds (default: 180)
+      flush: int  # seconds (default: 240)
+    authentication:
+      mode: string  # text, md5
+      key: string
+    split_horizon: boolean
+    poison_reverse: boolean
+    redistribute:
+      - protocol: string
+        route_map: string
+
+  # BGP (IPv4/IPv6 Unicast, L2VPN EVPN)
+  bgp:
+    asn: int
+    router_id: string
+    log_neighbor_changes: boolean
+    graceful_restart: boolean
+    graceful_restart_time: int  # seconds
+    confederation:
+      id: int
+      peers: [int]
+    route_reflector:
+      cluster_id: string
+
+    # Peer Groups / Templates
+    peer_groups:
+      - name: string
+        remote_as: int or string  # ASN or "external", "internal"
+        description: string
+        ebgp_multihop: int  # TTL
+        update_source: string  # interface or IP
+        next_hop_self: boolean
+        remove_private_as: boolean
+        password: string  # MD5 authentication
+        tcp_ao: boolean  # TCP Authentication Option (RFC 5925)
+        ttl_security: int  # GTSM hops (default: 255)
+        timers:
+          keepalive: int  # seconds (default: 60)
+          holdtime: int  # seconds (default: 180)
+          connect: int  # seconds (default: 30)
+        bfd: boolean
+        send_community: [string]  # standard, extended, large, all
+        route_map_in: string
+        route_map_out: string
+        filter_list_in: string  # AS-path filter
+        filter_list_out: string
+        prefix_list_in: string
+        prefix_list_out: string
+        default_originate: boolean
+        soft_reconfiguration: boolean
+        allowas_in: int  # number of times (default: disabled)
+
+    # Neighbors
+    neighbors:
+      - ip: string
+        remote_as: int or string
+        peer_group: string  # inherit from peer-group
+        description: string
+        shutdown: boolean
+        # all peer-group attributes can be overridden per-neighbor
+
+    # Address Families
+    address_families:
+      ipv4_unicast:
+        enabled: boolean
+        neighbors_activate: [string]  # IPs to activate
+        networks:
+          - prefix: string  # CIDR
+            route_map: string
+        aggregates:
+          - prefix: string
+            summary_only: boolean
+            as_set: boolean
+        redistribute:
+          - protocol: string  # connected, static, ospf, eigrp
+            route_map: string
+        maximum_paths: int  # ECMP (default: 1)
+        maximum_paths_ibgp: int
+        dampening: boolean
+        default_information_originate: boolean
+
+      ipv6_unicast:
+        enabled: boolean
+        neighbors_activate: [string]
+        networks:
+          - prefix: string
+            route_map: string
+        aggregates:
+          - prefix: string
+            summary_only: boolean
+        redistribute:
+          - protocol: string
+            route_map: string
+        maximum_paths: int
+
+      l2vpn_evpn:
+        enabled: boolean
+        neighbors_activate: [string]
+        advertise_all_vni: boolean  # for VXLAN
+        rd_auto: boolean
+        rt_auto: boolean
+        anycast_gateway_mac: string  # shared anycast MAC for IRB
+        vnis:
+          - vni: int  # L2 VNI (VLAN-based)
+            rd: string
+            rt_import: [string]
+            rt_export: [string]
+            route_distinguisher: string
+        vrfs:  # L3 VNI
+          - vrf: string
+            l3vni: int
+            rd: string
+            rt_import: [string]
+            rt_export: [string]
+
+    # Policies (Route-maps, Prefix-lists, AS-path filters, Communities)
+    policies:
+      prefix_lists:
+        - name: string
+          afi: string  # ipv4, ipv6
+          entries:
+            - seq: int
+              action: string  # permit, deny
+              prefix: string
+              ge: int  # prefix-length greater-or-equal
+              le: int  # prefix-length less-or-equal
+
+      as_path_lists:
+        - name: string
+          entries:
+            - seq: int
+              action: string
+              regex: string
+
+      community_lists:
+        - name: string
+          type: string  # standard, expanded
+          entries:
+            - seq: int
+              action: string
+              communities: [string]  # 65000:100 or well-known (no-export, etc.)
+
+      route_maps:
+        - name: string
+          entries:
+            - seq: int
+              action: string  # permit, deny
+              match:
+                ip_address: string  # prefix-list name
+                as_path: string
+                community: string
+                metric: int
+                tag: int
+              set:
+                local_preference: int
+                metric: int
+                as_path_prepend: [int]  # ASNs to prepend
+                community: [string]
+                next_hop: string
+                weight: int  # Cisco-specific
+                origin: string  # igp, egp, incomplete
+
+    # RPKI / ROV (Route Origin Validation)
+    rpki:
+      enabled: boolean
+      caches:
+        - host: string
+          port: int  # default: 323
+          preference: int  # lower = higher priority
+      policy:
+        invalid: string  # drop, tag
+        not_found: string  # accept, tag
+
+  # Multicast (PIM-SM, PIM-SSM, PIM-BiDir, MSDP)
+  multicast:
+    igmp:
+      version: int  # 2 or 3 (default: 2)
+      query_interval: int  # seconds (default: 125)
+      query_max_response: int  # seconds (default: 10)
+      interfaces:
+        - interface: string
+          enabled: boolean
+          version: int
+
+    mld:  # IPv6 Multicast Listener Discovery
+      version: int  # 1 or 2 (default: 2)
+      interfaces:
+        - interface: string
+          enabled: boolean
+
+    pim:
+      mode: string  # sparse-mode, dense-mode, sparse-dense, bidir (default: sparse-mode)
+      vrf: string
+      interfaces:
+        - interface: string
+          mode: string
+          dr_priority: int  # 0-4294967295 (default: 1)
+          hello_interval: int  # seconds (default: 30)
+          bfd: boolean
+
+      # Rendezvous Point (RP)
+      rp:
+        static:
+          - address: string
+            groups: [string]  # multicast groups (224.0.0.0/4)
+            acl: string
+            override: boolean
+        bsr:  # Bootstrap Router
+          enabled: boolean
+          candidate_bsr:
+            address: string
+            priority: int  # 0-255
+          candidate_rp:
+            address: string
+            group_list: string  # ACL
+            priority: int
+            interval: int  # seconds
+        anycast:
+          enabled: boolean
+          rp_address: string
+          peers: [string]  # MSDP peers for Anycast-RP
+
+      ssm_range: [string]  # Source-Specific Multicast (default: 232.0.0.0/8)
+      spt_threshold: string  # infinity, 0, kbps (default: 0 = immediate switch to SPT)
+      register_source: string  # interface for PIM Register messages
+
+    # MSDP (Multicast Source Discovery Protocol)
+    msdp:
+      enabled: boolean
+      peers:
+        - address: string
+          remote_as: int
+          connect_source: string
+          mesh_group: string
+          sa_filter_in: string  # ACL
+          sa_filter_out: string
+
+  # NAT (IPv4/IPv6)
+  nat:
+    rules:
+      - name: string
+        type: string  # static, dynamic, pat (PAT = NAT overload)
+        vrf: string
+        inside: [string]  # inside interfaces
+        outside: [string]  # outside interfaces
+        static_mappings:
+          - inside_local: string
+            inside_global: string
+            protocol: string  # tcp, udp, icmp (for static NAT)
+            inside_port: int
+            outside_port: int
+        dynamic_pool:
+          name: string
+          start_ip: string
+          end_ip: string
+          prefix_length: int
+        overload: boolean  # PAT
+        acl: string  # match traffic
+        route_map: string  # policy NAT
+        order: string  # pre-routing, post-routing (for VRF-aware NAT)
+        alg:  # Application Layer Gateway
+          ftp: boolean
+          tftp: boolean
+          sip: boolean
+          h323: boolean
+        timeouts:
+          tcp: int  # seconds (default: 86400)
+          udp: int  # seconds (default: 300)
+          icmp: int  # seconds (default: 60)
+
+    nat64:  # IPv6 to IPv4 translation
+      enabled: boolean
+      prefix: string  # Well-Known Prefix 64:ff9b::/96 or custom
+      v4_pool:
+        start_ip: string
+        end_ip: string
+
+    nptv6:  # IPv6-to-IPv6 Network Prefix Translation
+      enabled: boolean
+      mappings:
+        - inside_prefix: string
+          outside_prefix: string
+
+  # MPLS / L3VPN
+  mpls:
+    # LDP (Label Distribution Protocol)
+    ldp:
+      enabled: boolean
+      router_id: string
+      interfaces: [string]
+      targeted_peers: [string]  # for remote LDP sessions (e.g., L2VPN pseudowires)
+      igp_sync: boolean  # wait for LDP before using link for routing
+      session_protection: boolean
+
+    # RSVP-TE (Traffic Engineering)
+    rsvp:
+      enabled: boolean
+      interfaces:
+        - interface: string
+          bandwidth: int  # kbps reservable
+      tunnels:
+        - name: string
+          destination: string
+          bandwidth: int  # kbps
+          priority: {setup: int, hold: int}  # 0-7
+          affinity: {include: [string], exclude: [string]}  # admin groups
+          path_option:
+            - preference: int
+              type: string  # dynamic, explicit
+              path_name: string  # if explicit
+          fast_reroute: boolean
+          soft_preemption: boolean
+
+    # L3VPN (MPLS VPN / BGP VPNv4/VPNv6)
+    l3vpn:
+      vrfs:
+        - name: string
+          rd: string  # Route Distinguisher
+          rt_import: [string]
+          rt_export: [string]
+          interfaces: [string]
+
+    # OAM (LSP Ping, Traceroute)
+    oam:
+      lsp_ping: boolean
+      lsp_traceroute: boolean
+
+    # PHP / UHP (Penultimate Hop Popping / Ultimate Hop Popping)
+    php: boolean  # default: true
+    explicit_null: boolean
+    ttl_propagation: boolean  # copy IP TTL to MPLS TTL
+
+  # Segment Routing (SR-MPLS / SRv6)
+  segment_routing:
+    enabled: boolean
+    type: string  # mpls, srv6
+
+    # SR-MPLS
+    srgb:
+      start: int  # default: 16000
+      end: int    # default: 23999
+    srlb:  # Segment Routing Local Block (optional)
+      start: int
+      end: int
+
+    # Prefix SIDs
+    prefix_sids:
+      - prefix: string
+        index: int
+        algorithm: int  # 0 (default SPF), 128+ (Flex-Algo)
+
+    # Adjacency SIDs
+    adjacency_sids:
+      - interface: string
+        neighbor: string
+        protected: boolean
+
+    # SR-TE Policies
+    policies:
+      - name: string
+        color: int
+        endpoint: string
+        preference: int
+        constraints:
+          latency: int  # microseconds
+          te_metric: int
+          affinity: {include: [string], exclude: [string]}
+        segments:  # explicit path (optional)
+          - type: string  # adjacency, prefix, binding
+            label: int or string
+
+    # TI-LFA (Topology Independent Loop-Free Alternate)
+    ti_lfa: boolean
+
+    # SRv6 (Segment Routing over IPv6)
+    srv6:
+      locators:
+        - name: string
+          prefix: string  # IPv6 prefix (e.g., 2001:db8:1::/48)
+      encapsulation:
+        source_address: string
+
+    # BGP-LS (Link State distribution for PCE)
+    bgp_ls:
+      enabled: boolean
+
+  # BFD (Bidirectional Forwarding Detection)
+  bfd:
+    enabled: boolean
+    default_timers:
+      min_tx: int  # milliseconds (default: 300)
+      min_rx: int  # milliseconds (default: 300)
+      multiplier: int  # default: 3
+    echo_mode: boolean
+    per_protocol:
+      ospf:
+        enabled: boolean
+        interfaces: [string]
+      isis:
+        enabled: boolean
+        interfaces: [string]
+      bgp:
+        enabled: boolean
+        neighbors: [string]
+      pim:
+        enabled: boolean
+        interfaces: [string]
+      static:
+        enabled: boolean
+        routes:
+          - prefix: string
+            next_hop: string
+
+  # QoS / CoPP
+  qos:
+    # Classification
+    class_maps:
+      - name: string
+        match_type: string  # match-all, match-any
+        match:
+          access_group: string  # ACL name
+          dscp: [int]
+          cos: [int]
+          ip_precedence: [int]
+          protocol: [string]  # tcp, udp, icmp
+          packet_length: {min: int, max: int}
+
+    # Policy Maps
+    policy_maps:
+      - name: string
+        classes:
+          - class_name: string
+            actions:
+              set_dscp: int
+              set_cos: int
+              set_ip_precedence: int
+              police:
+                rate: int  # bps or pps
+                burst: int  # bytes
+                conform_action: string  # transmit, set-dscp, drop
+                exceed_action: string
+                violate_action: string
+              shape:
+                average: int  # bps
+                peak: int  # bps (optional)
+              bandwidth:
+                value: int  # kbps or percentage
+                percent: boolean
+              priority:
+                value: int  # kbps (for LLQ)
+              queue_limit: int  # packets
+              random_detect: boolean  # WRED
+              ecn: boolean
+
+    # Interface Bindings
+    interface_bindings:
+      - interface: string
+        service_policy:
+          input: string  # policy-map name
+          output: string
+
+    # CoPP (Control Plane Policing)
+    copp:
+      enabled: boolean
+      profile: string  # strict, moderate, lenient, custom
+      classes:
+        - name: string  # e.g., "routing-protocols", "management", "undesirable"
+          match:
+            access_group: string
+          police:
+            rate: int  # pps
+            burst: int
+            conform_action: string
+            exceed_action: string
+
+# ==================== VXLAN / EVPN ====================
+vxlan:
+  enabled: boolean
+  vtep:
+    source_interface: string  # Loopback for VTEP
+    nve_interface: string  # NVE1 (NX-OS), Vxlan1 (EOS)
+  global_ingress_replication: boolean  # vs. multicast BUM
+  l2vnis:
+    - vni: int
+      vlan: int
+      mcast_group: string  # if using multicast BUM
+      ingress_replication: boolean
+      suppress_arp: boolean  # ARP suppression
+      rd: string  # if not auto
+      rt_import: [string]
+      rt_export: [string]
+  l3vnis:
+    - vni: int
+      vrf: string
+      rd: string
+      rt_import: [string]
+      rt_export: [string]
+  anycast_gateway:
+    enabled: boolean
+    mac: string  # shared anycast MAC
+  evpn_multi_homing:
+    enabled: boolean
+    esi: string  # Ethernet Segment Identifier (all-active or single-active)
+    mode: string  # all-active, single-active
+
+# ==================== ACLs ====================
+acls:
+  ipv4:
+    - name: string
+      type: string  # standard, extended
+      entries:
+        - seq: int
+          action: string  # permit, deny
+          protocol: string  # ip, tcp, udp, icmp, eigrp, ospf, gre, etc.
+          src: string  # any, host x.x.x.x, x.x.x.x/mask
+          src_wildcard: string  # for IOS (0.0.0.255)
+          src_port: string  # eq 80, range 1024 65535, lt, gt
+          dst: string
+          dst_wildcard: string
+          dst_port: string
+          flags: [string]  # tcp flags: syn, ack, fin, rst, psh, urg
+          fragments: boolean
+          log: boolean
+          established: boolean  # TCP established
+          dscp: int
+          precedence: int
+          ttl: {eq: int, gt: int, lt: int, range: [int, int]}
+
+  ipv6:
+    - name: string
+      entries:
+        - seq: int
+          action: string
+          protocol: string
+          src: string  # IPv6 address/prefix
+          src_port: string
+          dst: string
+          dst_port: string
+          log: boolean
+
+# ==================== PROFILES (Hierarchical) ====================
+profiles:
+  global:  # Defaults applied to all
+    ntp_servers: [string]
+    dns_servers: [string]
+    logging_servers: [string]
+    timezone: string
+    snmp: object  # reuse global.snmp structure
+    aaa: object
+
+  sites:
+    - name: string
+      location: string
+      overrides: object  # any field from global to override
+
+  roles:
+    - name: string  # e.g., "campus-access", "campus-distribution", "core", "leaf", "spine"
+      site: string
+      protocols: [string]  # enabled protocols for this role
+      defaults: object  # default configs for this role
+
+  devices:
+    - hostname: string
+      role: string
+      site: string
+      vendor: string  # ios, nxos, eos, junos, frr
+      model: string
+      management_ip: string
+      overrides: object  # device-specific config

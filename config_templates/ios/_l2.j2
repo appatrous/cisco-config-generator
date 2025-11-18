@@ -1,0 +1,234 @@
+{# Layer 2 Configuration for Cisco IOS/IOS-XE #}
+
+{# VLANs #}
+{% if l2.vlans %}
+{% for vlan in l2.vlans %}
+vlan {{ vlan.id }}
+  name {{ vlan.name }}
+{% if vlan.state and vlan.state != 'active' %}
+  state {{ vlan.state }}
+{% endif %}
+{% if vlan.mtu and vlan.mtu != 1500 %}
+  mtu {{ vlan.mtu }}
+{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# Private VLANs #}
+{% if l2.private_vlans %}
+{% for pvlan in l2.private_vlans %}
+vlan {{ pvlan.primary_vlan }}
+  private-vlan primary
+{% for sec in pvlan.secondary_vlans %}
+vlan {{ sec }}
+  private-vlan {% if pvlan.type == 'isolated' %}isolated{% elif pvlan.type == 'community' %}community{% endif %}
+{% endfor %}
+!
+vlan {{ pvlan.primary_vlan }}
+  private-vlan association {% for sec in pvlan.secondary_vlans %}{{ sec }}{% if not loop.last %},{% endif %}{% endfor %}
+
+!
+{% for port in pvlan.promiscuous_ports | default([]) %}
+interface {{ port }}
+  switchport mode private-vlan promiscuous
+  switchport private-vlan mapping {{ pvlan.primary_vlan }} {% for sec in pvlan.secondary_vlans %}{{ sec }}{% if not loop.last %},{% endif %}{% endfor %}
+
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# Spanning Tree #}
+{% if l2.stp %}
+spanning-tree mode {% if l2.stp.mode == 'mst' %}mst{% elif l2.stp.mode == 'rapid-pvst' %}rapid-pvst{% else %}pvst{% endif %}
+
+{% if l2.stp.mode == 'mst' and l2.stp.mst_config %}
+spanning-tree mst configuration
+  name {{ l2.stp.mst_config.name }}
+  revision {{ l2.stp.mst_config.revision }}
+{% for inst in l2.stp.mst_config.instances | default([]) %}
+  instance {{ inst.id }} vlan {% for v in inst.vlans %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}
+
+{% endfor %}
+  exit
+{% for inst in l2.stp.mst_config.instances | default([]) %}
+{% if inst.priority %}
+spanning-tree mst {{ inst.id }} priority {{ inst.priority }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if l2.stp.root_priority %}
+{% if l2.stp.root_priority.global %}
+spanning-tree {% if l2.stp.mode == 'mst' %}mst 0 {% endif %}priority {{ l2.stp.root_priority.global }}
+{% endif %}
+{% for vp in l2.stp.root_priority.per_vlan | default([]) %}
+spanning-tree vlan {{ vp.vlan }} priority {{ vp.priority }}
+{% endfor %}
+{% endif %}
+
+{% if l2.stp.guards %}
+{% if l2.stp.guards.bpduguard_default %}
+spanning-tree portfast bpduguard default
+{% endif %}
+{% if l2.stp.guards.loopguard_default %}
+spanning-tree loopguard default
+{% endif %}
+{% if l2.stp.guards.bpdufilter_default %}
+spanning-tree portfast bpdufilter default
+{% endif %}
+{% endif %}
+
+{% if l2.stp.portfast_default %}
+spanning-tree portfast default
+{% endif %}
+
+{% if l2.stp.timers %}
+{% if l2.stp.timers.hello %}
+spanning-tree {% if l2.stp.mode == 'mst' %}mst {% endif %}hello-time {{ l2.stp.timers.hello }}
+{% endif %}
+{% if l2.stp.timers.forward_delay %}
+spanning-tree {% if l2.stp.mode == 'mst' %}mst {% endif %}forward-time {{ l2.stp.timers.forward_delay }}
+{% endif %}
+{% if l2.stp.timers.max_age %}
+spanning-tree {% if l2.stp.mode == 'mst' %}mst {% endif %}max-age {{ l2.stp.timers.max_age }}
+{% endif %}
+{% endif %}
+!
+{% endif %}
+
+{# LAG / Port-Channel #}
+{% if l2.lag %}
+{% for bundle in l2.lag %}
+interface Port-Channel{{ bundle.bundle_id }}
+{% if bundle.description %}
+  description {{ bundle.description }}
+{% endif %}
+  no shutdown
+!
+{% for member in bundle.members %}
+interface {{ member }}
+  channel-group {{ bundle.bundle_id }} mode {% if bundle.mode == 'active' %}active{% elif bundle.mode == 'passive' %}passive{% else %}on{% endif %}
+
+{% if bundle.lacp_rate == 'fast' %}
+  lacp rate fast
+{% endif %}
+{% endfor %}
+!
+{% if bundle.load_balance %}
+{# Global setting, apply once #}
+{% if loop.first %}
+port-channel load-balance {{ bundle.load_balance | replace('_', '-') }}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Trunk Ports Configuration #}
+{% if l2.trunks %}
+{% for trunk in l2.trunks %}
+interface {{ trunk.interface }}
+  switchport trunk encapsulation dot1q
+  switchport mode trunk
+{% if trunk.native_vlan %}
+  switchport trunk native vlan {{ trunk.native_vlan }}
+{% endif %}
+{% if trunk.allowed_vlans %}
+  switchport trunk allowed vlan {% if trunk.allowed_vlans is string %}{{ trunk.allowed_vlans }}{% else %}{% for v in trunk.allowed_vlans %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}
+
+{% endif %}
+{% if trunk.storm_control %}
+{% if trunk.storm_control.broadcast %}
+  storm-control broadcast level {{ trunk.storm_control.broadcast }}
+{% endif %}
+{% if trunk.storm_control.multicast %}
+  storm-control multicast level {{ trunk.storm_control.multicast }}
+{% endif %}
+{% if trunk.storm_control.unicast %}
+  storm-control unicast level {{ trunk.storm_control.unicast }}
+{% endif %}
+{% endif %}
+{% if trunk.qinq and trunk.qinq.enabled %}
+  {# TODO IOS QinQ (802.1ad) - feature varies by platform #}
+  ! QinQ S-VLAN {{ trunk.qinq.s_vlan }} (802.1ad) - check platform support
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Discovery Protocols #}
+{% if l2.discovery %}
+{% if l2.discovery.lldp %}
+{% if l2.discovery.lldp.enabled %}
+lldp run
+{% if l2.discovery.lldp.transmit_interval %}
+lldp timer {{ l2.discovery.lldp.transmit_interval }}
+{% endif %}
+{% if l2.discovery.lldp.holdtime %}
+lldp holdtime {{ l2.discovery.lldp.holdtime }}
+{% endif %}
+{% for iface in l2.discovery.lldp.per_interface | default([]) %}
+interface {{ iface.interface }}
+{% if iface.enabled %}
+  lldp transmit
+  lldp receive
+{% else %}
+  no lldp transmit
+  no lldp receive
+{% endif %}
+!
+{% endfor %}
+{% else %}
+no lldp run
+{% endif %}
+{% endif %}
+
+{% if l2.discovery.cdp %}
+{% if l2.discovery.cdp.enabled %}
+cdp run
+{% if l2.discovery.cdp.transmit_interval %}
+cdp timer {{ l2.discovery.cdp.transmit_interval }}
+{% endif %}
+{% if l2.discovery.cdp.holdtime %}
+cdp holdtime {{ l2.discovery.cdp.holdtime }}
+{% endif %}
+{% for iface in l2.discovery.cdp.per_interface | default([]) %}
+interface {{ iface.interface }}
+{% if not iface.enabled %}
+  no cdp enable
+{% endif %}
+!
+{% endfor %}
+{% else %}
+no cdp run
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# Layer 2 Security #}
+{% if l2.security %}
+{% include 'ios/_l2_security.j2' %}
+{% endif %}
+
+{# IGMP Snooping #}
+{% if l2.igmp_snooping and l2.igmp_snooping.enabled %}
+{% for vlan_id in l2.igmp_snooping.vlans | default([]) %}
+ip igmp snooping vlan {{ vlan_id }}
+{% endfor %}
+{% if l2.igmp_snooping.querier and l2.igmp_snooping.querier.enabled %}
+ip igmp snooping querier
+{% if l2.igmp_snooping.querier.address %}
+ip igmp snooping querier address {{ l2.igmp_snooping.querier.address }}
+{% endif %}
+{% endif %}
+{% if l2.igmp_snooping.immediate_leave %}
+{% for vlan_id in l2.igmp_snooping.vlans | default([]) %}
+ip igmp snooping vlan {{ vlan_id }} immediate-leave
+{% endfor %}
+{% endif %}
+{% for port in l2.igmp_snooping.mrouter_interfaces | default([]) %}
+interface {{ port }}
+  ip igmp snooping mrouter interface
+!
+{% endfor %}
+{% endif %}

@@ -1,0 +1,118 @@
+{
+  "description": "Campus Distribution Layer - L3 Routing with OSPF and HSRP",
+  "vendor": "ios",
+  "scenario": "campus_distribution",
+  "global": {
+    "hostname": "campus-dist-01",
+    "domain_name": "corp.example.com",
+    "timezone": "EST -5 0",
+    "ntp_servers": ["10.0.0.1"],
+    "dns_servers": ["10.0.1.10"]
+  },
+  "l2": {
+    "vlans": [
+      {"id": 10, "name": "DATA", "state": "active"},
+      {"id": 20, "name": "VOICE", "state": "active"},
+      {"id": 30, "name": "GUEST", "state": "active"},
+      {"id": 99, "name": "MANAGEMENT", "state": "active"}
+    ],
+    "stp": {
+      "mode": "rapid-pvst",
+      "root_priority": {
+        "global": 4096
+      },
+      "portfast_default": false
+    },
+    "lag": [
+      {
+        "bundle_id": 1,
+        "members": ["GigabitEthernet1/0/1", "GigabitEthernet1/0/2"],
+        "mode": "active",
+        "lacp_rate": "fast",
+        "min_links": 1,
+        "description": "Uplink to Core"
+      }
+    ]
+  },
+  "l3": {
+    "interfaces": [
+      {
+        "interface": "Vlan10",
+        "description": "Data VLAN Gateway",
+        "ipv4": [{"address": "10.10.1.1/24"}],
+        "helper_addresses": ["10.0.10.10"],
+        "shutdown": false,
+        "fhrp": {
+          "protocol": "hsrp",
+          "group": 10,
+          "virtual_ip": "10.10.1.254",
+          "priority": 110,
+          "preempt": true,
+          "timers": {
+            "hello": 1,
+            "hold": 3
+          }
+        }
+      },
+      {
+        "interface": "Vlan20",
+        "description": "Voice VLAN Gateway",
+        "ipv4": [{"address": "10.20.1.1/24"}],
+        "helper_addresses": ["10.0.10.10"],
+        "shutdown": false,
+        "fhrp": {
+          "protocol": "hsrp",
+          "group": 20,
+          "virtual_ip": "10.20.1.254",
+          "priority": 110,
+          "preempt": true
+        }
+      },
+      {
+        "interface": "Port-Channel1",
+        "description": "Uplink to Core",
+        "ipv4": [{"address": "10.255.0.2/30"}],
+        "shutdown": false
+      }
+    ],
+    "ospf": [
+      {
+        "process_id": 10,
+        "router_id": "10.0.1.1",
+        "reference_bandwidth": 100000,
+        "graceful_restart": true,
+        "areas": [
+          {"id": "0.0.0.0", "type": "normal"}
+        ],
+        "interfaces": [
+          {
+            "interface": "Vlan10",
+            "area": "0.0.0.0",
+            "network_type": "broadcast",
+            "passive": true,
+            "cost": 10
+          },
+          {
+            "interface": "Vlan20",
+            "area": "0.0.0.0",
+            "network_type": "broadcast",
+            "passive": true,
+            "cost": 10
+          },
+          {
+            "interface": "Port-Channel1",
+            "area": "0.0.0.0",
+            "network_type": "point-to-point",
+            "passive": false,
+            "cost": 1,
+            "bfd": true,
+            "timers": {
+              "hello": 1,
+              "dead": 4
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
