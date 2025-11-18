@@ -718,3 +718,275 @@ select.invalid:focus {
     margin: 0.25rem 0;
 }
 
+/* ============================================
+   DYNAMIC FIELDS STYLES
+   ============================================ */
+
+/* Dynamic item container */
+.dynamic-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.dynamic-item:hover {
+    box-shadow: var(--shadow);
+    border-color: var(--primary-color);
+}
+
+.dynamic-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dynamic-item-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Add item button */
+.add-item-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    background: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-top: 0.5rem;
+}
+
+.add-item-btn:hover {
+    background: #00a03f;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.add-item-btn:active {
+    transform: translateY(0);
+}
+
+.add-item-btn::before {
+    content: '+';
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* Remove button */
+.remove-btn {
+    background: transparent;
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.remove-btn:hover {
+    background: var(--error-color);
+    color: white;
+    transform: scale(1.05);
+}
+
+.remove-btn::before {
+    content: '✕ ';
+    font-weight: bold;
+}
+
+/* Dynamic fields container */
+.dynamic-fields-container {
+    background: var(--bg-primary);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.dynamic-fields-container.empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.dynamic-fields-container.empty::before {
+    content: '📋';
+    display: block;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ============================================
+   IMPORT/EXPORT BAR STYLES
+   ============================================ */
+
+.import-export-bar {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-shadow: var(--shadow);
+}
+
+.import-export-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.import-export-section h4 {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.import-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.import-export-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+}
+
+.import-export-btn.primary {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.import-export-btn.primary:hover {
+    background: #0052a3;
+}
+
+.import-export-btn.success {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+.import-export-btn.success:hover {
+    background: #00a03f;
+}
+
+/* Hidden file input */
+.import-file-input {
+    display: none;
+}
+
+/* ============================================
+   DRAFT INDICATOR STYLES
+   ============================================ */
+
+.draft-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--warning-color);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    animation: pulse 2s infinite;
+}
+
+.draft-indicator.saved {
+    background: var(--success-color);
+    animation: none;
+}
+
+.draft-indicator::before {
+    content: '💾';
+    font-size: 1rem;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.draft-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.draft-actions button {
+    padding: 0.4rem 0.8rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.draft-actions button:hover {
+    background: var(--bg-primary);
+    border-color: var(--primary-color);
+}
+
+/* ============================================
+   DRAG & DROP STYLES (Future enhancement)
+   ============================================ */
+
+.draggable {
+    cursor: move;
+}
+
+.draggable.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.drop-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.drop-zone.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(0, 102, 204, 0.05);
+}
+
