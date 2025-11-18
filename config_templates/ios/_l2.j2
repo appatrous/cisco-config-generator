@@ -1,7 +1,7 @@
 {# Layer 2 Configuration for Cisco IOS/IOS-XE #}
 
 {# VLANs #}
-{% if l2.vlans %}
+{% if l2.get('vlans') %}
 {% for vlan in l2.vlans %}
 vlan {{ vlan.id }}
   name {{ vlan.name }}
@@ -16,7 +16,7 @@ vlan {{ vlan.id }}
 {% endif %}
 
 {# Private VLANs #}
-{% if l2.private_vlans %}
+{% if l2.get('private_vlans') %}
 {% for pvlan in l2.private_vlans %}
 vlan {{ pvlan.primary_vlan }}
   private-vlan primary
@@ -39,7 +39,7 @@ interface {{ port }}
 {% endif %}
 
 {# Spanning Tree #}
-{% if l2.stp %}
+{% if l2.get('stp') %}
 spanning-tree mode {% if l2.stp.mode == 'mst' %}mst{% elif l2.stp.mode == 'rapid-pvst' %}rapid-pvst{% else %}pvst{% endif %}
 
 {% if l2.stp.mode == 'mst' and l2.stp.mst_config %}
@@ -98,7 +98,7 @@ spanning-tree {% if l2.stp.mode == 'mst' %}mst {% endif %}max-age {{ l2.stp.time
 {% endif %}
 
 {# LAG / Port-Channel #}
-{% if l2.lag %}
+{% if l2.get('lag') %}
 {% for bundle in l2.lag %}
 interface Port-Channel{{ bundle.bundle_id }}
 {% if bundle.description %}
@@ -125,7 +125,7 @@ port-channel load-balance {{ bundle.load_balance | replace('_', '-') }}
 {% endif %}
 
 {# Trunk Ports Configuration #}
-{% if l2.trunks %}
+{% if l2.get('trunks') %}
 {% for trunk in l2.trunks %}
 interface {{ trunk.interface }}
   switchport trunk encapsulation dot1q
@@ -157,7 +157,7 @@ interface {{ trunk.interface }}
 {% endif %}
 
 {# Discovery Protocols #}
-{% if l2.discovery %}
+{% if l2.get('discovery') %}
 {% if l2.discovery.lldp %}
 {% if l2.discovery.lldp.enabled %}
 lldp run
@@ -206,12 +206,12 @@ no cdp run
 {% endif %}
 
 {# Layer 2 Security #}
-{% if l2.security %}
+{% if l2.get('security') %}
 {% include '_l2_security.j2' %}
 {% endif %}
 
 {# IGMP Snooping #}
-{% if l2.igmp_snooping and l2.igmp_snooping.enabled %}
+{% if l2.get('igmp_snooping') and l2.igmp_snooping.enabled %}
 {% for vlan_id in l2.igmp_snooping.vlans | default([]) %}
 ip igmp snooping vlan {{ vlan_id }}
 {% endfor %}
