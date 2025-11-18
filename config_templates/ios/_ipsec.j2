@@ -1,7 +1,7 @@
 {# IPsec Configuration for Cisco IOS/IOS-XE #}
 {# IKEv1, IKEv2, Crypto Maps, Profiles #}
 
-{% if l3.ipsec %}
+{% if l3.get('ipsec') %}
 
 {# IKEv2 Configuration (Preferred) #}
 {% if l3.ipsec.ikev2 %}

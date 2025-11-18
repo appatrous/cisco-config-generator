@@ -1,7 +1,7 @@
 {# Tunnel Configuration for Cisco IOS/IOS-XE #}
 {# GRE, IP-in-IP, GRE over IPsec, mGRE (DMVPN) #}
 
-{% if l3.tunnels %}
+{% if l3.get('tunnels') %}
 {% for tunnel in l3.tunnels %}
 interface Tunnel{{ tunnel.tunnel_id }}
 {% if tunnel.description %}

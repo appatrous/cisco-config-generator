@@ -159,7 +159,7 @@ ip route {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmas
 {% endif %}
 
 {# Policy-Based Routing (PBR) #}
-{% if l3.pbr %}
+{% if l3.get('pbr') %}
 {% for policy in l3.pbr %}
 route-map {{ policy.name }} permit {{ policy.sequence | default(10) }}
 {% if policy.match %}
@@ -258,12 +258,12 @@ interface {{ iface }}
 {% endif %}
 
 {# Tunnels (GRE, IP-in-IP, DMVPN) #}
-{% if l3.tunnels %}
+{% if l3.get('tunnels') %}
 {% include '_tunnels.j2' %}
 {% endif %}
 
 {# IPsec (IKEv1, IKEv2, Crypto Maps) #}
-{% if l3.ipsec %}
+{% if l3.get('ipsec') %}
 {% include '_ipsec.j2' %}
 {% endif %}
 
@@ -283,6 +283,6 @@ interface {{ iface }}
 {% endif %}
 
 {# QoS #}
-{% if l3.qos %}
+{% if l3.get('qos') %}
 {% include '_qos.j2' %}
 {% endif %}
