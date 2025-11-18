@@ -411,6 +411,253 @@ setInterval(() => {
 }, 60000);
 
 // ============================================
+// Contextual Help Object
+// ============================================
+const ContextualHelp = {
+    // Tooltip definitions for common network fields
+    tooltips: {
+        hostname: {
+            text: 'Device hostname (e.g., CORE-SW-01)',
+            example: 'CORE-SW-01',
+            docs: 'https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/fundamentals/configuration/15mt/fundamentals-15-mt-book/cf-hostname.html'
+        },
+        ip_address: {
+            text: 'IPv4 address in dotted decimal notation',
+            example: '192.168.1.1',
+            docs: 'https://www.cisco.com/c/en/us/support/docs/ip/routing-information-protocol-rip/13788-3.html'
+        },
+        subnet_mask: {
+            text: 'Subnet mask in dotted decimal or CIDR notation',
+            example: '255.255.255.0 or /24',
+            docs: 'https://www.cisco.com/c/en/us/support/docs/ip/routing-information-protocol-rip/13788-3.html'
+        },
+        vlan_id: {
+            text: 'VLAN ID must be between 1 and 4094',
+            example: '100',
+            docs: 'https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/16-6/configuration_guide/vlan/b_166_vlan_9300_cg/configuring_vlans.html'
+        },
+        vlan_range: {
+            text: 'Comma-separated VLANs or ranges',
+            example: '10,20,30-40,50',
+            docs: 'https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst9300/software/release/16-6/configuration_guide/vlan/b_166_vlan_9300_cg/configuring_vlans.html'
+        },
+        asn: {
+            text: 'Autonomous System Number (1-4294967295)',
+            example: '65001',
+            docs: 'https://www.cisco.com/c/en/us/support/docs/ip/border-gateway-protocol-bgp/13753-25.html'
+        },
+        router_id: {
+            text: 'Router ID in IPv4 address format (typically a loopback)',
+            example: '1.1.1.1',
+            docs: 'https://www.cisco.com/c/en/us/support/docs/ip/open-shortest-path-first-ospf/13682-10.html'
+        },
+        interface: {
+            text: 'Interface name (e.g., GigabitEthernet0/1)',
+            example: 'GigabitEthernet0/1, TenGigE1/0/1',
+            docs: 'https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/interface/configuration/xe-16/ir-xe-16-book/ir-int-ov.html'
+        },
+        mac_address: {
+            text: 'MAC address in colon or dot notation',
+            example: '00:11:22:33:44:55 or 0000.1111.2222',
+            docs: 'https://www.cisco.com/c/en/us/support/docs/lan-switching/ethernet/23686-mactable.html'
+        },
+        acl_number: {
+            text: 'Standard ACL: 1-99, Extended ACL: 100-199',
+            example: '100',
+            docs: 'https://www.cisco.com/c/en/us/support/docs/security/ios-firewall/23602-confaccesslists.html'
+        }
+    },
+
+    // Add tooltip to an input field
+    addTooltip: function(element, helpData) {
+        if (!element || !helpData) return;
+
+        // Create tooltip trigger icon
+        const helpIcon = document.createElement('span');
+        helpIcon.className = 'help-icon';
+        helpIcon.innerHTML = '?';
+        helpIcon.setAttribute('data-help', 'true');
+
+        // Create tooltip content
+        const tooltip = document.createElement('div');
+        tooltip.className = 'help-tooltip';
+
+        let tooltipHTML = `<div class="tooltip-header">${helpData.text}</div>`;
+
+        if (helpData.example) {
+            tooltipHTML += `<div class="tooltip-example">
+                <strong>Example:</strong> <code>${helpData.example}</code>
+            </div>`;
+        }
+
+        if (helpData.docs) {
+            tooltipHTML += `<div class="tooltip-docs">
+                <a href="${helpData.docs}" target="_blank" rel="noopener">📘 Cisco Documentation →</a>
+            </div>`;
+        }
+
+        tooltip.innerHTML = tooltipHTML;
+
+        // Position help icon next to the input
+        const wrapper = element.parentElement;
+        if (wrapper && wrapper.classList.contains('form-group')) {
+            const label = wrapper.querySelector('label');
+            if (label) {
+                label.style.display = 'inline-flex';
+                label.style.alignItems = 'center';
+                label.style.gap = '0.5rem';
+                label.appendChild(helpIcon);
+                wrapper.appendChild(tooltip);
+            }
+        }
+
+        // Show/hide tooltip on icon hover
+        helpIcon.addEventListener('mouseenter', () => {
+            tooltip.classList.add('show');
+            this.positionTooltip(helpIcon, tooltip);
+        });
+
+        helpIcon.addEventListener('mouseleave', () => {
+            setTimeout(() => {
+                if (!tooltip.matches(':hover')) {
+                    tooltip.classList.remove('show');
+                }
+            }, 100);
+        });
+
+        tooltip.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('show');
+        });
+    },
+
+    // Position tooltip relative to help icon
+    positionTooltip: function(icon, tooltip) {
+        const iconRect = icon.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        // Position below the icon by default
+        tooltip.style.top = `${iconRect.bottom + 5}px`;
+        tooltip.style.left = `${iconRect.left - (tooltipRect.width / 2) + (iconRect.width / 2)}px`;
+
+        // Adjust if tooltip goes off screen
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        if (tooltipRect.right > viewportWidth) {
+            tooltip.style.left = `${viewportWidth - tooltipRect.width - 10}px`;
+        }
+
+        if (tooltipRect.left < 0) {
+            tooltip.style.left = '10px';
+        }
+
+        if (tooltipRect.bottom > viewportHeight) {
+            // Position above if not enough space below
+            tooltip.style.top = `${iconRect.top - tooltipRect.height - 5}px`;
+        }
+    },
+
+    // Add help to all fields in a form
+    addHelpToForm: function() {
+        // Hostname fields
+        document.querySelectorAll('input[id*="hostname"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.hostname);
+        });
+
+        // IP address fields
+        document.querySelectorAll('input[type="text"][placeholder*="IP"], input[id*="_ip"]').forEach(el => {
+            if (!el.placeholder.includes('/') && !el.id.includes('prefix')) {
+                this.addTooltip(el, this.tooltips.ip_address);
+            }
+        });
+
+        // VLAN ID fields
+        document.querySelectorAll('input[type="number"][id*="vlan_id"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.vlan_id);
+        });
+
+        // VLAN range fields
+        document.querySelectorAll('input[type="text"][id*="vlans"], input[id*="allowed_vlan"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.vlan_range);
+        });
+
+        // ASN fields
+        document.querySelectorAll('input[type="number"][id*="asn"], input[id*="_as"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.asn);
+        });
+
+        // Router ID fields
+        document.querySelectorAll('input[id*="router_id"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.router_id);
+        });
+
+        // Interface fields
+        document.querySelectorAll('input[id*="interface"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.interface);
+        });
+
+        // MAC address fields
+        document.querySelectorAll('input[id*="_mac"], input[id*="mac_"]').forEach(el => {
+            this.addTooltip(el, this.tooltips.mac_address);
+        });
+    },
+
+    // Add inline examples to complex fields
+    addInlineExamples: function() {
+        const exampleFields = {
+            'vlan_range': '10,20,30-40',
+            'ip_cidr': '192.168.1.0/24',
+            'mac_address': '00:11:22:33:44:55',
+            'interface': 'GigabitEthernet0/1',
+            'router_id': '1.1.1.1'
+        };
+
+        for (const [idPattern, example] of Object.entries(exampleFields)) {
+            document.querySelectorAll(`input[id*="${idPattern}"]`).forEach(el => {
+                if (!el.placeholder || el.placeholder.trim() === '') {
+                    el.placeholder = `e.g., ${example}`;
+                }
+            });
+        }
+    },
+
+    // Show helpful error messages
+    showHelpfulError: function(field, errorType) {
+        const errorMessages = {
+            ip_invalid: 'Invalid IP address. Must be in format 192.168.1.1 (IPv4) or 2001:db8::1 (IPv6)',
+            vlan_out_of_range: 'VLAN ID must be between 1 and 4094',
+            vlan_range_invalid: 'Invalid VLAN range. Use format: 10,20,30-40',
+            asn_invalid: 'AS Number must be between 1 and 4294967295',
+            mac_invalid: 'Invalid MAC address. Use format: 00:11:22:33:44:55 or 0000.1111.2222',
+            cidr_invalid: 'Invalid CIDR notation. Use format: 192.168.1.0/24',
+            required: 'This field is required',
+            hostname_invalid: 'Invalid hostname. Use alphanumeric characters and hyphens only (max 63 chars)'
+        };
+
+        const message = errorMessages[errorType] || 'Invalid input';
+
+        // Remove existing error
+        const existingError = field.parentElement.querySelector('.help-error-message');
+        if (existingError) existingError.remove();
+
+        // Add new error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'help-error-message';
+        errorDiv.innerHTML = `<span class="error-icon">⚠</span> ${message}`;
+
+        field.parentElement.appendChild(errorDiv);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (errorDiv.parentElement) {
+                errorDiv.classList.add('fade-out');
+                setTimeout(() => errorDiv.remove(), 300);
+            }
+        }, 5000);
+    }
+};
+
+// ============================================
 // Preview Enhancer Object
 // ============================================
 const PreviewEnhancer = {
@@ -1131,8 +1378,12 @@ function showProtocolForm(protocolPath) {
     const formContainer = document.getElementById('protocol-form-container');
     formContainer.innerHTML = generateForm(protocolPath, protocolData);
 
-    // Initialize validation after form is rendered
-    setTimeout(() => initializeFormValidation(), 100);
+    // Initialize validation and help after form is rendered
+    setTimeout(() => {
+        initializeFormValidation();
+        ContextualHelp.addHelpToForm();
+        ContextualHelp.addInlineExamples();
+    }, 100);
 }
 
 // Initialize validation for form fields
