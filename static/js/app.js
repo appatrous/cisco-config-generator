@@ -4714,6 +4714,538 @@ function generateForm(protocolPath, protocolData) {
             `;
             break;
 
+        // ===== VPN & OVERLAY =====
+
+        case 'flexvpn':
+            html += `
+                <h4>FlexVPN Configuration</h4>
+                <p class="help-text">IKEv2-based VPN (Hub-Spoke)</p>
+
+                <div class="form-group">
+                    <label>FlexVPN Role</label>
+                    <select id="flexvpn_role">
+                        <option value="hub">Hub</option>
+                        <option value="spoke">Spoke</option>
+                    </select>
+                </div>
+
+                <h5>IKEv2 Proposal</h5>
+                <div class="form-group">
+                    <label>Proposal Name</label>
+                    <input type="text" id="flexvpn_proposal_name" placeholder="FLEXVPN-PROPOSAL" required>
+                </div>
+                <div class="form-group">
+                    <label>Encryption</label>
+                    <select id="flexvpn_encryption">
+                        <option value="aes-cbc-256">AES-CBC-256</option>
+                        <option value="aes-cbc-192">AES-CBC-192</option>
+                        <option value="aes-cbc-128">AES-CBC-128</option>
+                        <option value="aes-gcm-256">AES-GCM-256</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Integrity</label>
+                    <select id="flexvpn_integrity">
+                        <option value="sha512">SHA-512</option>
+                        <option value="sha384">SHA-384</option>
+                        <option value="sha256">SHA-256</option>
+                        <option value="sha1">SHA-1</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>DH Group</label>
+                    <select id="flexvpn_dh_group">
+                        <option value="14">Group 14 (2048-bit)</option>
+                        <option value="15">Group 15 (3072-bit)</option>
+                        <option value="16">Group 16 (4096-bit)</option>
+                        <option value="19">Group 19 (256-bit ECC)</option>
+                        <option value="20">Group 20 (384-bit ECC)</option>
+                    </select>
+                </div>
+
+                <h5>IPsec Transform Set</h5>
+                <div class="form-group">
+                    <label>Transform Set Name</label>
+                    <input type="text" id="flexvpn_transform_name" placeholder="FLEXVPN-TRANSFORM">
+                </div>
+
+                <h5>Tunnel Configuration</h5>
+                <div class="form-group">
+                    <label>Source Interface</label>
+                    <input type="text" id="flexvpn_source" placeholder="Loopback0">
+                </div>
+                <div class="form-group">
+                    <label>Destination (Spoke only)</label>
+                    <input type="text" id="flexvpn_destination" placeholder="203.0.113.1">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveFlexVpnData()" style="width: 100%;">
+                    💾 Save FlexVPN Configuration
+                </button>
+            `;
+            break;
+
+        case 'getvpn':
+            html += `
+                <h4>GET VPN Configuration</h4>
+                <p class="help-text">Group Encrypted Transport VPN</p>
+
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="getvpn_role">
+                        <option value="ks">Key Server</option>
+                        <option value="gm">Group Member</option>
+                    </select>
+                </div>
+
+                <h5>GDOI Group</h5>
+                <div class="form-group">
+                    <label>Group Name</label>
+                    <input type="text" id="getvpn_group_name" placeholder="GETVPN-GROUP" required>
+                </div>
+                <div class="form-group">
+                    <label>Identity Number</label>
+                    <input type="number" id="getvpn_identity" min="1" max="65535" placeholder="1234">
+                </div>
+                <div class="form-group">
+                    <label>Server Address</label>
+                    <input type="text" id="getvpn_server_addr" placeholder="10.0.0.1">
+                </div>
+
+                <h5>Rekey Configuration</h5>
+                <div class="form-group">
+                    <label>Lifetime (seconds)</label>
+                    <input type="number" id="getvpn_rekey_lifetime" min="60" max="86400" value="86400">
+                </div>
+
+                <h5>Crypto ACL</h5>
+                <div class="form-group">
+                    <label>Crypto ACL Name</label>
+                    <input type="text" id="getvpn_crypto_acl" placeholder="GETVPN-ACL">
+                </div>
+                <div class="form-group">
+                    <label>Protected Networks</label>
+                    <textarea id="getvpn_networks" rows="3" placeholder="10.0.0.0 0.255.255.255
+192.168.0.0 0.0.255.255"></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveGetVpnData()" style="width: 100%;">
+                    💾 Save GET VPN Configuration
+                </button>
+            `;
+            break;
+
+        case 'l2tpv3':
+            html += `
+                <h4>L2TPv3 Configuration</h4>
+                <p class="help-text">Layer 2 Tunneling Protocol v3</p>
+
+                <h5>L2TP Class</h5>
+                <div class="form-group">
+                    <label>Class Name</label>
+                    <input type="text" id="l2tpv3_class_name" placeholder="L2TP-CLASS" required>
+                </div>
+                <div class="form-group">
+                    <label>Hello Interval (seconds)</label>
+                    <input type="number" id="l2tpv3_hello" min="0" max="1000" value="60">
+                </div>
+
+                <h5>Pseudowire Class</h5>
+                <div class="form-group">
+                    <label>Pseudowire Class Name</label>
+                    <input type="text" id="l2tpv3_pw_class" placeholder="L2TPV3-PW">
+                </div>
+                <div class="form-group">
+                    <label>Local Interface</label>
+                    <input type="text" id="l2tpv3_local_int" placeholder="Loopback0">
+                </div>
+
+                <h5>Xconnect</h5>
+                <div class="form-group">
+                    <label>Interface</label>
+                    <input type="text" id="l2tpv3_xc_int" placeholder="GigabitEthernet0/1">
+                </div>
+                <div class="form-group">
+                    <label>Peer IP</label>
+                    <input type="text" id="l2tpv3_peer_ip" placeholder="203.0.113.2">
+                </div>
+                <div class="form-group">
+                    <label>VC ID</label>
+                    <input type="number" id="l2tpv3_vcid" min="1" max="4294967295" placeholder="100">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveL2tpv3Data()" style="width: 100%;">
+                    💾 Save L2TPv3 Configuration
+                </button>
+            `;
+            break;
+
+        case 'otv':
+            html += `
+                <h4>OTV Configuration</h4>
+                <p class="help-text">Overlay Transport Virtualization</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="otv_enabled" checked> Enable OTV</label>
+                </div>
+
+                <h5>OTV Global</h5>
+                <div class="form-group">
+                    <label>Site Identifier</label>
+                    <input type="text" id="otv_site_id" placeholder="0000.0000.0001" required>
+                </div>
+                <div class="form-group">
+                    <label>Site Bridge-Domain</label>
+                    <input type="number" id="otv_site_bd" min="1" max="4096" placeholder="1">
+                </div>
+
+                <h5>Overlay Interface</h5>
+                <div class="form-group">
+                    <label>Overlay ID</label>
+                    <input type="number" id="otv_overlay_id" min="0" max="255" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Join Interface</label>
+                    <input type="text" id="otv_join_int" placeholder="GigabitEthernet0/0">
+                </div>
+                <div class="form-group">
+                    <label>Extended VLANs</label>
+                    <input type="text" id="otv_extend_vlans" placeholder="10,20,30-50">
+                </div>
+                <div class="form-group">
+                    <label>Control Group</label>
+                    <input type="text" id="otv_control_group" placeholder="239.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label>Data Group Prefix</label>
+                    <input type="text" id="otv_data_group" placeholder="232.0.0.0/8">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveOtvData()" style="width: 100%;">
+                    💾 Save OTV Configuration
+                </button>
+            `;
+            break;
+
+        case 'sdwan':
+            html += `
+                <h4>SD-WAN Configuration</h4>
+                <p class="help-text">Software-Defined WAN (Viptela)</p>
+
+                <div class="form-group">
+                    <label>SD-WAN Type</label>
+                    <select id="sdwan_type">
+                        <option value="viptela">Cisco Viptela</option>
+                        <option value="meraki">Cisco Meraki</option>
+                    </select>
+                </div>
+
+                <h5>System Configuration</h5>
+                <div class="form-group">
+                    <label>System IP</label>
+                    <input type="text" id="sdwan_system_ip" placeholder="10.0.0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Site ID</label>
+                    <input type="number" id="sdwan_site_id" min="1" max="4294967295" placeholder="100">
+                </div>
+                <div class="form-group">
+                    <label>Organization Name</label>
+                    <input type="text" id="sdwan_org_name" placeholder="ACME-Corp">
+                </div>
+                <div class="form-group">
+                    <label>Hostname</label>
+                    <input type="text" id="sdwan_hostname" placeholder="EDGE-ROUTER-1">
+                </div>
+
+                <h5>VPN Configuration</h5>
+                <div class="form-group">
+                    <label>VPN ID</label>
+                    <input type="number" id="sdwan_vpn_id" min="0" max="65530" placeholder="10">
+                </div>
+                <div class="form-group">
+                    <label>VPN Name</label>
+                    <input type="text" id="sdwan_vpn_name" placeholder="CORPORATE-VPN">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSdwanData()" style="width: 100%;">
+                    💾 Save SD-WAN Configuration
+                </button>
+            `;
+            break;
+
+        // ===== MANAGEMENT =====
+
+        case 'ssh':
+            html += `
+                <h4>SSH Configuration</h4>
+                <p class="help-text">Secure Shell server settings</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="ssh_enabled" checked> Enable SSH</label>
+                </div>
+
+                <div class="form-group">
+                    <label>SSH Version</label>
+                    <select id="ssh_version">
+                        <option value="2">Version 2 (Recommended)</option>
+                        <option value="1">Version 1 (Legacy)</option>
+                    </select>
+                </div>
+
+                <h5>RSA Key</h5>
+                <div class="form-group">
+                    <label>RSA Modulus</label>
+                    <select id="ssh_rsa_modulus">
+                        <option value="2048">2048 bits</option>
+                        <option value="4096">4096 bits</option>
+                        <option value="1024">1024 bits (Weak)</option>
+                    </select>
+                </div>
+
+                <h5>SSH Settings</h5>
+                <div class="form-group">
+                    <label>Timeout (seconds)</label>
+                    <input type="number" id="ssh_timeout" min="0" max="120" value="60">
+                </div>
+                <div class="form-group">
+                    <label>Authentication Retries</label>
+                    <input type="number" id="ssh_auth_retries" min="0" max="5" value="3">
+                </div>
+                <div class="form-group">
+                    <label>Source Interface</label>
+                    <input type="text" id="ssh_source_int" placeholder="Loopback0">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSshData()" style="width: 100%;">
+                    💾 Save SSH Configuration
+                </button>
+            `;
+            break;
+
+        case 'lines':
+            html += `
+                <h4>Console & VTY Lines Configuration</h4>
+                <p class="help-text">Terminal line settings</p>
+
+                <h5>Console Line</h5>
+                <div class="form-group">
+                    <label><input type="checkbox" id="console_logging_sync" checked> Logging Synchronous</label>
+                </div>
+                <div class="form-group">
+                    <label>Exec Timeout (minutes)</label>
+                    <input type="number" id="console_exec_timeout" min="0" max="35791" value="5">
+                </div>
+
+                <h5>VTY Lines</h5>
+                <div class="form-group">
+                    <label>VTY Range Start</label>
+                    <input type="number" id="vty_start" min="0" max="15" value="0">
+                </div>
+                <div class="form-group">
+                    <label>VTY Range End</label>
+                    <input type="number" id="vty_end" min="0" max="15" value="15">
+                </div>
+                <div class="form-group">
+                    <label>Transport Input</label>
+                    <select id="vty_transport_input" multiple size="3">
+                        <option value="ssh" selected>SSH</option>
+                        <option value="telnet">Telnet</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Exec Timeout (minutes)</label>
+                    <input type="number" id="vty_exec_timeout" min="0" max="35791" value="10">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="vty_login_local" checked> Login Local</label>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveLinesData()" style="width: 100%;">
+                    💾 Save Lines Configuration
+                </button>
+            `;
+            break;
+
+        case 'banners':
+            html += `
+                <h4>Banners Configuration</h4>
+                <p class="help-text">Login, MOTD, Exec banners</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="banners_enabled" checked> Enable Banners</label>
+                </div>
+
+                <h5>Message of the Day (MOTD)</h5>
+                <div class="form-group">
+                    <textarea id="banner_motd" rows="5" placeholder="******************************************
+* Authorized Access Only                 *
+* All activity is monitored and logged   *
+******************************************"></textarea>
+                </div>
+
+                <h5>Login Banner</h5>
+                <div class="form-group">
+                    <textarea id="banner_login" rows="4" placeholder="WARNING: Unauthorized access is prohibited.
+All connections are logged."></textarea>
+                </div>
+
+                <h5>Exec Banner</h5>
+                <div class="form-group">
+                    <textarea id="banner_exec" rows="3" placeholder="Welcome to the network!"></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveBannersData()" style="width: 100%;">
+                    💾 Save Banners Configuration
+                </button>
+            `;
+            break;
+
+        case 'archive':
+            html += `
+                <h4>Configuration Archive & Rollback</h4>
+                <p class="help-text">Automatic config backup and rollback</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="archive_enabled" checked> Enable Archive</label>
+                </div>
+
+                <h5>Archive Settings</h5>
+                <div class="form-group">
+                    <label>Archive Path</label>
+                    <input type="text" id="archive_path" placeholder="flash:/archive" required>
+                    <small class="help-text">Example: flash:/archive, tftp://server/configs</small>
+                </div>
+                <div class="form-group">
+                    <label>Maximum Archives</label>
+                    <input type="number" id="archive_maximum" min="1" max="14" value="10">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="archive_write_memory" checked> Archive on Write Memory</label>
+                </div>
+                <div class="form-group">
+                    <label>Time Period (minutes)</label>
+                    <input type="number" id="archive_time_period" min="1" max="525600" placeholder="1440">
+                    <small class="help-text">Optional: periodic backup interval</small>
+                </div>
+
+                <h5>Configuration Change Logging</h5>
+                <div class="form-group">
+                    <label><input type="checkbox" id="archive_log_config" checked> Log Config Changes</label>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="archive_hidekeys"> Hide Keys in Archive</label>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveArchiveData()" style="width: 100%;">
+                    💾 Save Archive Configuration
+                </button>
+            `;
+            break;
+
+        case 'smart_licensing':
+            html += `
+                <h4>Cisco Smart Licensing</h4>
+                <p class="help-text">Smart Licensing configuration</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="smart_lic_enabled" checked> Enable Smart Licensing</label>
+                </div>
+
+                <h5>Transport Settings</h5>
+                <div class="form-group">
+                    <label>Transport Type</label>
+                    <select id="smart_lic_transport">
+                        <option value="callhome">Call Home</option>
+                        <option value="smart">Smart Transport</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Smart Licensing URL</label>
+                    <input type="text" id="smart_lic_url" placeholder="https://tools.cisco.com/its/service/oddce/services/DDCEService">
+                </div>
+
+                <h5>Contact Information</h5>
+                <div class="form-group">
+                    <label>Contact Email</label>
+                    <input type="email" id="smart_lic_email" placeholder="admin@example.com">
+                </div>
+
+                <h5>Throughput Level (ISR/ASR)</h5>
+                <div class="form-group">
+                    <label>Throughput Level</label>
+                    <select id="smart_lic_throughput">
+                        <option value="">None</option>
+                        <option value="25M">25 Mbps</option>
+                        <option value="50M">50 Mbps</option>
+                        <option value="100M">100 Mbps</option>
+                        <option value="250M">250 Mbps</option>
+                        <option value="500M">500 Mbps</option>
+                        <option value="1G">1 Gbps</option>
+                        <option value="2.5G">2.5 Gbps</option>
+                        <option value="10G">10 Gbps</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSmartLicensingData()" style="width: 100%;">
+                    💾 Save Smart Licensing Configuration
+                </button>
+            `;
+            break;
+
+        case 'dns':
+            html += `
+                <h4>DNS Client Configuration</h4>
+                <p class="help-text">Domain Name System client settings</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="dns_enabled" checked> Enable DNS</label>
+                </div>
+
+                <h5>Domain Settings</h5>
+                <div class="form-group">
+                    <label>Domain Name</label>
+                    <input type="text" id="dns_domain_name" placeholder="example.com">
+                </div>
+                <div class="form-group">
+                    <label>Domain List (comma-separated)</label>
+                    <input type="text" id="dns_domain_list" placeholder="example.com, corp.local">
+                </div>
+
+                <h5>Name Servers</h5>
+                <div class="form-group">
+                    <label>Primary DNS Server</label>
+                    <input type="text" id="dns_server1" placeholder="8.8.8.8">
+                </div>
+                <div class="form-group">
+                    <label>Secondary DNS Server</label>
+                    <input type="text" id="dns_server2" placeholder="8.8.4.4">
+                </div>
+                <div class="form-group">
+                    <label>Tertiary DNS Server</label>
+                    <input type="text" id="dns_server3" placeholder="1.1.1.1">
+                </div>
+
+                <h5>DNS Settings</h5>
+                <div class="form-group">
+                    <label><input type="checkbox" id="dns_lookup" checked> IP Domain Lookup</label>
+                </div>
+                <div class="form-group">
+                    <label>Source Interface</label>
+                    <input type="text" id="dns_source_int" placeholder="Loopback0">
+                </div>
+                <div class="form-group">
+                    <label>Timeout (seconds)</label>
+                    <input type="number" id="dns_timeout" min="0" max="30" value="2">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveDnsData()" style="width: 100%;">
+                    💾 Save DNS Configuration
+                </button>
+            `;
+            break;
+
         default:
             html += `
                 <p>📝 Configuration form for ${protocolData.name}</p>
