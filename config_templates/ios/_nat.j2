@@ -1,0 +1,194 @@
+{# NAT (Network Address Translation) Configuration for Cisco IOS/IOS-XE #}
+
+{% if l3.get('nat') and l3.nat.get('enabled') %}
+! ========================================
+! Network Address Translation (NAT)
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# NAT Access Lists #}
+{% if l3.nat.get('acls') %}
+{% for acl in l3.nat.acls %}
+ip access-list standard {{ acl.name }}
+{% for permit in acl.permits | default([]) %}
+  permit {{ permit }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}
+
+{# NAT Pools #}
+{% if l3.nat.get('pools') %}
+{% for pool in l3.nat.pools %}
+ip nat pool {{ pool.name }} {{ pool.start_ip }} {{ pool.end_ip }} netmask {{ pool.netmask }}{% if pool.type == 'rotary' %} type rotary{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# Static NAT Mappings #}
+{% if l3.nat.get('static_mappings') %}
+{% for mapping in l3.nat.static_mappings %}
+ip nat inside source static {{ mapping.inside_local }} {{ mapping.inside_global }}{% if mapping.vrf %} vrf {{ mapping.vrf }}{% endif %}{% if mapping.extendable %} extendable{% endif %}{% if mapping.no_alias %} no-alias{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# Static PAT (Port Translation) #}
+{% if l3.nat.get('static_pat') %}
+{% for pat in l3.nat.static_pat %}
+ip nat inside source static {{ pat.protocol }} {{ pat.inside_local }} {{ pat.inside_port }} {{ pat.inside_global }} {{ pat.outside_port }}{% if pat.vrf %} vrf {{ pat.vrf }}{% endif %}{% if pat.extendable %} extendable{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# Dynamic NAT #}
+{% if l3.nat.get('dynamic') %}
+{% for dyn in l3.nat.dynamic %}
+ip nat inside source list {{ dyn.acl }} pool {{ dyn.pool }}{% if dyn.overload %} overload{% endif %}{% if dyn.vrf %} vrf {{ dyn.vrf }}{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# PAT (Port Address Translation) - Overload #}
+{% if l3.nat.get('pat') %}
+{% for pat in l3.nat.pat %}
+ip nat inside source list {{ pat.acl }} interface {{ pat.interface }} overload{% if pat.vrf %} vrf {{ pat.vrf }}{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# Route-Map Based NAT #}
+{% if l3.nat.get('route_map_nat') %}
+{% for rm_nat in l3.nat.route_map_nat %}
+ip nat inside source route-map {{ rm_nat.route_map }} pool {{ rm_nat.pool }}{% if rm_nat.overload %} overload{% endif %}{% if rm_nat.vrf %} vrf {{ rm_nat.vrf }}{% endif %}{% if rm_nat.reversible %} reversible{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# NAT64 Configuration #}
+{% if l3.nat.get('nat64') %}
+{% if l3.nat.nat64.get('enabled') %}
+! NAT64 Configuration
+{% if l3.nat.nat64.get('prefix') %}
+nat64 prefix stateful {{ l3.nat.nat64.prefix }}
+{% endif %}
+{% if l3.nat.nat64.get('v4_pool') %}
+nat64 v4 pool {{ l3.nat.nat64.v4_pool.name }} {{ l3.nat.nat64.v4_pool.start }} {{ l3.nat.nat64.v4_pool.end }}
+{% endif %}
+{% if l3.nat.nat64.get('v6v4_static') %}
+{% for mapping in l3.nat.nat64.v6v4_static %}
+nat64 v6v4 static {{ mapping.ipv6 }} {{ mapping.ipv4 }}
+{% endfor %}
+{% endif %}
+!
+{% endif %}
+{% endif %}
+
+{# NAT Virtual Interface (NVI) #}
+{% if l3.nat.get('nvi') and l3.nat.nvi.get('enabled') %}
+! NAT Virtual Interface (NVI) Configuration
+{% for nvi_nat in l3.nat.nvi.get('translations', []) %}
+ip nat source {% if nvi_nat.static %}static{% else %}list {{ nvi_nat.acl }}{% endif %} {% if nvi_nat.static %}{{ nvi_nat.inside_local }} {{ nvi_nat.inside_global }}{% else %}pool {{ nvi_nat.pool }}{% endif %}{% if nvi_nat.overload %} overload{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# CGNAT (Carrier Grade NAT) #}
+{% if l3.nat.get('cgnat') and l3.nat.cgnat.get('enabled') %}
+! Carrier Grade NAT (CGNAT) Configuration
+{% if l3.nat.cgnat.get('service') %}
+service cgn {{ l3.nat.cgnat.service.name }}
+{% if l3.nat.cgnat.service.inside_vrf %}
+  inside-vrf {{ l3.nat.cgnat.service.inside_vrf }}
+{% endif %}
+{% if l3.nat.cgnat.service.outside_vrf %}
+  outside-vrf {{ l3.nat.cgnat.service.outside_vrf }}
+{% endif %}
+{% if l3.nat.cgnat.service.address_pool %}
+  service-pool {{ l3.nat.cgnat.service.address_pool }}
+{% endif %}
+{% if l3.nat.cgnat.service.port_limit %}
+  port-limit {{ l3.nat.cgnat.service.port_limit }}
+{% endif %}
+{% if l3.nat.cgnat.service.timeouts %}
+{% if l3.nat.cgnat.service.timeouts.tcp %}
+  tcp timeout {{ l3.nat.cgnat.service.timeouts.tcp }}
+{% endif %}
+{% if l3.nat.cgnat.service.timeouts.udp %}
+  udp timeout {{ l3.nat.cgnat.service.timeouts.udp }}
+{% endif %}
+{% endif %}
+!
+{% endif %}
+{% endif %}
+
+{# NAT Inside/Outside Interfaces #}
+{% if l3.nat.get('inside_interfaces') %}
+{% for iface in l3.nat.inside_interfaces %}
+interface {{ iface }}
+{% if l3.nat.get('nvi') and l3.nat.nvi.get('enabled') %}
+  ip nat enable
+{% else %}
+  ip nat inside
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.nat.get('outside_interfaces') %}
+{% for iface in l3.nat.outside_interfaces %}
+interface {{ iface }}
+{% if l3.nat.get('nvi') and l3.nat.nvi.get('enabled') %}
+  ip nat enable
+{% else %}
+  ip nat outside
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# NAT Logging #}
+{% if l3.nat.get('logging') %}
+{% if l3.nat.logging.get('enabled') %}
+ip nat log translations syslog
+{% if l3.nat.logging.get('flow_export') %}
+ip nat log translations flow-export v9 udp destination {{ l3.nat.logging.flow_export.destination }} {{ l3.nat.logging.flow_export.port | default(2055) }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# NAT Translation Limits #}
+{% if l3.nat.get('translation_max') %}
+ip nat translation max-entries {{ l3.nat.translation_max }}
+{% endif %}
+
+{# NAT Translation Timeouts #}
+{% if l3.nat.get('timeouts') %}
+{% if l3.nat.timeouts.get('tcp') %}
+ip nat translation tcp-timeout {{ l3.nat.timeouts.tcp }}
+{% endif %}
+{% if l3.nat.timeouts.get('udp') %}
+ip nat translation udp-timeout {{ l3.nat.timeouts.udp }}
+{% endif %}
+{% if l3.nat.timeouts.get('icmp') %}
+ip nat translation icmp-timeout {{ l3.nat.timeouts.icmp }}
+{% endif %}
+{% if l3.nat.timeouts.get('finrst') %}
+ip nat translation finrst-timeout {{ l3.nat.timeouts.finrst }}
+{% endif %}
+{% if l3.nat.timeouts.get('syn') %}
+ip nat translation syn-timeout {{ l3.nat.timeouts.syn }}
+{% endif %}
+{% if l3.nat.timeouts.get('dns') %}
+ip nat translation dns-timeout {{ l3.nat.timeouts.dns }}
+{% endif %}
+{% endif %}
+
+{# NAT ALG (Application Layer Gateway) Disable #}
+{% if l3.nat.get('alg_disable') %}
+{% for alg in l3.nat.alg_disable %}
+no ip nat service {{ alg }}
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end l3.nat #}

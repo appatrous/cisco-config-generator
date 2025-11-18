@@ -1,0 +1,155 @@
+{# QoS (Quality of Service) Configuration for Cisco IOS/IOS-XE #}
+
+{% if l3.get('qos') and l3.qos.get('enabled') %}
+! ========================================
+! Quality of Service (QoS) Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# Class-Maps #}
+{% if l3.qos.get('class_maps') %}
+{% for class_map in l3.qos.class_maps %}
+class-map match-{{ class_map.match_type | default('any') }} {{ class_map.name }}
+{% if class_map.description %}
+  description {{ class_map.description }}
+{% endif %}
+{% if class_map.match_dscp %}
+{% for dscp in class_map.match_dscp.split(',') %}
+  match dscp {{ dscp.strip() }}
+{% endfor %}
+{% endif %}
+{% if class_map.match_cos %}
+{% for cos in class_map.match_cos.split(',') %}
+  match cos {{ cos.strip() }}
+{% endfor %}
+{% endif %}
+{% if class_map.match_precedence %}
+{% for prec in class_map.match_precedence.split(',') %}
+  match precedence {{ prec.strip() }}
+{% endfor %}
+{% endif %}
+{% if class_map.match_access_group %}
+  match access-group name {{ class_map.match_access_group }}
+{% endif %}
+{% if class_map.match_protocol %}
+  match protocol {{ class_map.match_protocol }}
+{% endif %}
+{% if class_map.match_qos_group %}
+  match qos-group {{ class_map.match_qos_group }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Policy-Maps #}
+{% if l3.qos.get('policy_maps') %}
+{% for policy in l3.qos.policy_maps %}
+policy-map {{ policy.name }}
+{% if policy.description %}
+  description {{ policy.description }}
+{% endif %}
+{% for class_config in policy.classes | default([]) %}
+  class {{ class_config.class_name }}
+{% if class_config.priority %}
+    priority {% if class_config.priority_bw %}{{ class_config.priority_bw }}{% endif %}{% if class_config.priority_percent %} percent {{ class_config.priority_percent }}{% endif %}
+{% endif %}
+{% if class_config.bandwidth %}
+    bandwidth {% if class_config.bandwidth_kbps %}{{ class_config.bandwidth_kbps }}{% endif %}{% if class_config.bandwidth_percent %} percent {{ class_config.bandwidth_percent }}{% endif %}
+{% endif %}
+{% if class_config.police %}
+    police {{ class_config.police.rate }} {{ class_config.police.burst | default('') }}{% if class_config.police.exceed_action %} {{ class_config.police.exceed_action }}{% endif %}
+{% endif %}
+{% if class_config.shape %}
+    shape average {{ class_config.shape.rate }}{% if class_config.shape.burst %} {{ class_config.shape.burst }}{% endif %}
+{% endif %}
+{% if class_config.queue_limit %}
+    queue-limit {{ class_config.queue_limit }}{% if class_config.queue_limit_unit %} {{ class_config.queue_limit_unit }}{% endif %}
+{% endif %}
+{% if class_config.random_detect %}
+{% if class_config.random_detect == 'dscp-based' %}
+    random-detect dscp-based
+{% elif class_config.random_detect == 'precedence-based' %}
+    random-detect precedence-based
+{% else %}
+    random-detect
+{% endif %}
+{% endif %}
+{% if class_config.set_dscp %}
+    set dscp {{ class_config.set_dscp }}
+{% endif %}
+{% if class_config.set_cos %}
+    set cos {{ class_config.set_cos }}
+{% endif %}
+{% if class_config.set_precedence %}
+    set precedence {{ class_config.set_precedence }}
+{% endif %}
+{% if class_config.set_qos_group %}
+    set qos-group {{ class_config.set_qos_group }}
+{% endif %}
+{% if class_config.compression %}
+    compression header ip {% if class_config.compression == 'rtp' %}rtp{% endif %}
+{% endif %}
+{% if class_config.fair_queue %}
+    fair-queue{% if class_config.fair_queue_queues %} {{ class_config.fair_queue_queues }}{% endif %}
+{% endif %}
+{% endfor %}
+  class class-default
+{% if policy.default_class %}
+{% if policy.default_class.bandwidth %}
+    bandwidth {% if policy.default_class.bandwidth_kbps %}{{ policy.default_class.bandwidth_kbps }}{% endif %}{% if policy.default_class.bandwidth_percent %} percent {{ policy.default_class.bandwidth_percent }}{% endif %}
+{% endif %}
+{% if policy.default_class.fair_queue %}
+    fair-queue
+{% endif %}
+{% if policy.default_class.random_detect %}
+    random-detect
+{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Apply QoS Policies to Interfaces #}
+{% if l3.qos.get('interfaces') %}
+{% for iface in l3.qos.interfaces %}
+interface {{ iface.interface }}
+{% if iface.service_policy_input %}
+  service-policy input {{ iface.service_policy_input }}
+{% endif %}
+{% if iface.service_policy_output %}
+  service-policy output {{ iface.service_policy_output }}
+{% endif %}
+{% if iface.trust %}
+  mls qos trust {{ iface.trust }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Global QoS Settings #}
+{% if l3.qos.get('global') %}
+{% if l3.qos.global.get('mls_qos') %}
+mls qos
+{% endif %}
+{% if l3.qos.global.get('queue_mode') %}
+mls qos queue-mode mode-{{ l3.qos.global.queue_mode }}
+{% endif %}
+{% if l3.qos.global.get('map_cos_dscp') %}
+mls qos map cos-dscp {{ l3.qos.global.map_cos_dscp }}
+{% endif %}
+{% if l3.qos.global.get('map_dscp_cos') %}
+mls qos map dscp-cos {{ l3.qos.global.map_dscp_cos }}
+{% endif %}
+{% if l3.qos.global.get('rewrite_dscp') %}
+mls qos rewrite ip dscp
+{% endif %}
+{% endif %}
+
+{# QoS Statistics #}
+{% if l3.qos.get('statistics') %}
+{% if l3.qos.statistics.get('enabled') %}
+mls qos statistics
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l3.qos #}

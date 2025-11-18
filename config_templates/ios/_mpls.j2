@@ -1,0 +1,242 @@
+{# MPLS (Multiprotocol Label Switching) Configuration for Cisco IOS/IOS-XE #}
+
+{% if l3.get('mpls') and l3.mpls.get('enabled') %}
+! ========================================
+! MPLS Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# Enable MPLS globally #}
+mpls label protocol ldp
+{% if l3.mpls.get('label_range') %}
+mpls label range {{ l3.mpls.label_range.min }} {{ l3.mpls.label_range.max }}{% if l3.mpls.label_range.static_min %} static {{ l3.mpls.label_range.static_min }} {{ l3.mpls.label_range.static_max }}{% endif %}
+{% endif %}
+
+{# MPLS LDP Configuration #}
+{% if l3.mpls.get('ldp') %}
+mpls ldp router-id {{ l3.mpls.ldp.router_id | default(l3.mpls.ldp_router_id) }}{% if l3.mpls.ldp.get('force') %} force{% endif %}
+
+{% if l3.mpls.ldp.get('discovery_hello') %}
+mpls ldp discovery hello interval {{ l3.mpls.ldp.discovery_hello.interval | default(5) }}
+mpls ldp discovery hello holdtime {{ l3.mpls.ldp.discovery_hello.holdtime | default(15) }}
+{% endif %}
+
+{% if l3.mpls.ldp.get('session_holdtime') %}
+mpls ldp holdtime {{ l3.mpls.ldp.session_holdtime }}
+{% endif %}
+
+{% if l3.mpls.ldp.get('neighbor_password') %}
+{% for neighbor in l3.mpls.ldp.neighbor_password %}
+mpls ldp neighbor {{ neighbor.address }} password {{ neighbor.password }}
+{% endfor %}
+{% endif %}
+
+{% if l3.mpls.ldp.get('session_protection') %}
+mpls ldp session protection{% if l3.mpls.ldp.session_protection.acl %} for {{ l3.mpls.ldp.session_protection.acl }}{% endif %}{% if l3.mpls.ldp.session_protection.duration %} duration {{ l3.mpls.ldp.session_protection.duration }}{% endif %}
+{% endif %}
+
+{% if l3.mpls.ldp.get('igp_sync') %}
+mpls ldp igp sync
+{% endif %}
+
+{% if l3.mpls.ldp.get('advertise_labels') %}
+mpls ldp advertise-labels{% if l3.mpls.ldp.advertise_labels.acl %} for {{ l3.mpls.ldp.advertise_labels.acl }}{% endif %}{% if l3.mpls.ldp.advertise_labels.to_peer %} to {{ l3.mpls.ldp.advertise_labels.to_peer }}{% endif %}
+{% endif %}
+
+{% if l3.mpls.ldp.get('accept_labels') %}
+mpls ldp accept-labels from {{ l3.mpls.ldp.accept_labels.peer }} for {{ l3.mpls.ldp.accept_labels.acl }}
+{% endif %}
+
+{% if l3.mpls.ldp.get('explicit_null') %}
+mpls ldp explicit-null{% if l3.mpls.ldp.explicit_null.acl %} for {{ l3.mpls.ldp.explicit_null.acl }}{% endif %}{% if l3.mpls.ldp.explicit_null.to_peer %} to {{ l3.mpls.ldp.explicit_null.to_peer }}{% endif %}
+{% endif %}
+
+{% if l3.mpls.ldp.get('graceful_restart') %}
+mpls ldp graceful-restart
+{% if l3.mpls.ldp.graceful_restart.get('reconnect_timeout') %}
+mpls ldp graceful-restart reconnect-timeout {{ l3.mpls.ldp.graceful_restart.reconnect_timeout }}
+{% endif %}
+{% if l3.mpls.ldp.graceful_restart.get('forwarding_holdtime') %}
+mpls ldp graceful-restart forwarding-holdtime {{ l3.mpls.ldp.graceful_restart.forwarding_holdtime }}
+{% endif %}
+{% endif %}
+{% endif %}{# end ldp #}
+
+{# MPLS Traffic Engineering #}
+{% if l3.mpls.get('te') and l3.mpls.te.get('enabled') %}
+! MPLS Traffic Engineering
+mpls traffic-eng tunnels
+
+{% if l3.mpls.te.get('router_id') %}
+mpls traffic-eng router-id {{ l3.mpls.te.router_id }}
+{% endif %}
+
+{% if l3.mpls.te.get('area') %}
+{% for area in l3.mpls.te.area %}
+mpls traffic-eng area {{ area.id | default(area) }}
+{% endfor %}
+{% endif %}
+
+{% if l3.mpls.te.get('level') %}
+mpls traffic-eng level-{{ l3.mpls.te.level }}
+{% endif %}
+
+{% if l3.mpls.te.get('reoptimize') %}
+mpls traffic-eng reoptimize timers frequency {{ l3.mpls.te.reoptimize.frequency | default(3600) }}
+{% endif %}
+
+{% if l3.mpls.te.get('auto_tunnel') %}
+{% if l3.mpls.te.auto_tunnel.get('backup') %}
+mpls traffic-eng auto-tunnel backup
+{% if l3.mpls.te.auto_tunnel.backup.get('tunnel_num_range') %}
+mpls traffic-eng auto-tunnel backup tunnel-num min {{ l3.mpls.te.auto_tunnel.backup.tunnel_num_range.min }} max {{ l3.mpls.te.auto_tunnel.backup.tunnel_num_range.max }}
+{% endif %}
+{% endif %}
+{% if l3.mpls.te.auto_tunnel.get('primary') %}
+mpls traffic-eng auto-tunnel primary
+{% if l3.mpls.te.auto_tunnel.primary.get('tunnel_num_range') %}
+mpls traffic-eng auto-tunnel primary tunnel-num min {{ l3.mpls.te.auto_tunnel.primary.tunnel_num_range.min }} max {{ l3.mpls.te.auto_tunnel.primary.tunnel_num_range.max }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# TE Tunnels #}
+{% if l3.mpls.te.get('tunnels') %}
+{% for tunnel in l3.mpls.te.tunnels %}
+interface Tunnel{{ tunnel.id }}
+  ip unnumbered {{ tunnel.unnumbered | default('Loopback0') }}
+  tunnel mode mpls traffic-eng
+  tunnel destination {{ tunnel.destination }}
+  tunnel mpls traffic-eng autoroute announce
+{% if tunnel.bandwidth %}
+  tunnel mpls traffic-eng bandwidth {{ tunnel.bandwidth }}
+{% endif %}
+{% if tunnel.priority %}
+  tunnel mpls traffic-eng priority {{ tunnel.priority.setup | default(7) }} {{ tunnel.priority.hold | default(7) }}
+{% endif %}
+{% if tunnel.affinity %}
+  tunnel mpls traffic-eng affinity {{ tunnel.affinity.value }} mask {{ tunnel.affinity.mask }}
+{% endif %}
+{% if tunnel.path_option %}
+{% for path in tunnel.path_option %}
+  tunnel mpls traffic-eng path-option {{ path.preference }} {% if path.type == 'dynamic' %}dynamic{% elif path.type == 'explicit' %}explicit name {{ path.name }}{% endif %}{% if path.attributes %} attributes {{ path.attributes }}{% endif %}
+{% endfor %}
+{% endif %}
+{% if tunnel.fast_reroute %}
+  tunnel mpls traffic-eng fast-reroute
+{% endif %}
+{% if tunnel.record_route %}
+  tunnel mpls traffic-eng record-route
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+{% endif %}{# end mpls.te #}
+
+{# MPLS L3VPN Configuration #}
+{% if l3.mpls.get('l3vpn') %}
+{% for vpn in l3.mpls.l3vpn %}
+! L3VPN: {{ vpn.name }}
+vrf definition {{ vpn.name }}
+  rd {{ vpn.rd }}
+{% for rt_export in vpn.rt_export | default([vpn.rt]) %}
+  route-target export {{ rt_export }}
+{% endfor %}
+{% for rt_import in vpn.rt_import | default([vpn.rt]) %}
+  route-target import {{ rt_import }}
+{% endfor %}
+  !
+  address-family ipv4
+  exit-address-family
+{% if vpn.get('ipv6') %}
+  address-family ipv6
+  exit-address-family
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# MPLS Interfaces #}
+{% if l3.mpls.get('interfaces') %}
+{% for iface in l3.mpls.interfaces %}
+interface {{ iface.interface }}
+  mpls ip
+{% if iface.ldp_igp_sync %}
+  mpls ldp igp sync
+{% endif %}
+{% if iface.te_enabled %}
+  mpls traffic-eng tunnels
+{% if iface.te_metric %}
+  mpls traffic-eng administrative-weight {{ iface.te_metric }}
+{% endif %}
+{% if iface.te_bandwidth %}
+  mpls traffic-eng bandwidth-allocation {{ iface.te_bandwidth }}
+{% endif %}
+{% endif %}
+{% if iface.mtu %}
+  mpls mtu {{ iface.mtu }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# MPLS Static Bindings #}
+{% if l3.mpls.get('static_bindings') %}
+{% for binding in l3.mpls.static_bindings %}
+mpls static binding ipv4 {{ binding.prefix }} {{ binding.mask }} input {{ binding.input_label | default('none') }} output {{ binding.nexthop }} {{ binding.output_label }}
+{% endfor %}
+{% endif %}
+
+{# MPLS L2VPN (AToM/Pseudowire) #}
+{% if l3.mpls.get('l2vpn') %}
+{% for pw in l3.mpls.l2vpn %}
+! Pseudowire: {{ pw.name | default(pw.id) }}
+interface {{ pw.interface }}
+  xconnect {{ pw.peer_ip }} {{ pw.vc_id }} encapsulation mpls{% if pw.manual %} manual{% endif %}{% if pw.backup %}
+  backup peer {{ pw.backup.peer_ip }} {{ pw.backup.vc_id }}{% if pw.backup.delay %} delay {{ pw.backup.delay }}{% endif %}{% endif %}
+{% if pw.pw_class %}
+  pw-class {{ pw.pw_class }}
+{% endif %}
+!
+{% endfor %}
+
+{% if l3.mpls.get('pseudowire_classes') %}
+{% for pw_class in l3.mpls.pseudowire_classes %}
+pseudowire-class {{ pw_class.name }}
+  encapsulation mpls
+{% if pw_class.control_word %}
+  control-word
+{% endif %}
+{% if pw_class.interworking %}
+  interworking {{ pw_class.interworking }}
+{% endif %}
+{% if pw_class.sequencing %}
+  sequencing {% if pw_class.sequencing == 'both' %}both{% elif pw_class.sequencing == 'transmit' %}transmit{% elif pw_class.sequencing == 'receive' %}receive{% endif %}
+{% endif %}
+{% if pw_class.status %}
+  status {% if pw_class.status.protocol %}protocol notification{% endif %}{% if pw_class.status.decoupled %}decoupled{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+{% endif %}{# end l2vpn #}
+
+{# MPLS OAM (Operations, Administration, Maintenance) #}
+{% if l3.mpls.get('oam') %}
+{% if l3.mpls.oam.get('echo') %}
+mpls oam echo
+{% endif %}
+{% if l3.mpls.oam.get('ttl_expiration_pop') %}
+mpls ip ttl-expiration pop {{ l3.mpls.oam.ttl_expiration_pop }}
+{% endif %}
+{% if l3.mpls.oam.get('propagate_ttl') %}
+{% if l3.mpls.oam.propagate_ttl.forwarded %}
+mpls ip propagate-ttl forwarded
+{% endif %}
+{% if l3.mpls.oam.propagate_ttl.local %}
+mpls ip propagate-ttl local
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l3.mpls #}

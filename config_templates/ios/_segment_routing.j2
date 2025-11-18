@@ -1,0 +1,287 @@
+{# Segment Routing (SR) Configuration for Cisco IOS-XE / IOS-XR #}
+
+{% if l3.get('segment_routing') and l3.segment_routing.get('enabled') %}
+! ========================================
+! Segment Routing Configuration
+! Device: {{ global.hostname | default('Router') }}
+! Type: {{ l3.segment_routing.type | default('sr-mpls') | upper }}
+! ========================================
+
+{% if l3.segment_routing.get('type') == 'sr-mpls' or not l3.segment_routing.get('type') %}
+{# SR-MPLS Configuration #}
+segment-routing mpls
+{% if l3.segment_routing.get('global_block') %}
+  global-block {{ l3.segment_routing.global_block.start | default(l3.segment_routing.srgb_start) }} {{ l3.segment_routing.global_block.end | default(l3.segment_routing.srgb_end) }}
+{% endif %}
+{% if l3.segment_routing.get('local_block') %}
+  local-block {{ l3.segment_routing.local_block.start }} {{ l3.segment_routing.local_block.end }}
+{% endif %}
+{% if l3.segment_routing.get('mapping_server') %}
+  mapping-server
+{% for prefix in l3.segment_routing.mapping_server.prefixes | default([]) %}
+    prefix-sid-map
+      address-family ipv4
+        {{ prefix.prefix }} {{ prefix.mask }} {{ prefix.sid }}{% if prefix.range %} range {{ prefix.range }}{% endif %}
+      exit-address-family
+    !
+{% endfor %}
+  !
+{% endif %}
+{% if l3.segment_routing.get('connected_prefix_sid_map') %}
+  connected-prefix-sid-map
+    address-family ipv4
+{% for mapping in l3.segment_routing.connected_prefix_sid_map %}
+      {{ mapping.prefix }} {{ mapping.mask }} index {{ mapping.index }}{% if mapping.range %} range {{ mapping.range }}{% endif %}{% if mapping.attach %}attach{% endif %}
+{% endfor %}
+    exit-address-family
+  !
+{% endif %}
+!
+
+{# SR-MPLS with IGP (OSPF/ISIS) #}
+{% if l3.segment_routing.get('ospf') %}
+{% for process in l3.segment_routing.ospf %}
+router ospf {{ process.process_id }}
+  segment-routing mpls
+{% if process.node_sid %}
+  segment-routing prefix-sid {{ process.prefix }} index {{ process.node_sid }}{% if process.explicit_null %} explicit-null{% endif %}{% if process.no_php %} no-php-flag{% endif %}
+{% endif %}
+{% if process.sr_prefer %}
+  segment-routing sr-prefer
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.segment_routing.get('isis') %}
+{% for process in l3.segment_routing.isis %}
+router isis {{ process.process_name | default('') }}
+  segment-routing mpls
+{% if process.node_sid %}
+  segment-routing prefix-sid index {{ process.node_sid }}{% if process.explicit_null %} explicit-null{% endif %}{% if process.n_flag_clear %} n-flag-clear{% endif %}
+{% endif %}
+{% if process.sr_prefer %}
+  segment-routing sr-prefer
+{% endif %}
+{% if process.prefix_sid_map %}
+  segment-routing prefix-sid-map advertise-local
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# SR Policies #}
+{% if l3.segment_routing.get('policies') %}
+{% for policy in l3.segment_routing.policies %}
+segment-routing
+  traffic-eng
+    policy {{ policy.name }}
+      color {{ policy.color }} end-point ipv4 {{ policy.endpoint }}
+{% if policy.candidate_paths %}
+{% for path in policy.candidate_paths %}
+      candidate-paths
+        preference {{ path.preference }}
+{% if path.explicit %}
+          explicit segment-list {{ path.segment_list }}
+{% elif path.dynamic %}
+          dynamic
+{% if path.metric_type %}
+            metric type {{ path.metric_type }}
+{% endif %}
+{% if path.constraints %}
+{% if path.constraints.affinity %}
+            affinity {{ path.constraints.affinity.include | default('0') }} {{ path.constraints.affinity.exclude | default('0') }}
+{% endif %}
+{% endif %}
+{% endif %}
+        !
+{% endfor %}
+{% endif %}
+    !
+{% endfor %}
+{% endif %}
+
+{# SR Segment Lists #}
+{% if l3.segment_routing.get('segment_lists') %}
+{% for seg_list in l3.segment_routing.segment_lists %}
+segment-routing
+  traffic-eng
+    segment-list {{ seg_list.name }}
+{% for segment in seg_list.segments %}
+      index {{ segment.index }} mpls label {{ segment.label }}
+{% endfor %}
+    !
+!
+{% endfor %}
+{% endif %}
+
+{# SR-TE On-Demand Next-Hop #}
+{% if l3.segment_routing.get('te_on_demand') %}
+segment-routing
+  traffic-eng
+    on-demand color {{ l3.segment_routing.te_on_demand.color }}
+{% if l3.segment_routing.te_on_demand.metric_type %}
+      metric-type {{ l3.segment_routing.te_on_demand.metric_type }}
+{% endif %}
+{% if l3.segment_routing.te_on_demand.bandwidth %}
+      bandwidth {{ l3.segment_routing.te_on_demand.bandwidth }}
+{% endif %}
+    !
+!
+{% endif %}
+
+{# SR Prefix-SID on Interfaces #}
+{% if l3.segment_routing.get('interfaces') %}
+{% for iface in l3.segment_routing.interfaces %}
+interface {{ iface.interface }}
+{% if iface.prefix_sid %}
+  segment-routing prefix-sid index {{ iface.prefix_sid }}{% if iface.explicit_null %} explicit-null{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% elif l3.segment_routing.get('type') == 'srv6' %}
+{# SRv6 Configuration #}
+segment-routing
+  srv6
+{% if l3.segment_routing.get('locators') %}
+{% for locator in l3.segment_routing.locators %}
+    locator {{ locator.name }}
+      prefix {{ locator.prefix | default(l3.segment_routing.srv6_locator_prefix) }}/{{ locator.prefix_length | default(48) }}
+{% if locator.algorithm %}
+      algorithm {{ locator.algorithm }}
+{% endif %}
+{% if locator.behavior %}
+      behavior {{ locator.behavior | default(l3.segment_routing.srv6_behavior) }}
+{% endif %}
+    !
+{% endfor %}
+{% endif %}
+{% if l3.segment_routing.get('encapsulation') %}
+    encapsulation
+      source-address {{ l3.segment_routing.encapsulation.source_address }}
+    !
+{% endif %}
+  !
+!
+
+{# SRv6 with IGP #}
+{% if l3.segment_routing.get('srv6_ospf') %}
+{% for process in l3.segment_routing.srv6_ospf %}
+router ospf {{ process.process_id }}
+  segment-routing srv6
+    locator {{ process.locator }}
+{% if process.source_address %}
+    source-address {{ process.source_address }}
+{% endif %}
+  !
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.segment_routing.get('srv6_isis') %}
+{% for process in l3.segment_routing.srv6_isis %}
+router isis {{ process.process_name | default('') }}
+  segment-routing srv6
+    locator {{ process.locator }}
+  !
+!
+{% endfor %}
+{% endif %}
+
+{# SRv6 uSID (Micro Segment) #}
+{% if l3.segment_routing.get('usid') and l3.segment_routing.usid.get('enabled') %}
+segment-routing
+  srv6
+    micro-segment behavior unode psp-usd
+  !
+!
+{% endif %}
+
+{# SRv6 TE Policies #}
+{% if l3.segment_routing.get('srv6_policies') %}
+{% for policy in l3.segment_routing.srv6_policies %}
+segment-routing
+  traffic-eng
+    policy {{ policy.name }}
+      srv6
+        locator {{ policy.locator }}
+      !
+      color {{ policy.color }} end-point ipv6 {{ policy.endpoint }}
+{% if policy.candidate_paths %}
+{% for path in policy.candidate_paths %}
+      candidate-paths
+        preference {{ path.preference }}
+{% if path.segment_list %}
+          explicit segment-list {{ path.segment_list }}
+{% elif path.dynamic %}
+          dynamic
+{% endif %}
+        !
+{% endfor %}
+{% endif %}
+    !
+!
+{% endfor %}
+{% endif %}
+
+{# SRv6 Interfaces #}
+{% if l3.segment_routing.get('srv6_interfaces') %}
+{% for iface in l3.segment_routing.srv6_interfaces %}
+interface {{ iface.interface }}
+  ipv6 address {{ iface.ipv6_address }}
+{% if iface.srv6_enable %}
+  segment-routing srv6
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end srv6 #}
+
+{# TI-LFA (Topology Independent Loop-Free Alternate) with SR #}
+{% if l3.segment_routing.get('ti_lfa') and l3.segment_routing.ti_lfa.get('enabled') %}
+! TI-LFA Configuration
+{% if l3.segment_routing.ti_lfa.get('ospf') %}
+{% for process in l3.segment_routing.ti_lfa.ospf %}
+router ospf {{ process.process_id }}
+  fast-reroute per-prefix enable prefix-priority low
+  fast-reroute ti-lfa enable
+!
+{% endfor %}
+{% endif %}
+
+{% if l3.segment_routing.ti_lfa.get('isis') %}
+{% for process in l3.segment_routing.ti_lfa.isis %}
+router isis {{ process.process_name | default('') }}
+  fast-reroute per-prefix level-{{ process.level | default('2') }} all
+  fast-reroute ti-lfa level-{{ process.level | default('2') }}
+!
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{# SR Flexible Algorithm #}
+{% if l3.segment_routing.get('flex_algo') %}
+{% for algo in l3.segment_routing.flex_algo %}
+segment-routing
+  mpls
+    flexible-algorithm {{ algo.number }}
+      metric-type {{ algo.metric_type | default('igp') }}
+{% if algo.affinity %}
+      affinity include {{ algo.affinity.include }}
+{% if algo.affinity.exclude %}
+      affinity exclude {{ algo.affinity.exclude }}
+{% endif %}
+{% endif %}
+{% if algo.priority %}
+      priority {{ algo.priority }}
+{% endif %}
+    !
+  !
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end segment_routing #}

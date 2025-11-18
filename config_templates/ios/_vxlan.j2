@@ -1,0 +1,223 @@
+{# VXLAN / EVPN Configuration for Cisco IOS-XE / Nexus #}
+
+{% if vxlan and vxlan.enabled %}
+! ========================================
+! VXLAN / EVPN Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! VTEP Source: {{ vxlan.source | default('Loopback0') }}
+! ========================================
+
+{# NVE (Network Virtualization Endpoint) Interface #}
+interface nve{{ vxlan.nve_id | default(1) }}
+{% if vxlan.description %}
+  description {{ vxlan.description }}
+{% endif %}
+  no shutdown
+  source-interface {{ vxlan.source | default('Loopback0') }}
+{% if vxlan.host_reachability %}
+  host-reachability protocol {{ vxlan.host_reachability }}
+{% endif %}
+
+{# VNI (VXLAN Network Identifier) Mappings #}
+{% if vxlan.vni_mappings %}
+{% for vni in vxlan.vni_mappings %}
+  member vni {{ vni.vni }}
+{% if vni.mcast_group and vni.mcast_group != 'static' %}
+    mcast-group {{ vni.mcast_group }}
+{% endif %}
+{% if vni.suppress_arp %}
+    suppress-arp
+{% endif %}
+{% if vni.ingress_replication or vxlan.mcast == 'static' or vni.mcast_group == 'static' %}
+    ingress-replication protocol {% if vni.ingress_replication_protocol %}{{ vni.ingress_replication_protocol }}{% else %}bgp{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# L2VNI for EVPN #}
+{% if vxlan.evpn and vxlan.evpn.enabled %}
+{% if vxlan.evpn.l2vni %}
+{% for l2vni in vxlan.evpn.l2vni %}
+  member vni {{ l2vni.vni }}{% if l2vni.vlan %} associate-vrf{% endif %}
+{% endfor %}
+{% endif %}
+
+{# L3VNI for EVPN #}
+{% if vxlan.evpn.l3vni %}
+{% for l3vni in vxlan.evpn.l3vni %}
+  member vni {{ l3vni.vni }} associate-vrf
+{% endfor %}
+{% endif %}
+{% endif %}
+!
+
+{# VLAN to VNI Mapping #}
+{% if vxlan.vni_mappings %}
+{% for vni in vxlan.vni_mappings %}
+{% if vni.vlan %}
+vlan {{ vni.vlan }}
+  vn-segment {{ vni.vni }}
+!
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# EVPN Configuration #}
+{% if vxlan.evpn and vxlan.evpn.enabled %}
+! EVPN Configuration
+{% if vxlan.evpn.bgp %}
+router bgp {{ vxlan.evpn.bgp.asn }}
+{% if vxlan.evpn.bgp.router_id %}
+  bgp router-id {{ vxlan.evpn.bgp.router_id }}
+{% endif %}
+  neighbor {{ vxlan.evpn.bgp.peer_address | default(vxlan.evpn.bgp.route_reflector) }} remote-as {{ vxlan.evpn.bgp.remote_asn | default(vxlan.evpn.bgp.asn) }}
+  neighbor {{ vxlan.evpn.bgp.peer_address | default(vxlan.evpn.bgp.route_reflector) }} update-source {{ vxlan.source | default('Loopback0') }}
+  !
+  address-family l2vpn evpn
+    neighbor {{ vxlan.evpn.bgp.peer_address | default(vxlan.evpn.bgp.route_reflector) }} activate
+    neighbor {{ vxlan.evpn.bgp.peer_address | default(vxlan.evpn.bgp.route_reflector) }} send-community extended
+{% if vxlan.evpn.bgp.route_reflector_client %}
+    neighbor {{ vxlan.evpn.bgp.peer_address | default(vxlan.evpn.bgp.route_reflector) }} route-reflector-client
+{% endif %}
+{% if vxlan.evpn.advertise_all_vni %}
+    advertise-all-vni
+{% endif %}
+{% if vxlan.evpn.advertise_default_gw %}
+    advertise-default-gw
+{% endif %}
+{% if vxlan.evpn.advertise_svi_ip %}
+    advertise-svi-ip
+{% endif %}
+  exit-address-family
+!
+{% endif %}
+
+{# EVPN Instance #}
+{% if vxlan.evpn.instance %}
+{% for evi in vxlan.evpn.instance %}
+evpn instance {{ evi.id }} vlan-based
+{% if evi.rd or vxlan.evpn.rd %}
+  rd {{ evi.rd | default(vxlan.evpn.rd) }}
+{% endif %}
+{% if evi.rt or vxlan.evpn.rt %}
+  route-target import {{ evi.rt | default(vxlan.evpn.rt) }}
+  route-target export {{ evi.rt | default(vxlan.evpn.rt) }}
+{% endif %}
+{% if evi.replication_type %}
+  replication-type {{ evi.replication_type }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# EVPN Ethernet Segment (Multi-homing) #}
+{% if vxlan.evpn.ethernet_segment %}
+{% for es in vxlan.evpn.ethernet_segment %}
+interface {{ es.interface }}
+  evpn ethernet-segment {{ es.esi }}
+{% if es.system_mac %}
+    system-mac {{ es.system_mac }}
+{% endif %}
+{% if es.df_election %}
+    df-election wait-time {{ es.df_election.wait_time | default(3) }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+{% endif %}{# end evpn #}
+
+{# Anycast Gateway #}
+{% if vxlan.anycast_gateway and vxlan.anycast_gateway.enabled %}
+! Anycast Gateway Configuration
+{% if vxlan.anycast_gateway.mac %}
+fabric forwarding anycast-gateway-mac {{ vxlan.anycast_gateway.mac | default(vxlan.anycast_mac) }}
+{% endif %}
+
+{# SVI with Anycast Gateway #}
+{% if vxlan.anycast_gateway.vlans %}
+{% for vlan in vxlan.anycast_gateway.vlans %}
+interface Vlan{{ vlan.vlan_id }}
+  ip address {{ vlan.ip_address }}
+  fabric forwarding mode anycast-gateway
+{% if vlan.ipv6 %}
+  ipv6 address {{ vlan.ipv6 }}
+  fabric forwarding mode anycast-gateway
+{% endif %}
+{% if vlan.vrf %}
+  vrf member {{ vlan.vrf }}
+{% endif %}
+  no shutdown
+!
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{# VXLAN Flood and Learn (non-EVPN) #}
+{% if vxlan.flood_and_learn and not (vxlan.evpn and vxlan.evpn.enabled) %}
+! VXLAN Flood and Learn
+{% for vni in vxlan.vni_mappings %}
+{% if vni.flood_list %}
+interface nve{{ vxlan.nve_id | default(1) }}
+  member vni {{ vni.vni }}
+{% for vtep in vni.flood_list %}
+    peer-ip {{ vtep }}
+{% endfor %}
+!
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# VRF for L3VNI #}
+{% if vxlan.vrfs %}
+{% for vrf in vxlan.vrfs %}
+vrf context {{ vrf.name }}
+  vni {{ vrf.vni }}
+{% if vrf.rd %}
+  rd {{ vrf.rd }}
+{% endif %}
+{% if vrf.rt_import %}
+  address-family ipv4 unicast
+    route-target import {{ vrf.rt_import }}
+    route-target export {{ vrf.rt_export | default(vrf.rt_import) }}
+  exit-address-family
+{% endif %}
+{% if vrf.rt_import_ipv6 %}
+  address-family ipv6 unicast
+    route-target import {{ vrf.rt_import_ipv6 }}
+    route-target export {{ vrf.rt_export_ipv6 | default(vrf.rt_import_ipv6) }}
+  exit-address-family
+{% endif %}
+!
+
+interface Vlan{{ vrf.vlan }}
+  no shutdown
+  vrf member {{ vrf.name }}
+  ip forward
+{% if vrf.ipv6 %}
+  ipv6 forward
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# VXLAN Statistics and Monitoring #}
+{% if vxlan.monitoring %}
+{% if vxlan.monitoring.counters %}
+hardware access-list vxlan counters enable
+{% endif %}
+{% if vxlan.monitoring.visibility %}
+nve visibility enable
+{% endif %}
+{% endif %}
+
+{# VXLAN Overlay BUM (Broadcast, Unknown Unicast, Multicast) Optimization #}
+{% if vxlan.bum_optimization %}
+{% if vxlan.bum_optimization.head_end_replication %}
+! Head-End Replication for BUM Traffic
+{% endif %}
+{% if vxlan.bum_optimization.multicast_underlay %}
+! Multicast Underlay for BUM Traffic
+{% endif %}
+{% endif %}
+
+{% endif %}{# end vxlan #}

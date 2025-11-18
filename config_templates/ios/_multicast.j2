@@ -1,0 +1,203 @@
+{# Multicast Configuration for Cisco IOS/IOS-XE #}
+
+{% if l3.get('multicast') and l3.multicast.get('enabled') %}
+! ========================================
+! IP Multicast Configuration
+! Device: {{ global.hostname | default('Router') }}
+! ========================================
+
+{# Enable IP Multicast Routing #}
+ip multicast-routing{% if l3.multicast.get('distributed') %} distributed{% endif %}{% if l3.multicast.get('vrf') %} vrf {{ l3.multicast.vrf }}{% endif %}
+
+
+{# PIM (Protocol Independent Multicast) Configuration #}
+{% if l3.multicast.get('pim') %}
+{% if l3.multicast.pim.get('enabled') %}
+
+{# PIM RP (Rendezvous Point) Configuration #}
+{% if l3.multicast.pim.get('rp_address') %}
+ip pim rp-address {{ l3.multicast.pim.rp_address }}{% if l3.multicast.pim.get('rp_acl') %} {{ l3.multicast.pim.rp_acl }}{% endif %}{% if l3.multicast.pim.get('rp_override') %} override{% endif %}
+{% endif %}
+
+{# PIM Auto-RP #}
+{% if l3.multicast.pim.get('auto_rp') %}
+{% if l3.multicast.pim.auto_rp.get('mapping_agent') %}
+ip pim send-rp-discovery scope {{ l3.multicast.pim.auto_rp.mapping_agent.ttl | default(31) }}
+{% endif %}
+{% if l3.multicast.pim.auto_rp.get('candidate_rp') %}
+ip pim send-rp-announce {{ l3.multicast.pim.auto_rp.candidate_rp.interface }} scope {{ l3.multicast.pim.auto_rp.candidate_rp.ttl | default(31) }}{% if l3.multicast.pim.auto_rp.candidate_rp.group_list %} group-list {{ l3.multicast.pim.auto_rp.candidate_rp.group_list }}{% endif %}
+{% endif %}
+{% endif %}
+
+{# PIM BSR (Bootstrap Router) #}
+{% if l3.multicast.pim.get('bsr') %}
+{% if l3.multicast.pim.bsr.get('candidate_bsr') %}
+ip pim bsr-candidate {{ l3.multicast.pim.bsr.candidate_bsr.interface }}{% if l3.multicast.pim.bsr.candidate_bsr.hash_mask_length %} {{ l3.multicast.pim.bsr.candidate_bsr.hash_mask_length }}{% endif %}{% if l3.multicast.pim.bsr.candidate_bsr.priority %} {{ l3.multicast.pim.bsr.candidate_bsr.priority }}{% endif %}
+{% endif %}
+{% if l3.multicast.pim.bsr.get('candidate_rp') %}
+ip pim rp-candidate {{ l3.multicast.pim.bsr.candidate_rp.interface }}{% if l3.multicast.pim.bsr.candidate_rp.group_list %} group-list {{ l3.multicast.pim.bsr.candidate_rp.group_list }}{% endif %}{% if l3.multicast.pim.bsr.candidate_rp.priority %} priority {{ l3.multicast.pim.bsr.candidate_rp.priority }}{% endif %}
+{% endif %}
+{% endif %}
+
+{# PIM Anycast-RP #}
+{% if l3.multicast.pim.get('anycast_rp') %}
+{% for peer in l3.multicast.pim.anycast_rp.peers | default([]) %}
+ip pim anycast-rp {{ l3.multicast.pim.anycast_rp.rp_address }} {{ peer }}
+{% endfor %}
+{% endif %}
+
+{# PIM Register Source #}
+{% if l3.multicast.pim.get('register_source') %}
+ip pim register-source {{ l3.multicast.pim.register_source }}
+{% endif %}
+
+{# PIM SPT Threshold #}
+{% if l3.multicast.pim.get('spt_threshold') %}
+ip pim spt-threshold {% if l3.multicast.pim.spt_threshold == 'infinity' %}infinity{% else %}{{ l3.multicast.pim.spt_threshold }}{% endif %}{% if l3.multicast.pim.get('spt_group_list') %} group-list {{ l3.multicast.pim.spt_group_list }}{% endif %}
+{% endif %}
+
+{# PIM Accept Register #}
+{% if l3.multicast.pim.get('accept_register') %}
+ip pim accept-register list {{ l3.multicast.pim.accept_register }}
+{% endif %}
+
+{# PIM SSM (Source-Specific Multicast) #}
+{% if l3.multicast.pim.get('ssm') %}
+{% if l3.multicast.pim.ssm.get('enabled') %}
+ip pim ssm {% if l3.multicast.pim.ssm.get('range') %}range {{ l3.multicast.pim.ssm.range }}{% else %}default{% endif %}
+{% endif %}
+{% endif %}
+
+{# PIM Bidir #}
+{% if l3.multicast.pim.get('bidir') and l3.multicast.pim.bidir.get('enabled') %}
+ip pim bidir-enable
+{% endif %}
+
+{% endif %}{# end pim.enabled #}
+{% endif %}{# end pim #}
+
+{# IGMP (Internet Group Management Protocol) #}
+{% if l3.multicast.get('igmp') %}
+{% if l3.multicast.igmp.get('version') %}
+! IGMP Version: {{ l3.multicast.igmp.version }}
+{% endif %}
+
+{# IGMP Snooping #}
+{% if l3.multicast.igmp.get('snooping') %}
+{% if l3.multicast.igmp.snooping.get('enabled') %}
+ip igmp snooping
+{% if l3.multicast.igmp.snooping.get('vlans') %}
+{% for vlan in l3.multicast.igmp.snooping.vlans %}
+ip igmp snooping vlan {{ vlan }}
+{% endfor %}
+{% endif %}
+{% if l3.multicast.igmp.snooping.get('querier') %}
+ip igmp snooping querier
+{% endif %}
+{% if l3.multicast.igmp.snooping.get('fast_leave') %}
+ip igmp snooping fast-leave
+{% endif %}
+{% else %}
+no ip igmp snooping
+{% endif %}
+{% endif %}
+
+{# IGMP Static Groups #}
+{% if l3.multicast.igmp.get('static_groups') %}
+{% for group in l3.multicast.igmp.static_groups %}
+ip igmp join-group {{ group.address }}{% if group.source %} source {{ group.source }}{% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}{# end igmp #}
+
+{# MSDP (Multicast Source Discovery Protocol) #}
+{% if l3.multicast.get('msdp') %}
+{% if l3.multicast.msdp.get('enabled') %}
+! MSDP Configuration
+{% for peer in l3.multicast.msdp.get('peers', []) %}
+ip msdp peer {{ peer.address }}{% if peer.connect_source %} connect-source {{ peer.connect_source }}{% endif %}{% if peer.remote_as %} remote-as {{ peer.remote_as }}{% endif %}
+{% if peer.description %}
+ip msdp description {{ peer.address }} {{ peer.description }}
+{% endif %}
+{% if peer.mesh_group %}
+ip msdp mesh-group {{ peer.mesh_group }} {{ peer.address }}
+{% endif %}
+{% if peer.sa_filter_in %}
+ip msdp sa-filter in {{ peer.address }} list {{ peer.sa_filter_in }}
+{% endif %}
+{% if peer.sa_filter_out %}
+ip msdp sa-filter out {{ peer.address }} list {{ peer.sa_filter_out }}
+{% endif %}
+{% endfor %}
+
+{% if l3.multicast.msdp.get('originator_id') %}
+ip msdp originator-id {{ l3.multicast.msdp.originator_id }}
+{% endif %}
+
+{% if l3.multicast.msdp.get('default_peer') %}
+ip msdp default-peer {{ l3.multicast.msdp.default_peer.address }}{% if l3.multicast.msdp.default_peer.prefix_list %} prefix-list {{ l3.multicast.msdp.default_peer.prefix_list }}{% endif %}
+{% endif %}
+
+{% if l3.multicast.msdp.get('cache_sa_state') %}
+ip msdp cache-sa-state{% if l3.multicast.msdp.cache_sa_state.list %} {{ l3.multicast.msdp.cache_sa_state.list }}{% endif %}
+{% endif %}
+{% endif %}
+{% endif %}{# end msdp #}
+
+{# Multicast Boundaries #}
+{% if l3.multicast.get('boundaries') %}
+{% for boundary in l3.multicast.boundaries %}
+! Boundary on interface {{ boundary.interface }}
+{% endfor %}
+{% endif %}
+
+{# PIM Interface Configuration #}
+{% if l3.multicast.get('interfaces') %}
+{% for iface in l3.multicast.interfaces %}
+interface {{ iface.interface }}
+{% if iface.pim_mode %}
+  ip pim {{ iface.pim_mode }}
+{% endif %}
+{% if iface.igmp_version %}
+  ip igmp version {{ iface.igmp_version }}
+{% endif %}
+{% if iface.igmp_query_interval %}
+  ip igmp query-interval {{ iface.igmp_query_interval }}
+{% endif %}
+{% if iface.igmp_query_max_response %}
+  ip igmp query-max-response-time {{ iface.igmp_query_max_response }}
+{% endif %}
+{% if iface.pim_dr_priority %}
+  ip pim dr-priority {{ iface.pim_dr_priority }}
+{% endif %}
+{% if iface.pim_hello_interval %}
+  ip pim hello-interval {{ iface.pim_hello_interval }}
+{% endif %}
+{% if iface.pim_neighbor_filter %}
+  ip pim neighbor-filter {{ iface.pim_neighbor_filter }}
+{% endif %}
+{% if iface.pim_bsr_border %}
+  ip pim bsr-border
+{% endif %}
+{% if iface.multicast_boundary %}
+  ip multicast boundary {{ iface.multicast_boundary }}{% if iface.boundary_filter_autorp %} filter-autorp{% endif %}
+{% endif %}
+{% if iface.igmp_static_group %}
+  ip igmp static-group {{ iface.igmp_static_group }}{% if iface.igmp_static_source %} source {{ iface.igmp_static_source }}{% endif %}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# Multicast VRF #}
+{% if l3.multicast.get('vrfs') %}
+{% for vrf in l3.multicast.vrfs %}
+ip multicast-routing vrf {{ vrf.name }}{% if vrf.distributed %} distributed{% endif %}
+
+{% if vrf.pim_rp_address %}
+ip pim vrf {{ vrf.name }} rp-address {{ vrf.pim_rp_address }}{% if vrf.pim_rp_acl %} {{ vrf.pim_rp_acl }}{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end l3.multicast #}
