@@ -1,0 +1,217 @@
+{# Telemetry Configuration for Cisco IOS-XE/NX-OS #}
+{# sFlow, IPFIX, Model-Driven Telemetry (gNMI), NETCONF/RESTCONF #}
+
+{% if l3.telemetry and l3.telemetry.enabled %}
+
+{# NetFlow/IPFIX Configuration #}
+{% if l3.telemetry.netflow %}
+{% if l3.telemetry.netflow.enabled %}
+{# Flow Exporter #}
+{% for exporter in l3.telemetry.netflow.exporters | default([]) %}
+flow exporter {{ exporter.name }}
+  description {{ exporter.description | default('Flow Exporter') }}
+  destination {{ exporter.destination }}
+{% if exporter.source %}
+  source {{ exporter.source }}
+{% endif %}
+{% if exporter.port %}
+  transport udp {{ exporter.port }}
+{% endif %}
+{% if exporter.dscp %}
+  dscp {{ exporter.dscp }}
+{% endif %}
+{% if exporter.vrf %}
+  output-features
+{% endif %}
+{% if exporter.template_data_timeout %}
+  template data timeout {{ exporter.template_data_timeout }}
+{% endif %}
+{% if exporter.option_exporter_stats %}
+  option exporter-stats timeout {{ exporter.option_exporter_stats }}
+{% endif %}
+!
+{% endfor %}
+
+{# Flow Monitor #}
+{% for monitor in l3.telemetry.netflow.monitors | default([]) %}
+flow monitor {{ monitor.name }}
+  description {{ monitor.description | default('Flow Monitor') }}
+{% if monitor.record %}
+  record {{ monitor.record }}
+{% endif %}
+{% if monitor.cache_timeout %}
+  cache timeout {% if monitor.cache_timeout.active %}active {{ monitor.cache_timeout.active }}{% endif %}{% if monitor.cache_timeout.inactive %} inactive {{ monitor.cache_timeout.inactive }}{% endif %}
+{% endif %}
+{% if monitor.cache_entries %}
+  cache entries {{ monitor.cache_entries }}
+{% endif %}
+  exporter {{ monitor.exporter }}
+!
+{% endfor %}
+
+{# Flow Record (custom) #}
+{% for record in l3.telemetry.netflow.records | default([]) %}
+flow record {{ record.name }}
+  description {{ record.description | default('Custom Flow Record') }}
+{% if record.match %}
+{% for match in record.match %}
+  match {{ match }}
+{% endfor %}
+{% endif %}
+{% if record.collect %}
+{% for collect in record.collect %}
+  collect {{ collect }}
+{% endfor %}
+{% endif %}
+!
+{% endfor %}
+
+{# Apply to Interfaces #}
+{% for iface in l3.telemetry.netflow.interfaces | default([]) %}
+interface {{ iface.interface }}
+{% for monitor in iface.monitors | default([]) %}
+  ip flow monitor {{ monitor.name }} {% if monitor.direction %}{{ monitor.direction }}{% else %}input{% endif %}
+{% if monitor.sampler %}
+  ip flow monitor {{ monitor.name }} sampler {{ monitor.sampler }}
+{% endif %}
+{% endfor %}
+!
+{% endfor %}
+
+{# Sampler (for high-volume interfaces) #}
+{% for sampler in l3.telemetry.netflow.samplers | default([]) %}
+sampler {{ sampler.name }}
+  mode random 1 out-of {{ sampler.rate }}
+!
+{% endfor %}
+{% endif %}{# end netflow.enabled #}
+{% endif %}{# end netflow #}
+
+{# sFlow Configuration (mainly for NX-OS/EOS) #}
+{% if l3.telemetry.sflow %}
+{% if l3.telemetry.sflow.enabled %}
+feature sflow
+
+{# sFlow Collector #}
+{% for collector in l3.telemetry.sflow.collectors | default([]) %}
+sflow collector {{ collector.name }} {{ collector.ip }}{% if collector.port %} {{ collector.port }}{% endif %}{% if collector.vrf %} vrf {{ collector.vrf }}{% endif %}
+{% endfor %}
+
+{# sFlow Data Source #}
+{% if l3.telemetry.sflow.data_source %}
+sflow data-source {{ l3.telemetry.sflow.data_source }}
+{% endif %}
+
+{# sFlow Agent Address #}
+{% if l3.telemetry.sflow.agent_address %}
+sflow agent-ip {{ l3.telemetry.sflow.agent_address }}
+{% endif %}
+
+{# sFlow Sampling Rate #}
+{% if l3.telemetry.sflow.sampling_rate %}
+sflow sampling-rate {{ l3.telemetry.sflow.sampling_rate }}
+{% endif %}
+
+{# sFlow Counter-poll Interval #}
+{% if l3.telemetry.sflow.counter_poll_interval %}
+sflow counter-poll-interval {{ l3.telemetry.sflow.counter_poll_interval }}
+{% endif %}
+
+{# Apply to Interfaces #}
+{% for iface in l3.telemetry.sflow.interfaces | default([]) %}
+interface {{ iface.interface }}
+  sflow enable
+{% if iface.sampling_rate %}
+  sflow sampling-rate {{ iface.sampling_rate }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}{# end sflow.enabled #}
+{% endif %}{# end sflow #}
+
+{# gNMI (gRPC Network Management Interface) #}
+{% if l3.telemetry.gnmi %}
+{% if l3.telemetry.gnmi.enabled %}
+gnmi-yang
+gnmi-yang server
+{% if l3.telemetry.gnmi.port %}
+  port {{ l3.telemetry.gnmi.port }}
+{% endif %}
+{% if l3.telemetry.gnmi.secure_server %}
+  secure-server
+{% if l3.telemetry.gnmi.certificate %}
+  secure-trustpoint {{ l3.telemetry.gnmi.certificate }}
+{% endif %}
+{% endif %}
+{% if l3.telemetry.gnmi.secure_client_auth %}
+  secure-client-authentication
+{% endif %}
+  no shutdown
+!
+
+{# gNMI Subscriptions (dial-out) #}
+{% for subscription in l3.telemetry.gnmi.subscriptions | default([]) %}
+telemetry ietf subscription {{ subscription.id }}
+  encoding {{ subscription.encoding | default('encode-kvgpb') }}
+{% for receiver in subscription.receivers | default([]) %}
+  receiver ip address {{ receiver.ip }} {{ receiver.port }} protocol {{ subscription.protocol | default('grpc-tcp') }}
+{% endfor %}
+{% for sensor in subscription.sensor_groups | default([]) %}
+  source-address {{ sensor.source_address | default('0.0.0.0') }}
+  stream {{ sensor.stream | default('yang-push') }}
+  update-policy periodic {{ sensor.interval | default(30000) }}
+  filter xpath {{ sensor.xpath }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}{# end gnmi.enabled #}
+{% endif %}{# end gnmi #}
+
+{# NETCONF Configuration #}
+{% if l3.telemetry.netconf %}
+{% if l3.telemetry.netconf.enabled %}
+netconf-yang
+{% if l3.telemetry.netconf.ssh_port %}
+netconf-yang ssh port {{ l3.telemetry.netconf.ssh_port }}
+{% endif %}
+{% if l3.telemetry.netconf.acl %}
+netconf-yang ssh acl {{ l3.telemetry.netconf.acl }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# RESTCONF Configuration #}
+{% if l3.telemetry.restconf %}
+{% if l3.telemetry.restconf.enabled %}
+restconf
+{% if l3.telemetry.restconf.port %}
+  port {{ l3.telemetry.restconf.port }}
+{% endif %}
+{% if l3.telemetry.restconf.acl %}
+  acl {{ l3.telemetry.restconf.acl }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# Model-Driven Telemetry (Cisco IOS-XE) #}
+{% if l3.telemetry.mdt %}
+{% if l3.telemetry.mdt.enabled %}
+{% for subscription in l3.telemetry.mdt.subscriptions | default([]) %}
+telemetry ietf subscription {{ subscription.id }}
+  encoding {{ subscription.encoding | default('encode-kvgpb') }}
+{% for receiver in subscription.receivers | default([]) %}
+  receiver ip address {{ receiver.ip }} {{ receiver.port }} protocol {{ subscription.protocol | default('grpc-tcp') }}
+{% endfor %}
+{% for sensor in subscription.sensor_paths | default([]) %}
+  source-vrf {{ sensor.vrf | default('default') }}
+  source-address {{ sensor.source_address }}
+  stream yang-push
+  update-policy {{ sensor.update_policy | default('periodic') }} {{ sensor.interval | default(30000) }}
+  filter xpath {{ sensor.xpath }}
+{% endfor %}
+!
+{% endfor %}
+{% endif %}{# end mdt.enabled #}
+{% endif %}{# end mdt #}
+
+{% endif %}{# end l3.telemetry.enabled #}

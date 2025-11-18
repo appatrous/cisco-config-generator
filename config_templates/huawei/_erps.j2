@@ -1,0 +1,130 @@
+{# ERPS (Ethernet Ring Protection Switching) G.8032 for Huawei VRP #}
+{# ITU-T G.8032 - Carrier Ethernet Ring Protection #}
+
+{% if l2.erps and l2.erps.enabled %}
+
+{# Global ERPS Configuration #}
+erps enable
+
+{# ERPS Rings #}
+{% for ring in l2.erps.rings | default([]) %}
+erps ring {{ ring.ring_id }}
+{% if ring.description %}
+  description {{ ring.description }}
+{% endif %}
+
+{# Ring Control VLAN #}
+{% if ring.control_vlan %}
+  control-vlan {{ ring.control_vlan }}
+{% endif %}
+
+{# Protected VLANs #}
+{% if ring.protected_vlans %}
+  protected-vlan {% for vlan in ring.protected_vlans %}{{ vlan }} {% endfor %}
+{% endif %}
+
+{# Ring Role (Major/Sub ring) #}
+{% if ring.role == 'major' %}
+  {# Major ring configuration #}
+{% elif ring.role == 'sub' %}
+  sub-ring
+{% if ring.tc_protection %}
+  tc-protection
+{% endif %}
+{% endif %}
+
+{# Ring Level (for multi-level rings) #}
+{% if ring.level %}
+  level {{ ring.level }}
+{% endif %}
+
+{# RPL (Ring Protection Link) Owner/Neighbor #}
+{% if ring.rpl_role == 'owner' %}
+  rpl-role owner
+{% elif ring.rpl_role == 'neighbor' %}
+  rpl-role neighbor
+{% elif ring.rpl_role == 'next-neighbor' %}
+  rpl-role next-neighbor
+{% endif %}
+
+{# Guard Timer (prevents flapping) #}
+{% if ring.guard_timer %}
+  timer guard {{ ring.guard_timer }}
+{% endif %}
+
+{# Hold-off Timer (delay before protection switching) #}
+{% if ring.holdoff_timer %}
+  timer holdoff {{ ring.holdoff_timer }}
+{% endif %}
+
+{# WTR (Wait-To-Restore) Timer #}
+{% if ring.wtr_timer %}
+  timer wtr {{ ring.wtr_timer }}
+{% endif %}
+
+{# Revertive Mode #}
+{% if ring.revertive == false %}
+  revertive disable
+{% else %}
+  revertive enable
+{% endif %}
+
+{# Version (v1 or v2) #}
+{% if ring.version %}
+  version {{ ring.version }}
+{% endif %}
+
+{# R-APS (Ring Automatic Protection Switching) Channel #}
+{% if ring.raps_channel %}
+  r-aps channel-vlan {{ ring.raps_channel }}
+{% endif %}
+
+  quit
+{% endfor %}{# end rings #}
+
+{# ERPS Interfaces (Ring Ports) #}
+{% for iface in l2.erps.interfaces | default([]) %}
+interface {{ iface.interface }}
+{% if iface.erps_rings %}
+{% for ring in iface.erps_rings %}
+  erps ring {{ ring.ring_id }} port {{ ring.port_type }}
+{% if ring.port_type == 'common' %}
+  {# Common port connects major and sub-ring #}
+{% elif ring.port_type == 'edge' %}
+  {# Edge port for open ring #}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Port Priority (for ERPS selection) #}
+{% if iface.erps_priority %}
+  erps priority {{ iface.erps_priority }}
+{% endif %}
+
+{# STP Disable on ERPS ports (required) #}
+  stp disable
+#
+{% endfor %}
+
+{# ERPS Track (Monitor uplinks for sub-rings) #}
+{% for ring in l2.erps.rings | default([]) %}
+{% if ring.track %}
+erps ring {{ ring.ring_id }}
+{% for track_obj in ring.track.objects | default([]) %}
+  track {{ track_obj.id }}
+{% endfor %}
+  quit
+{% endif %}
+{% endfor %}
+
+{# ERPS Multi-Instance (for load balancing) #}
+{% if l2.erps.multi_instance %}
+{% for instance in l2.erps.multi_instance.instances | default([]) %}
+erps ring {{ instance.ring_id }}
+  instance {{ instance.id }}
+  protected-vlan {% for vlan in instance.vlans %}{{ vlan }} {% endfor %}
+  quit
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end l2.erps.enabled #}

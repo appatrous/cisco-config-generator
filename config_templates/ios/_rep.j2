@@ -1,0 +1,98 @@
+{# REP (Resilient Ethernet Protocol) for Cisco IOS #}
+{# Cisco's proprietary ring protection (alternative to G.8032 ERPS) #}
+
+{% if l2.rep and l2.rep.enabled %}
+
+{# REP Segments #}
+{% for segment in l2.rep.segments | default([]) %}
+{# Configure REP on interfaces #}
+{% for port in segment.ports | default([]) %}
+interface {{ port.interface }}
+  description REP Segment {{ segment.segment_id }} - {{ port.role | upper }}
+
+  {# REP Segment Configuration #}
+  rep segment {{ segment.segment_id }}{% if port.edge %} edge{% endif %}{% if port.primary %} primary{% endif %}
+
+  {# Preferred VLAN for this segment #}
+{% if segment.preferred_vlan %}
+  rep segment {{ segment.segment_id }} preferred {{ segment.preferred_vlan }}
+{% endif %}
+
+  {# Port Role (primary, edge, or intermediate) #}
+{% if port.role == 'primary' %}
+  {# Primary edge port - sends LSL (Link Status Layer) notifications #}
+{% elif port.role == 'edge' %}
+  rep segment {{ segment.segment_id }} edge no-neighbor
+{% endif %}
+
+  {# VLAN Load Balancing #}
+{% if segment.vlan_load_balance %}
+  rep segment {{ segment.segment_id }} vlan-load-balance
+{% endif %}
+
+  {# Block Port (alternate port) #}
+{% if port.block_port %}
+  rep block port {{ port.block_port }} vlan {% for vlan in segment.vlans %}{{ vlan }} {% endfor %}
+{% endif %}
+
+  no shutdown
+!
+{% endfor %}{# end ports #}
+
+{# REP Administrative VLAN #}
+{% if segment.admin_vlan %}
+rep admin vlan {{ segment.admin_vlan }}
+{% endif %}
+
+{# REP Preemption Delay #}
+{% if segment.preemption_delay %}
+rep preemption delay {{ segment.preemption_delay }}
+{% endif %}
+
+{# REP LSL (Link Status Layer) Configuration #}
+{% if segment.lsl %}
+{% if segment.lsl.max_age %}
+rep lsl-age-timer {{ segment.lsl.max_age }}
+{% endif %}
+{% if segment.lsl.retries %}
+rep lsl-retries {{ segment.lsl.retries }}
+{% endif %}
+{% endif %}
+
+{# REP Block Port Type (auto, manual) #}
+{% if segment.block_port_type %}
+rep block port {{ segment.block_port_type }}
+{% endif %}
+
+{% endfor %}{# end segments #}
+
+{# REP Manager (VLAN Load Balancing) #}
+{% if l2.rep.manager %}
+{% if l2.rep.manager.enabled %}
+interface {{ l2.rep.manager.interface }}
+  rep admin vlan {{ l2.rep.manager.admin_vlan }}
+!
+
+{# Configure VLAN groups for load balancing #}
+{% for group in l2.rep.manager.vlan_groups | default([]) %}
+rep {{ group.type | default('even') }} vlan {% for vlan in group.vlans %}{{ vlan }} {% endfor %}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{# REP Segment Traps (SNMP notifications) #}
+{% if l2.rep.snmp_traps %}
+snmp-server enable traps rep
+{% endif %}
+
+{# STP Interaction (disable STP on REP ports) #}
+{% for segment in l2.rep.segments | default([]) %}
+{% for port in segment.ports | default([]) %}
+interface {{ port.interface }}
+  spanning-tree bpduguard disable
+  spanning-tree portfast disable
+!
+{% endfor %}
+{% endfor %}
+
+{% endif %}{# end l2.rep.enabled #}

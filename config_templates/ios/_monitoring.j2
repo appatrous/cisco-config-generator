@@ -1,0 +1,179 @@
+{# Network Monitoring Configuration for Cisco IOS/IOS-XE #}
+{# IP-SLA, ERSPAN, NetFlow/IPFIX #}
+
+{% if l3.monitoring and l3.monitoring.enabled %}
+
+{# IP SLA Configuration #}
+{% if l3.monitoring.ip_sla %}
+{% if l3.monitoring.ip_sla.enabled %}
+{% for probe in l3.monitoring.ip_sla.probes | default([]) %}
+ip sla {{ probe.id }}
+{% if probe.type == 'icmp-echo' %}
+  icmp-echo {{ probe.target }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}{% if probe.source_interface %} source-interface {{ probe.source_interface }}{% endif %}
+
+{% if probe.tos %}
+  tos {{ probe.tos }}
+{% endif %}
+{% if probe.vrf %}
+  vrf {{ probe.vrf }}
+{% endif %}
+
+{% elif probe.type == 'udp-jitter' %}
+  udp-jitter {{ probe.target }} {{ probe.port | default(16384) }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}{% if probe.source_interface %} source-interface {{ probe.source_interface }}{% endif %}
+
+  codec {{ probe.codec | default('g711ulaw') }}
+{% if probe.tos %}
+  tos {{ probe.tos }}
+{% endif %}
+{% if probe.vrf %}
+  vrf {{ probe.vrf }}
+{% endif %}
+
+{% elif probe.type == 'http' %}
+  http {% if probe.method %}{{ probe.method }}{% else %}get{% endif %} {{ probe.url }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}
+
+{% if probe.vrf %}
+  vrf {{ probe.vrf }}
+{% endif %}
+
+{% elif probe.type == 'tcp-connect' %}
+  tcp-connect {{ probe.target }} {{ probe.port }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}{% if probe.source_interface %} source-interface {{ probe.source_interface }}{% endif %}
+
+{% if probe.vrf %}
+  vrf {{ probe.vrf }}
+{% endif %}
+
+{% elif probe.type == 'dns' %}
+  dns {{ probe.hostname }} name-server {{ probe.name_server }}{% if probe.source_ip %} source-ip {{ probe.source_ip }}{% endif %}
+
+{% if probe.vrf %}
+  vrf {{ probe.vrf }}
+{% endif %}
+{% endif %}
+
+{# Common SLA parameters #}
+{% if probe.frequency %}
+  frequency {{ probe.frequency }}
+{% endif %}
+{% if probe.timeout %}
+  timeout {{ probe.timeout }}
+{% endif %}
+{% if probe.threshold %}
+  threshold {{ probe.threshold }}
+{% endif %}
+{% if probe.history %}
+  history {% if probe.history.lives %}lives {{ probe.history.lives }}{% endif %}{% if probe.history.buckets %} buckets {{ probe.history.buckets }}{% endif %}{% if probe.history.filter %}{{ probe.history.filter }}{% endif %}
+
+{% endif %}
+!
+
+{# SLA Schedule #}
+{% if probe.schedule %}
+ip sla schedule {{ probe.id }} {% if probe.schedule.life %}life {{ probe.schedule.life }}{% else %}life forever{% endif %}{% if probe.schedule.start_time %} start-time {{ probe.schedule.start_time }}{% else %} start-time now{% endif %}{% if probe.schedule.ageout %} ageout {{ probe.schedule.ageout }}{% endif %}{% if probe.schedule.recurring %} recurring{% endif %}
+
+{% endif %}
+
+{# SLA Reaction Configuration (for tracking) #}
+{% if probe.reaction %}
+ip sla reaction-configuration {{ probe.id }} react {{ probe.reaction.type }}{% if probe.reaction.threshold_type %} threshold-type {{ probe.reaction.threshold_type }}{% endif %}{% if probe.reaction.threshold_rising %} threshold-rising {{ probe.reaction.threshold_rising }}{% endif %}{% if probe.reaction.threshold_falling %} threshold-falling {{ probe.reaction.threshold_falling }}{% endif %}{% if probe.reaction.action_type %} action-type {{ probe.reaction.action_type }}{% endif %}
+
+{% endif %}
+{% endfor %}{# end probes #}
+
+{# SLA Responder (for UDP jitter) #}
+{% if l3.monitoring.ip_sla.responder %}
+{% if l3.monitoring.ip_sla.responder.enabled %}
+ip sla responder
+{% if l3.monitoring.ip_sla.responder.udp_port %}
+ip sla responder udp-echo ipaddress {{ l3.monitoring.ip_sla.responder.ip_address }} port {{ l3.monitoring.ip_sla.responder.udp_port }}
+{% endif %}
+{% endif %}
+{% endif %}
+{% endif %}{# end ip_sla.enabled #}
+{% endif %}{# end ip_sla #}
+
+{# ERSPAN (Encapsulated Remote SPAN) #}
+{% if l3.monitoring.erspan %}
+{% if l3.monitoring.erspan.enabled %}
+{% for session in l3.monitoring.erspan.sessions | default([]) %}
+monitor session {{ session.id }} type erspan-source
+{% if session.description %}
+  description {{ session.description }}
+{% endif %}
+
+{# Source interfaces/VLANs #}
+{% for source in session.sources | default([]) %}
+{% if source.type == 'interface' %}
+  source interface {{ source.interface }}{% if source.direction %} {{ source.direction }}{% endif %}
+{% elif source.type == 'vlan' %}
+  source vlan {{ source.vlan }}{% if source.direction %} {{ source.direction }}{% endif %}
+{% endif %}
+{% endfor %}
+
+{# ERSPAN Destination #}
+  destination
+    erspan-id {{ session.erspan_id }}
+    ip address {{ session.destination_ip }}
+{% if session.origin_ip %}
+    origin ip address {{ session.origin_ip }}
+{% endif %}
+{% if session.vrf %}
+    vrf {{ session.vrf }}
+{% endif %}
+{% if session.mtu %}
+    mtu {{ session.mtu }}
+{% endif %}
+{% if session.ttl %}
+    ip ttl {{ session.ttl }}
+{% endif %}
+{% if session.dscp %}
+    ip dscp {{ session.dscp }}
+{% endif %}
+
+{# Filter (ACL-based) #}
+{% if session.filter %}
+  filter {% if session.filter.vlan %}vlan {{ session.filter.vlan }}{% elif session.filter.acl %}access-group {{ session.filter.acl }}{% endif %}
+{% endif %}
+
+  no shutdown
+!
+{% endfor %}{# end sessions #}
+{% endif %}{# end erspan.enabled #}
+{% endif %}{# end erspan #}
+
+{# TWAMP (Two-Way Active Measurement Protocol) #}
+{% if l3.monitoring.twamp %}
+{% if l3.monitoring.twamp.enabled %}
+{# TWAMP Server #}
+{% if l3.monitoring.twamp.server %}
+ip twamp server {{ l3.monitoring.twamp.server.port | default(862) }}
+{% if l3.monitoring.twamp.server.max_connections %}
+ip twamp server max-connections {{ l3.monitoring.twamp.server.max_connections }}
+{% endif %}
+{% if l3.monitoring.twamp.server.inactivity_timeout %}
+ip twamp server inactivity-timeout {{ l3.monitoring.twamp.server.inactivity_timeout }}
+{% endif %}
+{% endif %}
+
+{# TWAMP Client Sessions #}
+{% for session in l3.monitoring.twamp.sessions | default([]) %}
+ip twamp client {{ session.name }}
+  destination {{ session.destination }}
+{% if session.source %}
+  source {{ session.source }}
+{% endif %}
+{% if session.port %}
+  port {{ session.port }}
+{% endif %}
+{% if session.dscp %}
+  dscp {{ session.dscp }}
+{% endif %}
+{% if session.timeout %}
+  timeout {{ session.timeout }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}{# end twamp.enabled #}
+{% endif %}{# end twamp #}
+
+{% endif %}{# end l3.monitoring.enabled #}

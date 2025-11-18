@@ -116,6 +116,11 @@ vlan {{ vlan.id }}
 {% include 'huawei/_dcb.j2' %}
 {% endif %}
 
+{# ERPS G.8032 Ring Protection #}
+{% if l2.erps and l2.erps.enabled %}
+{% include 'huawei/_erps.j2' %}
+{% endif %}
+
 {# Spanning Tree (MSTP for Huawei) #}
 {% if l2.stp %}
 stp mode {% if l2.stp.mode == 'mst' or l2.stp.mode == 'mstp' %}mstp{% elif l2.stp.mode == 'rstp' or l2.stp.mode == 'rapid-pvst' %}rstp{% else %}stp{% endif %}

@@ -232,3 +232,8 @@ interface {{ port }}
 !
 {% endfor %}
 {% endif %}
+
+{# REP (Resilient Ethernet Protocol) Ring Protection #}
+{% if l2.rep and l2.rep.enabled %}
+{% include 'ios/_rep.j2' %}
+{% endif %}
