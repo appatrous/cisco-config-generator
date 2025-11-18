@@ -111,6 +111,11 @@ vlan {{ vlan.id }}
 {% endfor %}
 {% endif %}
 
+{# Data Center Bridging (DCB) #}
+{% if l2.dcb and l2.dcb.enabled %}
+{% include 'huawei/_dcb.j2' %}
+{% endif %}
+
 {# Spanning Tree (MSTP for Huawei) #}
 {% if l2.stp %}
 stp mode {% if l2.stp.mode == 'mst' or l2.stp.mode == 'mstp' %}mstp{% elif l2.stp.mode == 'rstp' or l2.stp.mode == 'rapid-pvst' %}rstp{% else %}stp{% endif %}
@@ -333,6 +338,21 @@ bfd
 {% if l3.bfd.default_timers %}
 bfd {{ l3.bfd.default_timers.min_tx | default(300) }} min-tx {{ l3.bfd.default_timers.min_rx | default(300) }} min-rx detect-multiplier {{ l3.bfd.default_timers.multiplier | default(3) }}
 {% endif %}
+{% endif %}
+
+{# Tunnels (GRE, IP-in-IP, DSVPN) #}
+{% if l3.tunnels %}
+{% include 'huawei/_tunnels.j2' %}
+{% endif %}
+
+{# IPsec (IKEv1, IKEv2, IPsec Policy) #}
+{% if l3.ipsec %}
+{% include 'huawei/_ipsec.j2' %}
+{% endif %}
+
+{# LISP (Locator/ID Separation Protocol) #}
+{% if l3.lisp and l3.lisp.enabled %}
+{% include 'huawei/_lisp.j2' %}
 {% endif %}
 
 #

@@ -257,6 +257,21 @@ interface {{ iface }}
 {% include 'ios/_bfd.j2' %}
 {% endif %}
 
+{# Tunnels (GRE, IP-in-IP, DMVPN) #}
+{% if l3.tunnels %}
+{% include 'ios/_tunnels.j2' %}
+{% endif %}
+
+{# IPsec (IKEv1, IKEv2, Crypto Maps) #}
+{% if l3.ipsec %}
+{% include 'ios/_ipsec.j2' %}
+{% endif %}
+
+{# LISP (Locator/ID Separation Protocol) #}
+{% if l3.lisp and l3.lisp.enabled %}
+{% include 'ios/_lisp.j2' %}
+{% endif %}
+
 {# QoS #}
 {% if l3.qos %}
 {% include 'ios/_qos.j2' %}

@@ -1,0 +1,187 @@
+{# IPsec Configuration for Huawei VRP #}
+{# IKEv1, IKEv2, IPsec Policy, IPsec Profile #}
+
+{% if l3.ipsec %}
+
+{# IKEv2 Configuration (Preferred) #}
+{% if l3.ipsec.ikev2 %}
+{% for proposal in l3.ipsec.ikev2.proposals | default([]) %}}
+ike proposal {{ proposal.name }}
+{% if proposal.encryption %}
+{% for enc in proposal.encryption %}
+  encryption-algorithm {{ enc }}
+{% endfor %}
+{% endif %}
+{% if proposal.integrity %}
+{% for integ in proposal.integrity %}
+  integrity-algorithm {{ integ }}
+{% endfor %}
+{% endif %}
+{% if proposal.group %}
+{% for grp in proposal.group %}
+  dh {{ grp }}
+{% endfor %}
+{% endif %}
+{% if proposal.prf %}
+{% for p in proposal.prf %}
+  prf {{ p }}
+{% endfor %}
+{% endif %}
+{% if proposal.lifetime %}
+  sa duration {{ proposal.lifetime }}
+{% endif %}
+#
+{% endfor %}
+
+{# IKEv2 Peer #}
+{% for keyring in l3.ipsec.ikev2.keyrings | default([]) %}
+{% for peer in keyring.peers | default([]) %}
+ike peer {{ peer.name }}
+  version 2
+  exchange-mode {% if l3.ipsec.ikev2.exchange_mode | default('main') == 'main' %}main{% else %}aggressive{% endif %}
+  pre-shared-key {{ peer.pre_shared_key }}
+  ike-proposal {{ l3.ipsec.ikev2.proposals[0].name | default('default') }}
+  remote-address {{ peer.address }}
+{% if peer.identity %}
+  id-type {{ peer.identity.type }}
+  local-id-type {{ peer.identity.type }}
+{% endif %}
+{% if l3.ipsec.ikev2.dpd | default(true) %}
+  dpd interval {{ l3.ipsec.ikev2.dpd_interval | default(10) }} retry {{ l3.ipsec.ikev2.dpd_retries | default(3) }}
+{% endif %}
+{% if peer.nat_traversal | default(true) %}
+  nat traversal
+{% endif %}
+#
+{% endfor %}
+{% endfor %}
+
+{# IKEv2 Profile (via IPsec Policy) #}
+{% for profile in l3.ipsec.ikev2.profiles | default([]) %}
+{# Huawei uses IPsec policy instead of separate IKE profile #}
+{# Will be configured in IPsec policy section below #}
+{% endfor %}
+{% endif %}{# end ikev2 #}
+
+{# IKEv1 Configuration (Legacy) #}
+{% if l3.ipsec.ikev1 %}
+{% for policy in l3.ipsec.ikev1.policies | default([]) %}
+ike proposal {{ policy.priority }}
+  version 1
+{% if policy.encryption %}
+  encryption-algorithm {{ policy.encryption }}
+{% endif %}
+{% if policy.hash %}
+  authentication-algorithm {{ policy.hash }}
+{% endif %}
+{% if policy.authentication %}
+  authentication-method {{ policy.authentication }}
+{% endif %}
+{% if policy.group %}
+  dh {{ policy.group }}
+{% endif %}
+{% if policy.lifetime %}
+  sa duration {{ policy.lifetime }}
+{% endif %}
+#
+{% endfor %}
+
+{# IKEv1 Peers with Pre-shared Keys #}
+{% for key in l3.ipsec.ikev1.keys | default([]) %}
+ike peer {{ key.name | default('peer_' + key.address | regex_replace('\.', '_')) }}
+  version 1
+  exchange-mode main
+  pre-shared-key {{ key.key }}
+  remote-address {{ key.address }}{% if key.mask %} {{ key.mask }}{% endif %}
+  ike-proposal {{ l3.ipsec.ikev1.policies[0].priority | default(10) }}
+{% if l3.ipsec.ikev1.keepalive %}
+  dpd interval {{ l3.ipsec.ikev1.keepalive.interval | default(10) }} retry {{ l3.ipsec.ikev1.keepalive.retries | default(3) }}
+{% endif %}
+#
+{% endfor %}
+{% endif %}{# end ikev1 #}
+
+{# IPsec Transform Set → IPsec Proposal #}
+{% for transform in l3.ipsec.transform_sets | default([]) %}
+ipsec proposal {{ transform.name }}
+  encapsulation-mode {{ transform.mode | default('tunnel') }}
+  transform {{ transform.esp_encryption }} {{ transform.esp_auth }}
+{% if transform.esp_encryption %}
+  esp authentication-algorithm {{ transform.esp_auth }}
+  esp encryption-algorithm {{ transform.esp_encryption }}
+{% endif %}
+#
+{% endfor %}
+
+{# IPsec Profile #}
+{% for profile in l3.ipsec.profiles | default([]) %}
+ipsec profile {{ profile.name }}
+{% if profile.set_transform_set %}
+  proposal {{ profile.set_transform_set }}
+{% endif %}
+{% if profile.set_pfs %}
+  pfs {{ profile.set_pfs }}
+{% endif %}
+{% if profile.set_ikev2_profile %}
+  ike-peer {{ profile.set_ikev2_profile }}
+{% endif %}
+{% if profile.set_isakmp_profile %}
+  ike-peer {{ profile.set_isakmp_profile }}
+{% endif %}
+{% if profile.responder_only %}
+  {# responder-only mode in Huawei #}
+{% endif %}
+{% if profile.set_security_association_lifetime %}
+  sa duration {{ profile.set_security_association_lifetime.type }} {{ profile.set_security_association_lifetime.value }}
+{% endif %}
+#
+{% endfor %}
+
+{# Crypto Map → IPsec Policy (for policy-based VPN) #}
+{% for cmap in l3.ipsec.crypto_maps | default([]) %}
+ipsec policy {{ cmap.name }}-{{ cmap.seq }} {{ cmap.seq }} isakmp
+{% if cmap.description %}
+  description {{ cmap.description }}
+{% endif %}
+{% if cmap.set_peer %}
+  remote-address {{ cmap.set_peer }}
+{% endif %}
+{% if cmap.set_transform_set %}
+  proposal {{ cmap.set_transform_set }}
+{% endif %}
+{% if cmap.set_pfs %}
+  pfs {{ cmap.set_pfs }}
+{% endif %}
+{% if cmap.set_ikev2_profile %}
+  ike-peer {{ cmap.set_ikev2_profile }}
+{% endif %}
+{% if cmap.match_address %}
+  security acl {{ cmap.match_address }}
+{% endif %}
+{% if cmap.set_security_association_lifetime %}
+  sa duration {{ cmap.set_security_association_lifetime.type }} {{ cmap.set_security_association_lifetime.value }}
+{% endif %}
+#
+{% endfor %}
+
+{# Apply IPsec Policy to Interfaces #}
+{% for iface in l3.ipsec.crypto_map_interfaces | default([]) %}
+interface {{ iface.interface }}
+  ipsec policy {{ iface.crypto_map }}
+#
+{% endfor %}
+
+{# Advanced Settings #}
+{% if l3.ipsec.global_settings %}
+{% if l3.ipsec.global_settings.fragmentation %}
+ipsec fragmentation {{ l3.ipsec.global_settings.fragmentation }}
+{% endif %}
+{% if l3.ipsec.global_settings.df_bit %}
+ipsec df-bit {{ l3.ipsec.global_settings.df_bit }}
+{% endif %}
+{% if l3.ipsec.global_settings.nat_transparency %}
+ike nat-keepalive {{ l3.ipsec.global_settings.nat_transparency }}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l3.ipsec #}

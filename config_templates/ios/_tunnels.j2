@@ -1,0 +1,176 @@
+{# Tunnel Configuration for Cisco IOS/IOS-XE #}
+{# GRE, IP-in-IP, GRE over IPsec, mGRE (DMVPN) #}
+
+{% if l3.tunnels %}
+{% for tunnel in l3.tunnels %}
+interface Tunnel{{ tunnel.tunnel_id }}
+{% if tunnel.description %}
+  description {{ tunnel.description }}
+{% endif %}
+{% if tunnel.vrf %}
+  tunnel vrf {{ tunnel.vrf }}
+{% endif %}
+
+{# IP Address #}
+{% for ipv4 in tunnel.ipv4 | default([]) %}
+  ip address {{ ipv4.address | regex_replace('/.*', '') }} {{ ipv4.address | ipaddr('netmask') }}
+{% endfor %}
+{% for ipv6 in tunnel.ipv6 | default([]) %}
+  ipv6 address {{ ipv6.address }}
+{% endfor %}
+
+{# Tunnel Mode #}
+{% if tunnel.mode == 'gre' %}
+  tunnel mode gre ip
+{% elif tunnel.mode == 'gre-multipoint' %}
+  tunnel mode gre multipoint
+{% elif tunnel.mode == 'ipip' %}
+  tunnel mode ipip
+{% elif tunnel.mode == 'ipsec' %}
+  tunnel mode ipsec ipv4
+{% elif tunnel.mode == 'gre-ipsec' %}
+  tunnel mode gre ip
+  tunnel protection ipsec profile {{ tunnel.ipsec_profile | default('IPSEC-PROFILE') }}
+{% endif %}
+
+{# Tunnel Source/Destination #}
+{% if tunnel.source %}
+  tunnel source {{ tunnel.source }}
+{% endif %}
+{% if tunnel.destination %}
+  tunnel destination {{ tunnel.destination }}
+{% endif %}
+
+{# Tunnel Key (for GRE) #}
+{% if tunnel.key %}
+  tunnel key {{ tunnel.key }}
+{% endif %}
+
+{# Keepalive #}
+{% if tunnel.keepalive %}
+  keepalive {{ tunnel.keepalive.interval | default(10) }} {{ tunnel.keepalive.retries | default(3) }}
+{% endif %}
+
+{# MTU & Bandwidth #}
+{% if tunnel.mtu %}
+  ip mtu {{ tunnel.mtu }}
+  tunnel path-mtu-discovery
+{% endif %}
+{% if tunnel.bandwidth %}
+  bandwidth {{ tunnel.bandwidth }}
+{% endif %}
+
+{# TCP MSS Adjust #}
+{% if tunnel.tcp_mss %}
+  ip tcp adjust-mss {{ tunnel.tcp_mss }}
+{% endif %}
+
+{# QoS (ToS/DSCP preservation) #}
+{% if tunnel.qos %}
+{% if tunnel.qos.tos_reflect %}
+  tunnel tos reflect
+{% elif tunnel.qos.tos_value %}
+  tunnel tos {{ tunnel.qos.tos_value }}
+{% endif %}
+{% if tunnel.qos.dscp %}
+  tunnel dscp {{ tunnel.qos.dscp }}
+{% endif %}
+{% endif %}
+
+{# DMVPN/NHRP Configuration #}
+{% if tunnel.nhrp %}
+{% if tunnel.nhrp.enabled %}
+  {# NHRP Network ID #}
+  ip nhrp network-id {{ tunnel.nhrp.network_id }}
+
+  {# NHRP Authentication #}
+  {% if tunnel.nhrp.authentication %}
+  ip nhrp authentication {{ tunnel.nhrp.authentication }}
+  {% endif %}
+
+  {# NHRP Holdtime #}
+  {% if tunnel.nhrp.holdtime %}
+  ip nhrp holdtime {{ tunnel.nhrp.holdtime }}
+  {% endif %}
+
+  {# NHRP Registration Timeout #}
+  {% if tunnel.nhrp.registration_timeout %}
+  ip nhrp registration timeout {{ tunnel.nhrp.registration_timeout }}
+  {% endif %}
+
+  {# NHRP Maps (Static or Dynamic) #}
+  {% for map in tunnel.nhrp.maps | default([]) %}
+  ip nhrp map {{ map.tunnel_ip }} {{ map.nbma_ip }}
+  {% if map.register %}
+  ip nhrp map {{ map.tunnel_ip }} {{ map.nbma_ip }} register
+  {% endif %}
+  {% endfor %}
+
+  {# NHRP Multicast Maps #}
+  {% for nbma in tunnel.nhrp.multicast_maps | default([]) %}
+  ip nhrp map multicast {{ nbma }}
+  {% endfor %}
+
+  {# NHRP Server (Hub configuration) #}
+  {% if tunnel.nhrp.nhs %}
+  ip nhrp map {{ tunnel.nhrp.nhs.tunnel_ip }} {{ tunnel.nhrp.nhs.nbma_ip }}
+  ip nhrp map multicast {{ tunnel.nhrp.nhs.nbma_ip }}
+  ip nhrp nhs {{ tunnel.nhrp.nhs.tunnel_ip }}
+  {% endif %}
+
+  {# DMVPN Phase 2/3 Settings #}
+  {% if tunnel.nhrp.shortcut %}
+  ip nhrp shortcut
+  {% endif %}
+  {% if tunnel.nhrp.redirect %}
+  ip nhrp redirect
+  {% endif %}
+
+  {# NHRP Group #}
+  {% if tunnel.nhrp.group %}
+  ip nhrp group {{ tunnel.nhrp.group }}
+  {% endif %}
+
+{% endif %}{# end nhrp.enabled #}
+{% endif %}{# end nhrp #}
+
+{# IPsec Protection (for GRE over IPsec) #}
+{% if tunnel.ipsec_profile %}
+  tunnel protection ipsec profile {{ tunnel.ipsec_profile }}
+{% endif %}
+
+{# Routing Protocol on Tunnel #}
+{% if tunnel.routing %}
+{% if tunnel.routing.ospf %}
+  ip ospf {{ tunnel.routing.ospf.process_id }} area {{ tunnel.routing.ospf.area }}
+  ip ospf network {{ tunnel.routing.ospf.network_type | default('point-to-point') }}
+{% if tunnel.routing.ospf.cost %}
+  ip ospf cost {{ tunnel.routing.ospf.cost }}
+{% endif %}
+{% endif %}
+
+{% if tunnel.routing.eigrp %}
+  ip eigrp {{ tunnel.routing.eigrp.asn }}
+{% if tunnel.routing.eigrp.split_horizon == false %}
+  no ip split-horizon eigrp {{ tunnel.routing.eigrp.asn }}
+{% endif %}
+{% endif %}
+
+{% if tunnel.routing.rip %}
+  ip rip send version 2
+  ip rip receive version 2
+{% endif %}
+{% endif %}{# end routing #}
+
+{# Multicast #}
+{% if tunnel.multicast %}
+  ip pim {{ tunnel.multicast.pim_mode | default('sparse-mode') }}
+{% if tunnel.multicast.pim_nbma_mode %}
+  ip pim nbma-mode
+{% endif %}
+{% endif %}
+
+  no shutdown
+!
+{% endfor %}
+{% endif %}{# end l3.tunnels #}

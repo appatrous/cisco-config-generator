@@ -1,0 +1,170 @@
+{# Data Center Bridging (DCB) Configuration for Cisco NX-OS #}
+{# 802.1Qbb (PFC), 802.1Qaz (ETS), DCBX Protocol #}
+
+{% if l2.dcb and l2.dcb.enabled %}
+
+{# Global DCB Configuration #}
+feature lldp
+{% if l2.dcb.dcbx %}
+{% if l2.dcb.dcbx.enabled %}
+dcbx enable
+{% if l2.dcb.dcbx.version %}
+dcbx version {{ l2.dcb.dcbx.version }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# Priority Flow Control (PFC) - 802.1Qbb #}
+{% if l2.dcb.pfc %}
+{% if l2.dcb.pfc.enabled %}
+{# System-level PFC #}
+system qos
+  service-policy type network-qos {{ l2.dcb.pfc.policy_name | default('default-nq-policy') }}
+exit
+
+{# PFC Configuration per Class #}
+class-map type network-qos {{ l2.dcb.pfc.class_name | default('class-fcoe') }}
+  match cos {{ l2.dcb.pfc.cos | default(3) }}
+exit
+
+policy-map type network-qos {{ l2.dcb.pfc.policy_name | default('default-nq-policy') }}
+  class type network-qos {{ l2.dcb.pfc.class_name | default('class-fcoe') }}
+{% if l2.dcb.pfc.pause %}
+    pause pfc-cos {{ l2.dcb.pfc.pfc_cos | default(3) }}
+{% endif %}
+{% if l2.dcb.pfc.mtu %}
+    mtu {{ l2.dcb.pfc.mtu }}
+{% endif %}
+  class type network-qos class-default
+    mtu {{ l2.dcb.pfc.default_mtu | default(1500) }}
+exit
+
+{# PFC Watchdog (prevents deadlock) #}
+{% if l2.dcb.pfc.watchdog %}
+{% if l2.dcb.pfc.watchdog.enabled %}
+pfc-watchdog
+{% if l2.dcb.pfc.watchdog.interval %}
+  pfc-watchdog interval {{ l2.dcb.pfc.watchdog.interval }}
+{% endif %}
+{% if l2.dcb.pfc.watchdog.restore_interval %}
+  pfc-watchdog restore-interval {{ l2.dcb.pfc.watchdog.restore_interval }}
+{% endif %}
+{% if l2.dcb.pfc.watchdog.action %}
+  pfc-watchdog on action {{ l2.dcb.pfc.watchdog.action }}
+{% endif %}
+{% endif %}
+{% endif %}
+{% endif %}{# end pfc.enabled #}
+{% endif %}{# end pfc #}
+
+{# Enhanced Transmission Selection (ETS) - 802.1Qaz #}
+{% if l2.dcb.ets %}
+{% if l2.dcb.ets.enabled %}
+system qos
+  service-policy type queuing {{ l2.dcb.ets.policy_name | default('default-q-policy') }}
+exit
+
+{# Queuing Class Maps #}
+{% for class in l2.dcb.ets.classes | default([]) %}
+class-map type queuing {{ class.name }}
+  match cos {{ class.cos }}
+exit
+{% endfor %}
+
+{# Queuing Policy with Bandwidth Allocation #}
+policy-map type queuing {{ l2.dcb.ets.policy_name | default('default-q-policy') }}
+{% for class in l2.dcb.ets.classes | default([]) %}
+  class type queuing {{ class.name }}
+{% if class.bandwidth_percent %}
+    bandwidth percent {{ class.bandwidth_percent }}
+{% endif %}
+{% if class.priority_level %}
+    priority level {{ class.priority_level }}
+{% endif %}
+{% if class.queue_limit %}
+    queue-limit {{ class.queue_limit }}
+{% endif %}
+{% if class.random_detect %}
+    random-detect cos-based
+{% endif %}
+{% endfor %}
+  class type queuing class-default
+    bandwidth percent {{ l2.dcb.ets.default_bandwidth | default(50) }}
+exit
+{% endif %}{# end ets.enabled #}
+{% endif %}{# end ets #}
+
+{# Quantized Congestion Notification (QCN) - 802.1Qau #}
+{% if l2.dcb.qcn %}
+{% if l2.dcb.qcn.enabled %}
+qcn enable
+{% for profile in l2.dcb.qcn.profiles | default([]) %}
+qcn profile {{ profile.name }}
+{% if profile.byte_reset %}
+  byte-reset {{ profile.byte_reset }}
+{% endif %}
+{% if profile.byte_count %}
+  byte-count {{ profile.byte_count }}
+{% endif %}
+{% if profile.threshold %}
+  threshold {{ profile.threshold }}
+{% endif %}
+{% if profile.setpoint %}
+  setpoint {{ profile.setpoint }}
+{% endif %}
+exit
+{% endfor %}
+{% endif %}
+{% endif %}{# end qcn #}
+
+{# FCoE Configuration (uses DCB) #}
+{% if l2.dcb.fcoe %}
+{% if l2.dcb.fcoe.enabled %}
+feature fcoe
+{% if l2.dcb.fcoe.fcmap %}
+fcoe fcmap {{ l2.dcb.fcoe.fcmap }}
+{% endif %}
+
+{# FCoE VLANs #}
+{% for vlan in l2.dcb.fcoe.vlans | default([]) %}
+vlan {{ vlan }}
+  fcoe vsan {{ l2.dcb.fcoe.vsan | default(1) }}
+exit
+{% endfor %}
+{% endif %}
+{% endif %}{# end fcoe #}
+
+{# Apply DCB to Interfaces #}
+{% for iface in l2.dcb.interfaces | default([]) %}
+interface {{ iface.interface }}
+{% if iface.pfc %}
+  priority-flow-control mode {% if iface.pfc.mode %}{{ iface.pfc.mode }}{% else %}auto{% endif %}
+{% endif %}
+{% if iface.dcbx %}
+  dcbx {{ iface.dcbx.mode | default('ieee') }}
+{% endif %}
+{% if iface.fcoe %}
+  switchport mode trunk
+  switchport trunk allowed vlan {{ iface.fcoe.vlans | join(',') }}
+  spanning-tree port type network
+  priority-flow-control mode on
+  no shutdown
+{% endif %}
+{% if iface.qcn and iface.qcn.enabled %}
+  qcn
+  qcn profile {{ iface.qcn.profile }}
+{% endif %}
+!
+{% endfor %}
+
+{# CoS to DSCP Mapping (for IP storage) #}
+{% if l2.dcb.qos_mappings %}
+{% if l2.dcb.qos_mappings.cos_to_dscp %}
+qos map cos-dscp {% for map in l2.dcb.qos_mappings.cos_to_dscp %}{{ map }} {% endfor %}
+{% endif %}
+{% if l2.dcb.qos_mappings.dscp_to_cos %}
+qos map dscp-cos {% for map in l2.dcb.qos_mappings.dscp_to_cos %}{{ map }} {% endfor %}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l2.dcb.enabled #}

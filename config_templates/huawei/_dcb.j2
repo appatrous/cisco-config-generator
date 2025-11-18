@@ -1,0 +1,153 @@
+{# Data Center Bridging (DCB) Configuration for Huawei VRP #}
+{# PFC, ETS, LLDP DCBX for CloudEngine switches #}
+
+{% if l2.dcb and l2.dcb.enabled %}
+
+{# Global DCB/LLDP Configuration #}
+lldp enable
+{% if l2.dcb.dcbx %}
+{% if l2.dcb.dcbx.enabled %}
+lldp dcbx enable
+{% endif %}
+{% endif %}
+
+{# Priority Flow Control (PFC) #}
+{% if l2.dcb.pfc %}
+{% if l2.dcb.pfc.enabled %}
+{# Global PFC Enable #}
+dcb pfc enable
+
+{# PFC Priority Configuration #}
+{% for priority in l2.dcb.pfc.priorities | default([3]) %}
+dcb pfc priority {{ priority }} enable
+{% endfor %}
+
+{# PFC Mode #}
+{% if l2.dcb.pfc.mode %}
+dcb pfc mode {{ l2.dcb.pfc.mode }}
+{% endif %}
+
+{# PFC Watchdog #}
+{% if l2.dcb.pfc.watchdog %}
+{% if l2.dcb.pfc.watchdog.enabled %}
+pfc deadlock detect
+{% if l2.dcb.pfc.watchdog.interval %}
+pfc deadlock detect interval {{ l2.dcb.pfc.watchdog.interval }}
+{% endif %}
+{% if l2.dcb.pfc.watchdog.restore_interval %}
+pfc deadlock recover interval {{ l2.dcb.pfc.watchdog.restore_interval }}
+{% endif %}
+{% endif %}
+{% endif %}
+{% endif %}{# end pfc.enabled #}
+{% endif %}{# end pfc #}
+
+{# Enhanced Transmission Selection (ETS) #}
+{% if l2.dcb.ets %}
+{% if l2.dcb.ets.enabled %}
+{# Traffic Classifiers #}
+{% for class in l2.dcb.ets.classes | default([]) %}
+traffic classifier {{ class.name }}
+{% if class.cos %}
+  if-match cos {{ class.cos }}
+{% endif %}
+quit
+{% endfor %}
+
+{# Traffic Behaviors (Bandwidth Allocation) #}
+{% for class in l2.dcb.ets.classes | default([]) %}
+traffic behavior {{ class.name }}
+{% if class.bandwidth_percent %}
+  queue bandwidth percent {{ class.bandwidth_percent }}
+{% endif %}
+{% if class.priority_level %}
+  queue priority {{ class.priority_level }}
+{% endif %}
+{% if class.queue_length %}
+  queue length {{ class.queue_length }}
+{% endif %}
+{% if class.wred %}
+  wred
+{% endif %}
+quit
+{% endfor %}
+
+{# Traffic Policy #}
+traffic policy {{ l2.dcb.ets.policy_name | default('dcb-ets-policy') }}
+{% for class in l2.dcb.ets.classes | default([]) %}
+  classifier {{ class.name }} behavior {{ class.name }}
+{% endfor %}
+quit
+
+{# Apply globally or per-interface #}
+{% if l2.dcb.ets.global %}
+qos apply policy {{ l2.dcb.ets.policy_name | default('dcb-ets-policy') }} global
+{% endif %}
+{% endif %}{# end ets.enabled #}
+{% endif %}{# end ets #}
+
+{# FCoE Configuration #}
+{% if l2.dcb.fcoe %}
+{% if l2.dcb.fcoe.enabled %}
+fcoe enable
+{% if l2.dcb.fcoe.fcmap %}
+fcoe fcmap {{ l2.dcb.fcoe.fcmap }}
+{% endif %}
+
+{# FCoE VLANs #}
+{% for vlan in l2.dcb.fcoe.vlans | default([]) %}
+vlan {{ vlan }}
+  fcoe enable
+  vsan {{ l2.dcb.fcoe.vsan | default(1) }}
+{% endfor %}
+{% endif %}
+{% endif %}{# end fcoe #}
+
+{# Apply DCB to Interfaces #}
+{% for iface in l2.dcb.interfaces | default([]) %}
+interface {{ iface.interface }}
+{% if iface.pfc %}
+  dcb pfc enable
+{% for priority in iface.pfc.priorities | default([3]) %}
+  dcb pfc priority {{ priority }} enable
+{% endfor %}
+{% endif %}
+
+{% if iface.dcbx %}
+  lldp dcbx enable
+{% endif %}
+
+{% if iface.ets_policy %}
+  qos apply policy {{ iface.ets_policy }} inbound
+{% endif %}
+
+{% if iface.fcoe %}
+  portswitch
+  port link-type trunk
+  port trunk allow-pass vlan {{ iface.fcoe.vlans | join(' ') }}
+  stp edged-port enable
+  dcb pfc enable
+  undo shutdown
+{% endif %}
+
+{% if iface.trust %}
+  qos trust {{ iface.trust }}
+{% endif %}
+
+{% if iface.mtu %}
+  jumboframe enable {{ iface.mtu }}
+{% endif %}
+#
+{% endfor %}
+
+{# CoS to DSCP Mapping #}
+{% if l2.dcb.qos_mappings %}
+{% if l2.dcb.qos_mappings.cos_to_dscp %}
+qos map-table cos-dscp
+{% for idx, dscp in l2.dcb.qos_mappings.cos_to_dscp %}
+  cos {{ idx }} dscp {{ dscp }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l2.dcb.enabled #}

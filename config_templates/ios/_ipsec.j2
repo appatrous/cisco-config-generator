@@ -1,0 +1,215 @@
+{# IPsec Configuration for Cisco IOS/IOS-XE #}
+{# IKEv1, IKEv2, Crypto Maps, Profiles #}
+
+{% if l3.ipsec %}
+
+{# IKEv2 Configuration (Preferred) #}
+{% if l3.ipsec.ikev2 %}
+{% for proposal in l3.ipsec.ikev2.proposals | default([]) %}
+crypto ikev2 proposal {{ proposal.name }}
+{% if proposal.encryption %}
+{% for enc in proposal.encryption %}
+  encryption {{ enc }}
+{% endfor %}
+{% endif %}
+{% if proposal.integrity %}
+{% for integ in proposal.integrity %}
+  integrity {{ integ }}
+{% endfor %}
+{% endif %}
+{% if proposal.group %}
+{% for grp in proposal.group %}
+  group {{ grp }}
+{% endfor %}
+{% endif %}
+{% if proposal.prf %}
+{% for p in proposal.prf %}
+  prf {{ p }}
+{% endfor %}
+{% endif %}
+{% if proposal.lifetime %}
+  lifetime seconds {{ proposal.lifetime }}
+{% endif %}
+!
+{% endfor %}
+
+{# IKEv2 Policy #}
+{% for policy in l3.ipsec.ikev2.policies | default([]) %}
+crypto ikev2 policy {{ policy.name }}
+{% if policy.proposal %}
+  proposal {{ policy.proposal }}
+{% endif %}
+{% if policy.match_fvrf %}
+  match fvrf {{ policy.match_fvrf }}
+{% endif %}
+!
+{% endfor %}
+
+{# IKEv2 Keyring #}
+{% for keyring in l3.ipsec.ikev2.keyrings | default([]) %}
+crypto ikev2 keyring {{ keyring.name }}
+{% for peer in keyring.peers | default([]) %}
+  peer {{ peer.name }}
+    address {{ peer.address }}{% if peer.mask %} {{ peer.mask }}{% endif %}
+
+{% if peer.identity %}
+    identity {{ peer.identity.type }} {{ peer.identity.value }}
+{% endif %}
+{% if peer.pre_shared_key %}
+    pre-shared-key {{ peer.pre_shared_key }}
+{% endif %}
+{% endfor %}
+!
+{% endfor %}
+
+{# IKEv2 Profile #}
+{% for profile in l3.ipsec.ikev2.profiles | default([]) %}
+crypto ikev2 profile {{ profile.name }}
+{% if profile.match_identity %}
+  match identity remote address {{ profile.match_identity.address }}{% if profile.match_identity.mask %} {{ profile.match_identity.mask }}{% endif %}
+
+{% endif %}
+{% if profile.match_fvrf %}
+  match fvrf {{ profile.match_fvrf }}
+{% endif %}
+{% if profile.identity_local %}
+  identity local {{ profile.identity_local.type }} {{ profile.identity_local.value }}
+{% endif %}
+{% if profile.authentication %}
+  authentication remote {{ profile.authentication.remote }}
+  authentication local {{ profile.authentication.local }}
+{% endif %}
+{% if profile.keyring %}
+  keyring local {{ profile.keyring }}
+{% endif %}
+{% if profile.dpd %}
+  dpd {{ profile.dpd.interval | default(10) }} {{ profile.dpd.retries | default(3) }} {{ profile.dpd.action | default('clear') }}
+{% endif %}
+{% if profile.lifetime %}
+  lifetime {{ profile.lifetime }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}{# end ikev2 #}
+
+{# IKEv1 Configuration (Legacy) #}
+{% if l3.ipsec.ikev1 %}
+{% for policy in l3.ipsec.ikev1.policies | default([]) %}
+crypto isakmp policy {{ policy.priority }}
+{% if policy.encryption %}
+  encryption {{ policy.encryption }}
+{% endif %}
+{% if policy.hash %}
+  hash {{ policy.hash }}
+{% endif %}
+{% if policy.authentication %}
+  authentication {{ policy.authentication }}
+{% endif %}
+{% if policy.group %}
+  group {{ policy.group }}
+{% endif %}
+{% if policy.lifetime %}
+  lifetime {{ policy.lifetime }}
+{% endif %}
+!
+{% endfor %}
+
+{# IKEv1 Pre-shared Keys #}
+{% for key in l3.ipsec.ikev1.keys | default([]) %}
+crypto isakmp key {{ key.key }} address {{ key.address }}{% if key.mask %} {{ key.mask }}{% endif %}{% if key.no_xauth %} no-xauth{% endif %}
+
+{% endfor %}
+
+{# IKEv1 Keepalive #}
+{% if l3.ipsec.ikev1.keepalive %}
+crypto isakmp keepalive {{ l3.ipsec.ikev1.keepalive.interval | default(10) }} {{ l3.ipsec.ikev1.keepalive.retries | default(3) }}
+{% endif %}
+{% endif %}{# end ikev1 #}
+
+{# IPsec Transform Set #}
+{% for transform in l3.ipsec.transform_sets | default([]) %}
+crypto ipsec transform-set {{ transform.name }} {{ transform.esp_encryption }} {{ transform.esp_auth }}
+{% if transform.mode %}
+  mode {{ transform.mode }}
+{% endif %}
+!
+{% endfor %}
+
+{# IPsec Profile (for tunnel protection) #}
+{% for profile in l3.ipsec.profiles | default([]) %}
+crypto ipsec profile {{ profile.name }}
+{% if profile.set_transform_set %}
+  set transform-set {{ profile.set_transform_set }}
+{% endif %}
+{% if profile.set_pfs %}
+  set pfs {{ profile.set_pfs }}
+{% endif %}
+{% if profile.set_ikev2_profile %}
+  set ikev2-profile {{ profile.set_ikev2_profile }}
+{% endif %}
+{% if profile.set_isakmp_profile %}
+  set isakmp-profile {{ profile.set_isakmp_profile }}
+{% endif %}
+{% if profile.responder_only %}
+  responder-only
+{% endif %}
+{% if profile.set_security_association_lifetime %}
+  set security-association lifetime {{ profile.set_security_association_lifetime.type }} {{ profile.set_security_association_lifetime.value }}
+{% endif %}
+{% if profile.set_security_association_replay %}
+  set security-association replay {{ profile.set_security_association_replay.type }} {{ profile.set_security_association_replay.value }}
+{% endif %}
+!
+{% endfor %}
+
+{# Crypto Map (for policy-based VPN) #}
+{% for cmap in l3.ipsec.crypto_maps | default([]) %}
+crypto map {{ cmap.name }} {{ cmap.seq }} ipsec-isakmp
+{% if cmap.description %}
+  description {{ cmap.description }}
+{% endif %}
+{% if cmap.set_peer %}
+  set peer {{ cmap.set_peer }}
+{% endif %}
+{% if cmap.set_transform_set %}
+  set transform-set {{ cmap.set_transform_set }}
+{% endif %}
+{% if cmap.set_pfs %}
+  set pfs {{ cmap.set_pfs }}
+{% endif %}
+{% if cmap.set_ikev2_profile %}
+  set ikev2-profile {{ cmap.set_ikev2_profile }}
+{% endif %}
+{% if cmap.match_address %}
+  match address {{ cmap.match_address }}
+{% endif %}
+{% if cmap.set_security_association_lifetime %}
+  set security-association lifetime {{ cmap.set_security_association_lifetime.type }} {{ cmap.set_security_association_lifetime.value }}
+{% endif %}
+{% if cmap.reverse_route %}
+  reverse-route
+{% endif %}
+!
+{% endfor %}
+
+{# Apply Crypto Map to Interfaces #}
+{% for iface in l3.ipsec.crypto_map_interfaces | default([]) %}
+interface {{ iface.interface }}
+  crypto map {{ iface.crypto_map }}
+!
+{% endfor %}
+
+{# Anti-Replay & Advanced Settings #}
+{% if l3.ipsec.global_settings %}
+{% if l3.ipsec.global_settings.fragmentation %}
+crypto ipsec fragmentation {{ l3.ipsec.global_settings.fragmentation }}
+{% endif %}
+{% if l3.ipsec.global_settings.df_bit %}
+crypto ipsec df-bit {{ l3.ipsec.global_settings.df_bit }}
+{% endif %}
+{% if l3.ipsec.global_settings.nat_transparency %}
+crypto isakmp nat-traversal {{ l3.ipsec.global_settings.nat_transparency }}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l3.ipsec #}

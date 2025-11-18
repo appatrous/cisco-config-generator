@@ -1,0 +1,124 @@
+{# LISP Configuration for Huawei VRP #}
+{# Locator/ID Separation Protocol - Mobility & Site Multihoming #}
+
+{% if l3.lisp and l3.lisp.enabled %}
+
+{# Global LISP Configuration #}
+lisp
+{% if l3.lisp.rloc_probing %}
+  rloc-probe enable
+{% endif %}
+
+{# Instance ID Configuration #}
+{% for instance in l3.lisp.instances | default([]) %}
+  instance-id {{ instance.id }}
+{% if instance.description %}
+    description {{ instance.description }}
+{% endif %}
+{% if instance.vrf %}
+    vpn-instance {{ instance.vrf }}
+{% endif %}
+
+  {# Service type (IPv4/IPv6) #}
+    service {{ instance.service | default('ipv4') }}
+
+  {# Map-Server Configuration #}
+{% for ms in instance.map_servers | default([]) %}
+    map-server {{ ms.address }}{% if ms.key %} key cipher {{ ms.key }}{% endif %}
+{% endfor %}
+
+  {# Map-Resolver Configuration #}
+{% for mr in instance.map_resolvers | default([]) %}
+    map-resolver {{ mr.address }}
+{% endfor %}
+
+  {# Database Mapping (EID-to-RLOC) #}
+{% for mapping in instance.database_mappings | default([]) %}
+    database eid {{ mapping.eid_prefix }}
+      locator {{ mapping.rloc }}
+{% if mapping.priority %}
+        priority {{ mapping.priority }}
+{% endif %}
+{% if mapping.weight %}
+        weight {{ mapping.weight }}
+{% endif %}
+{% endfor %}
+
+  {# Proxy-ETR #}
+{% if instance.use_petr %}
+    proxy-etr {{ instance.use_petr.address }}
+{% endif %}
+
+  {# ETR Configuration #}
+{% if instance.etr and instance.etr.enabled %}
+    etr enable
+{% if instance.etr.map_server_registration %}
+    map-register authentication key cipher {{ instance.etr.map_server_registration.key }}
+{% endif %}
+{% endif %}
+
+  {# ITR Configuration #}
+{% if instance.itr and instance.itr.enabled %}
+    itr enable
+{% endif %}
+
+  quit
+{% endfor %}{# end instances #}
+
+{# LISP Mobility Configuration #}
+{% if l3.lisp.mobility %}
+{% if l3.lisp.mobility.dynamic_eid %}
+  dynamic-eid {{ l3.lisp.mobility.dynamic_eid.name }}
+    eid-prefix {{ l3.lisp.mobility.dynamic_eid.eid_prefix }}
+    locator-set {{ l3.lisp.mobility.dynamic_eid.locator_set }}
+{% if l3.lisp.mobility.dynamic_eid.map_notify_group %}
+    map-notify group {{ l3.lisp.mobility.dynamic_eid.map_notify_group }}
+{% endif %}
+  quit
+{% endif %}
+{% endif %}
+
+{# Map-Server/Map-Resolver Role #}
+{% if l3.lisp.map_server and l3.lisp.map_server.enabled %}
+  map-server
+    site {{ l3.lisp.map_server.site_name | default('default-site') }}
+{% if l3.lisp.map_server.authentication_key %}
+      authentication-key cipher {{ l3.lisp.map_server.authentication_key }}
+{% endif %}
+{% for eid in l3.lisp.map_server.eid_prefixes | default([]) %}
+      eid-prefix {{ eid.prefix }}
+{% endfor %}
+    quit
+  quit
+{% endif %}
+
+{% if l3.lisp.map_resolver and l3.lisp.map_resolver.enabled %}
+  map-resolver enable
+{% endif %}
+
+  quit
+#
+
+{# LISP Locator-Set Configuration #}
+{% for locator_set in l3.lisp.locator_sets | default([]) %}
+lisp locator-set {{ locator_set.name }}
+{% for locator in locator_set.locators | default([]) %}
+  locator {{ locator.address }}
+{% if locator.priority %}
+    priority {{ locator.priority }}
+{% endif %}
+{% if locator.weight %}
+    weight {{ locator.weight }}
+{% endif %}
+{% endfor %}
+#
+{% endfor %}
+
+{# Apply LISP to Interfaces #}
+{% for iface in l3.lisp.interfaces | default([]) %}
+interface {{ iface.interface }}
+  lisp mobility {{ iface.mobility_name }}
+#
+{% endfor %}
+
+{% endif %}{# end l3.lisp #}

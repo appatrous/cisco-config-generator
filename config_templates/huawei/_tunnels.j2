@@ -1,0 +1,179 @@
+{# Tunnel Configuration for Huawei VRP #}
+{# GRE, IP-in-IP, GRE over IPsec, mGRE (DSVPN) #}
+
+{% if l3.tunnels %}
+{% for tunnel in l3.tunnels %}
+interface Tunnel{{ tunnel.tunnel_id }}/0/0
+{% if tunnel.description %}
+  description {{ tunnel.description }}
+{% endif %}
+{% if tunnel.vrf %}
+  ip binding vpn-instance {{ tunnel.vrf }}
+{% endif %}
+
+{# IP Address #}
+{% for ipv4 in tunnel.ipv4 | default([]) %}
+  ip address {{ ipv4.address | regex_replace('/.*', '') }} {{ ipv4.address | ipaddr('netmask') }}
+{% endfor %}
+{% for ipv6 in tunnel.ipv6 | default([]) %}
+  ipv6 address {{ ipv6.address }}
+{% endfor %}
+
+{# Tunnel Source/Destination #}
+{% if tunnel.source %}
+  source {{ tunnel.source }}
+{% endif %}
+{% if tunnel.destination %}
+  destination {{ tunnel.destination }}
+{% endif %}
+
+{# Tunnel Mode #}
+{% if tunnel.mode == 'gre' %}
+  tunnel-protocol gre
+{% elif tunnel.mode == 'gre-multipoint' %}
+  tunnel-protocol gre
+  gre multipoint
+{% elif tunnel.mode == 'ipip' %}
+  tunnel-protocol ipip
+{% elif tunnel.mode == 'ipsec' %}
+  tunnel-protocol ipsec
+{% elif tunnel.mode == 'gre-ipsec' %}
+  tunnel-protocol gre
+  ipsec profile {{ tunnel.ipsec_profile | default('IPSEC-PROFILE') }}
+{% endif %}
+
+{# Tunnel Key (for GRE) #}
+{% if tunnel.key %}
+  gre key {{ tunnel.key }}
+{% endif %}
+
+{# Keepalive #}
+{% if tunnel.keepalive %}
+  keepalive {{ tunnel.keepalive.interval | default(10) }} {{ tunnel.keepalive.retries | default(3) }}
+{% endif %}
+
+{# MTU & Bandwidth #}
+{% if tunnel.mtu %}
+  mtu {{ tunnel.mtu }}
+  tcp adjust-mss {{ tunnel.mtu - 40 }}
+{% endif %}
+{% if tunnel.bandwidth %}
+  bandwidth {{ tunnel.bandwidth }}
+{% endif %}
+
+{# TCP MSS Adjust #}
+{% if tunnel.tcp_mss %}
+  tcp adjust-mss {{ tunnel.tcp_mss }}
+{% endif %}
+
+{# QoS (ToS/DSCP preservation) #}
+{% if tunnel.qos %}
+{% if tunnel.qos.tos_reflect %}
+  tunnel tos reflect
+{% elif tunnel.qos.tos_value %}
+  tunnel tos {{ tunnel.qos.tos_value }}
+{% endif %}
+{% if tunnel.qos.dscp %}
+  tunnel dscp {{ tunnel.qos.dscp }}
+{% endif %}
+{% endif %}
+
+{# DSVPN/NHRP Configuration (Huawei's DMVPN equivalent) #}
+{% if tunnel.nhrp %}
+{% if tunnel.nhrp.enabled %}
+  {# NHRP Network ID #}
+  nhrp network-id {{ tunnel.nhrp.network_id }}
+
+  {# NHRP Authentication #}
+  {% if tunnel.nhrp.authentication %}
+  nhrp authentication {{ tunnel.nhrp.authentication }}
+  {% endif %}
+
+  {# NHRP Holdtime #}
+  {% if tunnel.nhrp.holdtime %}
+  nhrp entry holdtime {{ tunnel.nhrp.holdtime }}
+  {% endif %}
+
+  {# NHRP Registration Timeout #}
+  {% if tunnel.nhrp.registration_timeout %}
+  nhrp registration timeout {{ tunnel.nhrp.registration_timeout }}
+  {% endif %}
+
+  {# NHRP Maps (Static or Dynamic) #}
+  {% for map in tunnel.nhrp.maps | default([]) %}
+  nhrp map {{ map.tunnel_ip }} {{ map.nbma_ip }}
+  {% if map.register %}
+  nhrp map register {{ map.tunnel_ip }} {{ map.nbma_ip }}
+  {% endif %}
+  {% endfor %}
+
+  {# NHRP Multicast Maps #}
+  {% for nbma in tunnel.nhrp.multicast_maps | default([]) %}
+  nhrp map multicast {{ nbma }}
+  {% endfor %}
+
+  {# NHRP Server (Hub configuration) #}
+  {% if tunnel.nhrp.nhs %}
+  nhrp map {{ tunnel.nhrp.nhs.tunnel_ip }} {{ tunnel.nhrp.nhs.nbma_ip }}
+  nhrp map multicast {{ tunnel.nhrp.nhs.nbma_ip }}
+  nhrp nhs {{ tunnel.nhrp.nhs.tunnel_ip }}
+  {% endif %}
+
+  {# DSVPN Phase 2/3 Settings #}
+  {% if tunnel.nhrp.shortcut %}
+  nhrp shortcut
+  {% endif %}
+  {% if tunnel.nhrp.redirect %}
+  nhrp redirect
+  {% endif %}
+
+  {# NHRP Group #}
+  {% if tunnel.nhrp.group %}
+  nhrp group {{ tunnel.nhrp.group }}
+  {% endif %}
+
+{% endif %}{# end nhrp.enabled #}
+{% endif %}{# end nhrp #}
+
+{# IPsec Protection (for GRE over IPsec) #}
+{% if tunnel.ipsec_profile %}
+  ipsec profile {{ tunnel.ipsec_profile }}
+{% endif %}
+
+{# Routing Protocol on Tunnel #}
+{% if tunnel.routing %}
+{% if tunnel.routing.ospf %}
+  ospf enable {{ tunnel.routing.ospf.process_id }} area {{ tunnel.routing.ospf.area }}
+  ospf network-type {{ tunnel.routing.ospf.network_type | default('p2p') }}
+{% if tunnel.routing.ospf.cost %}
+  ospf cost {{ tunnel.routing.ospf.cost }}
+{% endif %}
+{% endif %}
+
+{% if tunnel.routing.eigrp %}
+  {# Huawei doesn't support EIGRP - skip or map to alternative #}
+{% endif %}
+
+{% if tunnel.routing.rip %}
+  rip enable
+  rip version 2
+{% endif %}
+
+{% if tunnel.routing.isis %}
+  isis enable {{ tunnel.routing.isis.process_id }}
+  isis circuit-type {{ tunnel.routing.isis.circuit_type | default('p2p') }}
+{% endif %}
+{% endif %}{# end routing #}
+
+{# Multicast #}
+{% if tunnel.multicast %}
+  pim {{ tunnel.multicast.pim_mode | default('sm') }}
+{% if tunnel.multicast.pim_nbma_mode %}
+  pim p2mp
+{% endif %}
+{% endif %}
+
+  undo shutdown
+#
+{% endfor %}
+{% endif %}{# end l3.tunnels #}

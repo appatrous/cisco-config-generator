@@ -1,0 +1,222 @@
+{# LISP Configuration for Cisco IOS/IOS-XE #}
+{# Locator/ID Separation Protocol - Mobility & Site Multihoming #}
+
+{% if l3.lisp and l3.lisp.enabled %}
+
+{# Global LISP Configuration #}
+router lisp
+{% if l3.lisp.rloc_probing %}
+  rloc-probing on-route-change
+{% endif %}
+{% if l3.lisp.mobility_first_hop_router %}
+  mobility-first-hop-router
+{% endif %}
+{% if l3.lisp.locator_down_detection %}
+  loc-reach-algorithm rloc-probing
+{% endif %}
+
+{# LISP Site Registration Limit #}
+{% if l3.lisp.site_registration_limit %}
+  site-registration-limit {{ l3.lisp.site_registration_limit }}
+{% endif %}
+
+{# Map-Server/Map-Resolver Configuration #}
+{% if l3.lisp.map_server %}
+{% if l3.lisp.map_server.enabled %}
+  site {{ l3.lisp.map_server.site_name | default('default-site') }}
+{% if l3.lisp.map_server.authentication_key %}
+    authentication-key {{ l3.lisp.map_server.authentication_key }}
+{% endif %}
+{% for eid in l3.lisp.map_server.eid_prefixes | default([]) %}
+    eid-prefix {{ eid.prefix }}{% if eid.accept_more_specifics %} accept-more-specifics{% endif %}
+{% endfor %}
+  exit
+{% endif %}
+{% endif %}
+
+{% if l3.lisp.map_resolver and l3.lisp.map_resolver.enabled %}
+  map-resolver
+{% endif %}
+
+{# Instance ID Configuration (Multi-Tenancy) #}
+{% for instance in l3.lisp.instances | default([]) %}
+  instance-id {{ instance.id }}
+{% if instance.description %}
+    description {{ instance.description }}
+{% endif %}
+{% if instance.vrf %}
+    service {{ instance.service | default('ipv4') }} vrf {{ instance.vrf }}
+{% else %}
+    service {{ instance.service | default('ipv4') }}
+{% endif %}
+
+  {# EID Table (Local EIDs) #}
+{% for eid in instance.eid_table | default([]) %}
+    eid-table {{ eid.vrf | default('default') }}
+{% for prefix in eid.prefixes | default([]) %}
+      eid-prefix {{ prefix.address }}
+{% if prefix.route_tag %}
+      route-tag {{ prefix.route_tag }}
+{% endif %}
+{% endfor %}
+    exit
+{% endfor %}
+
+  {# Map-Server for this instance #}
+{% for ms in instance.map_servers | default([]) %}
+    map-server {{ ms.address }}{% if ms.key %} key {{ ms.key }}{% endif %}{% if ms.proxy_reply %} proxy-reply{% endif %}
+{% endfor %}
+
+  {# Map-Resolver for this instance #}
+{% for mr in instance.map_resolvers | default([]) %}
+    map-resolver {{ mr.address }}
+{% endfor %}
+
+  {# Database Mapping (Static EID-to-RLOC) #}
+{% for mapping in instance.database_mappings | default([]) %}
+    database-mapping {{ mapping.eid_prefix }} {{ mapping.rloc }}{% if mapping.priority %} priority {{ mapping.priority }}{% endif %}{% if mapping.weight %} weight {{ mapping.weight }}{% endif %}
+{% endfor %}
+
+  {# Use Proxy ETR #}
+{% if instance.use_petr %}
+    use-petr {{ instance.use_petr.address }}{% if instance.use_petr.priority %} priority {{ instance.use_petr.priority }}{% endif %}{% if instance.use_petr.weight %} weight {{ instance.use_petr.weight }}{% endif %}
+{% endif %}
+
+  {# Proxy ITR #}
+{% if instance.proxy_itr %}
+{% for rloc in instance.proxy_itr.rloc_addresses | default([]) %}
+    proxy-itr {{ rloc }}
+{% endfor %}
+{% endif %}
+
+  {# Proxy ETR #}
+{% if instance.proxy_etr %}
+    proxy-etr
+{% endif %}
+
+  {# ETR (Egress Tunnel Router) Configuration #}
+{% if instance.etr %}
+{% if instance.etr.enabled %}
+    etr
+{% if instance.etr.accept_map_request_mapping %}
+    etr accept-map-request-mapping verify
+{% endif %}
+{% if instance.etr.map_server_registration %}
+    etr map-server {{ instance.etr.map_server_registration.address }} key {{ instance.etr.map_server_registration.key }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+  {# ITR (Ingress Tunnel Router) Configuration #}
+{% if instance.itr %}
+{% if instance.itr.enabled %}
+    itr
+{% if instance.itr.map_resolver %}
+    itr map-resolver {{ instance.itr.map_resolver.address }}
+{% endif %}
+{% if instance.itr.solicit_map_request %}
+    itr solicit-map-request {{ instance.itr.solicit_map_request }}
+{% endif %}
+{% endif %}
+{% endif %}
+
+  exit
+{% endfor %}{# end instances #}
+
+{# LISP Mobility Configuration #}
+{% if l3.lisp.mobility %}
+{% if l3.lisp.mobility.dynamic_eid %}
+  dynamic-eid {{ l3.lisp.mobility.dynamic_eid.name }}
+    database-mapping {{ l3.lisp.mobility.dynamic_eid.eid_prefix }}
+    locator-set {{ l3.lisp.mobility.dynamic_eid.locator_set }}
+{% if l3.lisp.mobility.dynamic_eid.map_notify_group %}
+    map-notify-group {{ l3.lisp.mobility.dynamic_eid.map_notify_group }}
+{% endif %}
+  exit
+{% endif %}
+
+{# Mobility First-Hop Router (for VM mobility) #}
+{% if l3.lisp.mobility.first_hop_router %}
+  mobility {{ l3.lisp.mobility.first_hop_router.name }}
+{% for interface in l3.lisp.mobility.first_hop_router.interfaces | default([]) %}
+    member {{ interface }}
+{% endfor %}
+    eid-record instance-id {{ l3.lisp.mobility.first_hop_router.instance_id | default(0) }} {{ l3.lisp.mobility.first_hop_router.eid_prefix }}
+  exit
+{% endif %}
+{% endif %}{# end mobility #}
+
+{# LISP Multicast Support #}
+{% if l3.lisp.multicast %}
+{% if l3.lisp.multicast.enabled %}
+  map-cache-persistent
+  itr map-resolver {{ l3.lisp.multicast.map_resolver }}
+  use-petr {{ l3.lisp.multicast.petr }}
+{% endif %}
+{% endif %}
+
+{# IPv4 LISP Configuration #}
+{% if l3.lisp.ipv4 %}
+  ipv4
+{% if l3.lisp.ipv4.itr %}
+    itr
+{% endif %}
+{% if l3.lisp.ipv4.etr %}
+    etr
+{% endif %}
+{% if l3.lisp.ipv4.map_cache_limit %}
+    map-cache-limit {{ l3.lisp.ipv4.map_cache_limit }}
+{% endif %}
+{% for static in l3.lisp.ipv4.static_routes | default([]) %}
+    route {{ static.prefix }} {{ static.next_hop }}
+{% endfor %}
+  exit
+{% endif %}
+
+{# IPv6 LISP Configuration #}
+{% if l3.lisp.ipv6 %}
+  ipv6
+{% if l3.lisp.ipv6.itr %}
+    itr
+{% endif %}
+{% if l3.lisp.ipv6.etr %}
+    etr
+{% endif %}
+{% if l3.lisp.ipv6.map_cache_limit %}
+    map-cache-limit {{ l3.lisp.ipv6.map_cache_limit }}
+{% endif %}
+  exit
+{% endif %}
+
+  exit
+!
+
+{# LISP Locator-Set Configuration (RLOCs) #}
+{% for locator_set in l3.lisp.locator_sets | default([]) %}
+locator-set {{ locator_set.name }}
+{% for locator in locator_set.locators | default([]) %}
+  {{ locator.address }}{% if locator.priority %} priority {{ locator.priority }}{% endif %}{% if locator.weight %} weight {{ locator.weight }}{% endif %}
+{% endfor %}
+  exit
+!
+{% endfor %}
+
+{# Apply LISP to Interfaces #}
+{% for iface in l3.lisp.interfaces | default([]) %}
+interface {{ iface.interface }}
+  lisp mobility {{ iface.mobility_name }}
+!
+{% endfor %}
+
+{# LISP xTR (combined ITR+ETR) #}
+{% if l3.lisp.xtr and l3.lisp.xtr.enabled %}
+router lisp
+  eid-table default instance-id {{ l3.lisp.xtr.instance_id | default(0) }}
+    ipv4
+      route-import database
+    exit
+  exit
+!
+{% endif %}
+
+{% endif %}{# end l3.lisp #}
