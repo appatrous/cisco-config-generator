@@ -148,7 +148,7 @@ interface {{ trunk.interface }}
   storm-control unicast level {{ trunk.storm_control.unicast }}
 {% endif %}
 {% endif %}
-{% if trunk.qinq and trunk.qinq.enabled %}
+{% if trunk.get('qinq') and trunk.qinq.get('enabled') %}
   {# TODO IOS QinQ (802.1ad) - feature varies by platform #}
   ! QinQ S-VLAN {{ trunk.qinq.s_vlan }} (802.1ad) - check platform support
 {% endif %}
@@ -234,6 +234,6 @@ interface {{ port }}
 {% endif %}
 
 {# REP (Resilient Ethernet Protocol) Ring Protection #}
-{% if l2.rep and l2.rep.enabled %}
+{% if l2.get('rep') and l2.rep.get('enabled') %}
 {% include '_rep.j2' %}
 {% endif %}

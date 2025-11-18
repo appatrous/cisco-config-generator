@@ -1,7 +1,7 @@
 {# Advanced BGP Features for Cisco IOS/IOS-XE #}
 {# BGP-Flowspec, BGP-BMP, BGP-LS, AIGP, ORR, Graceful-Shutdown, BGP-EPE #}
 
-{% if l3.bgp and l3.bgp.advanced %}
+{% if l3.get('bgp') and l3.bgp.get('advanced') %}
 
 {# BGP-Flowspec (DDoS Mitigation and Traffic Filtering) #}
 {% if l3.bgp.advanced.flowspec %}

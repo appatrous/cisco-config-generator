@@ -10,10 +10,10 @@ router ospf {{ ospf.process_id }}{% if ospf.vrf %} vrf {{ ospf.vrf }}{% endif %}
 {% if ospf.spf_timers %}
   timers throttle spf {{ ospf.spf_timers.initial_delay | default(5000) }} {{ ospf.spf_timers.min_hold | default(10000) }} {{ ospf.spf_timers.max_hold | default(10000) }}
 {% endif %}
-{% if ospf.lsa_timers and ospf.lsa_timers.arrival %}
+{% if ospf.get('lsa_timers') and ospf.lsa_timers.get('arrival') %}
   timers lsa arrival {{ ospf.lsa_timers.arrival }}
 {% endif %}
-{% if ospf.lsa_timers and ospf.lsa_timers.group_pacing %}
+{% if ospf.get('lsa_timers') and ospf.lsa_timers.get('group_pacing') %}
   timers pacing lsa-group {{ ospf.lsa_timers.group_pacing }}
 {% endif %}
 {% if ospf.graceful_restart %}
@@ -64,7 +64,7 @@ router ospf {{ ospf.process_id }}{% if ospf.vrf %} vrf {{ ospf.vrf }}{% endif %}
 {% endfor %}
 
 {# Default Route Origination #}
-{% if ospf.default_originate and ospf.default_originate.enabled %}
+{% if ospf.get('default_originate') and ospf.default_originate.get('enabled') %}
   default-information originate{% if ospf.default_originate.always %} always{% endif %}{% if ospf.default_originate.route_map %} route-map {{ ospf.default_originate.route_map }}{% endif %}{% if ospf.default_originate.metric %} metric {{ ospf.default_originate.metric }}{% endif %}{% if ospf.default_originate.metric_type %} metric-type {{ ospf.default_originate.metric_type }}{% endif %}
 
 {% endif %}

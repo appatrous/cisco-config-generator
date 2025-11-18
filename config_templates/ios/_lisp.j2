@@ -1,7 +1,7 @@
 {# LISP Configuration for Cisco IOS/IOS-XE #}
 {# Locator/ID Separation Protocol - Mobility & Site Multihoming #}
 
-{% if l3.lisp and l3.lisp.enabled %}
+{% if l3.get('lisp') and l3.lisp.get('enabled') %}
 
 {# Global LISP Configuration #}
 router lisp

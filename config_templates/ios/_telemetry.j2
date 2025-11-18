@@ -1,7 +1,7 @@
 {# Telemetry Configuration for Cisco IOS-XE/NX-OS #}
 {# sFlow, IPFIX, Model-Driven Telemetry (gNMI), NETCONF/RESTCONF #}
 
-{% if l3.telemetry and l3.telemetry.enabled %}
+{% if l3.get('telemetry') and l3.telemetry.get('enabled') %}
 
 {# NetFlow/IPFIX Configuration #}
 {% if l3.telemetry.netflow %}

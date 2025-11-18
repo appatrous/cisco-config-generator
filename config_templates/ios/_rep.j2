@@ -1,7 +1,7 @@
 {# REP (Resilient Ethernet Protocol) for Cisco IOS #}
 {# Cisco's proprietary ring protection (alternative to G.8032 ERPS) #}
 
-{% if l2.rep and l2.rep.enabled %}
+{% if l2.get('rep') and l2.rep.get('enabled') %}
 
 {# REP Segments #}
 {% for segment in l2.rep.segments | default([]) %}

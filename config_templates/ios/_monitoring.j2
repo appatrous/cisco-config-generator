@@ -1,7 +1,7 @@
 {# Network Monitoring Configuration for Cisco IOS/IOS-XE #}
 {# IP-SLA, ERSPAN, NetFlow/IPFIX #}
 
-{% if l3.monitoring and l3.monitoring.enabled %}
+{% if l3.get('monitoring') and l3.monitoring.get('enabled') %}
 
 {# IP SLA Configuration #}
 {% if l3.monitoring.ip_sla %}

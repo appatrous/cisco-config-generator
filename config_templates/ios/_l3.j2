@@ -1,7 +1,7 @@
 {# Layer 3 Configuration for Cisco IOS/IOS-XE #}
 
 {# VRFs #}
-{% if l3.vrfs %}
+{% if l3.get('vrfs') %}
 {% for vrf in l3.vrfs %}
 ip vrf {{ vrf.name }}
 {% if vrf.rd %}
@@ -25,7 +25,7 @@ ip vrf {{ vrf.name }}
 {% endif %}
 
 {# Layer 3 Interfaces #}
-{% if l3.interfaces %}
+{% if l3.get('interfaces') %}
 {% for iface in l3.interfaces %}
 interface {{ iface.interface }}
 {% if iface.description %}
@@ -145,7 +145,7 @@ interface {{ iface.interface }}
 {% endif %}
 
 {# Static Routes #}
-{% if l3.static_routes %}
+{% if l3.get('static_routes') %}
 {% for route in l3.static_routes %}
 {% if route.vrf %}
 ip route vrf {{ route.vrf }} {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmask') }} {{ route.next_hop }}{% if route.distance %} {{ route.distance }}{% endif %}{% if route.permanent %} permanent{% endif %}{% if route.name %} name {{ route.name }}{% endif %}{% if route.track %} track {{ route.track }}{% endif %}
@@ -202,58 +202,58 @@ interface {{ iface }}
 {% endif %}
 
 {# OSPF #}
-{% if l3.ospf %}
+{% if l3.get('ospf') %}
 {% for ospf in l3.ospf %}
 {% include '_ospf.j2' %}
 {% endfor %}
 {% endif %}
 
 {# IS-IS #}
-{% if l3.isis %}
+{% if l3.get('isis') %}
 {% for isis in l3.isis %}
 {% include '_isis.j2' %}
 {% endfor %}
 {% endif %}
 
 {# EIGRP #}
-{% if l3.eigrp %}
+{% if l3.get('eigrp') %}
 {% for eigrp in l3.eigrp %}
 {% include '_eigrp.j2' %}
 {% endfor %}
 {% endif %}
 
 {# BGP #}
-{% if l3.bgp %}
+{% if l3.get('bgp') %}
 {% include '_bgp.j2' %}
 {% endif %}
 
 {# RIP #}
-{% if l3.rip and l3.rip.enabled %}
+{% if l3.get('rip') and l3.rip.get('enabled') %}
 {% include '_rip.j2' %}
 {% endif %}
 
 {# Multicast #}
-{% if l3.multicast %}
+{% if l3.get('multicast') %}
 {% include '_multicast.j2' %}
 {% endif %}
 
 {# NAT #}
-{% if l3.nat %}
+{% if l3.get('nat') %}
 {% include '_nat.j2' %}
 {% endif %}
 
 {# MPLS #}
-{% if l3.mpls %}
+{% if l3.get('mpls') %}
 {% include '_mpls.j2' %}
 {% endif %}
 
 {# Segment Routing #}
-{% if l3.segment_routing and l3.segment_routing.enabled %}
+{% if l3.get('segment_routing') and l3.segment_routing.get('enabled') %}
 {% include '_segment_routing.j2' %}
 {% endif %}
 
 {# BFD #}
-{% if l3.bfd and l3.bfd.enabled %}
+{% if l3.get('bfd') and l3.bfd.get('enabled') %}
 {% include '_bfd.j2' %}
 {% endif %}
 
@@ -268,17 +268,17 @@ interface {{ iface }}
 {% endif %}
 
 {# LISP (Locator/ID Separation Protocol) #}
-{% if l3.lisp and l3.lisp.enabled %}
+{% if l3.get('lisp') and l3.lisp.get('enabled') %}
 {% include '_lisp.j2' %}
 {% endif %}
 
 {# Monitoring (IP-SLA, ERSPAN, TWAMP) #}
-{% if l3.monitoring and l3.monitoring.enabled %}
+{% if l3.get('monitoring') and l3.monitoring.get('enabled') %}
 {% include '_monitoring.j2' %}
 {% endif %}
 
 {# Telemetry (NetFlow/IPFIX, sFlow, gNMI, NETCONF) #}
-{% if l3.telemetry and l3.telemetry.enabled %}
+{% if l3.get('telemetry') and l3.telemetry.get('enabled') %}
 {% include '_telemetry.j2' %}
 {% endif %}
 
