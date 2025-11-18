@@ -2931,9 +2931,20 @@ async function generateConfig() {
             showConfigPreview(result.config, result.validation, result.linting);
             statusDiv.innerHTML = '<div class="success">✅ Configuration generated successfully</div>';
         } else {
+            // Show error message
             statusDiv.innerHTML = `<div class="error">❌ Error: ${result.error || 'Unknown error'}</div>`;
+
+            // Show validation errors if available
             if (result.validation) {
+                // Make preview panel visible to show validation errors
+                document.getElementById('preview-panel').style.display = 'block';
                 showValidationErrors(result.validation);
+
+                // Clear config output since generation failed
+                const configOutput = document.getElementById('config-output');
+                if (configOutput) {
+                    configOutput.textContent = '# Configuration generation failed due to validation errors\n# Please fix the errors below and try again';
+                }
             }
         }
     } catch (error) {
@@ -2944,16 +2955,28 @@ async function generateConfig() {
 // Show validation errors
 function showValidationErrors(validation) {
     const validationDiv = document.getElementById('validation-results');
+    if (!validationDiv) return;
+
     let html = '';
 
     if (validation.errors && validation.errors.length > 0) {
-        html += `<h4 class="error">❌ Errors (${validation.errors.length})</h4>`;
-        html += '<ul>' + validation.errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+        html += `<h4 style="color: #e74c3c; margin-top: 0;">❌ Validation Errors (${validation.errors.length})</h4>`;
+        html += '<ul style="color: #e74c3c; margin-bottom: 20px;">' +
+                validation.errors.map(e => `<li><strong>${e}</strong></li>`).join('') +
+                '</ul>';
     }
 
     if (validation.warnings && validation.warnings.length > 0) {
-        html += `<h4 class="warning">⚠️ Warnings (${validation.warnings.length})</h4>`;
-        html += '<ul>' + validation.warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+        html += `<h4 style="color: #f39c12;">⚠️ Warnings (${validation.warnings.length})</h4>`;
+        html += '<ul style="color: #f39c12;">' +
+                validation.warnings.map(w => `<li>${w}</li>`).join('') +
+                '</ul>';
+    }
+
+    if (!validation.errors || validation.errors.length === 0) {
+        if (!validation.warnings || validation.warnings.length === 0) {
+            html = '<p style="color: #27ae60;">✅ Configuration validation passed</p>';
+        }
     }
 
     validationDiv.innerHTML = html || '<p>Validation info not available</p>';
