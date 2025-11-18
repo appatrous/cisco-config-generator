@@ -1,0 +1,182 @@
+{# ERPS (Ethernet Ring Protection Switching) Configuration - ITU-T G.8032 #}
+
+{% if l2.get('erps') and l2.erps.get('enabled') %}
+! ========================================
+! ERPS (Ethernet Ring Protection Switching) - G.8032
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{# Enable ERPS globally #}
+ethernet ring g8032
+
+{# ERPS Ring Instances #}
+{% if l2.erps.get('rings') %}
+{% for ring in l2.erps.rings %}
+! Ring {{ ring.ring_id }}: {{ ring.name | default('ERPS-RING-' ~ ring.ring_id) }}
+ethernet ring g8032 profile {{ ring.profile_name | default('ERPS-PROFILE-' ~ ring.ring_id) }}
+{% if ring.description %}
+  description {{ ring.description }}
+{% endif %}
+{% if ring.timer %}
+{% if ring.timer.guard_timer %}
+  timer guard {{ ring.timer.guard_timer }}
+{% endif %}
+{% if ring.timer.holdoff_timer %}
+  timer hold-off {{ ring.timer.holdoff_timer }}
+{% endif %}
+{% if ring.timer.wtr_timer %}
+  timer wtr {{ ring.timer.wtr_timer }}
+{% endif %}
+{% endif %}
+{% if ring.version %}
+  version {{ ring.version }}
+{% endif %}
+{% if ring.revertive is defined %}
+{% if ring.revertive %}
+  revertive
+{% else %}
+  non-revertive
+{% endif %}
+{% endif %}
+!
+
+ethernet ring g8032 {{ ring.ring_id }}
+  profile {{ ring.profile_name | default('ERPS-PROFILE-' ~ ring.ring_id) }}
+{% if ring.control_vlan %}
+  control-vlan {{ ring.control_vlan }}
+{% endif %}
+{% if ring.port0 %}
+  port0 interface {{ ring.port0 }}
+{% endif %}
+{% if ring.port1 %}
+  port1 interface {{ ring.port1 }}
+{% endif %}
+{% if ring.rpl_role %}
+{% if ring.rpl_role == 'owner' %}
+  rpl owner port {{ ring.rpl_port | default('0') }}
+{% elif ring.rpl_role == 'neighbor' %}
+  rpl neighbor
+{% elif ring.rpl_role == 'next-neighbor' %}
+  rpl next-neighbor
+{% endif %}
+{% endif %}
+{% if ring.inclusion_list_vlans %}
+  inclusion-list vlan {{ ring.inclusion_list_vlans }}
+{% endif %}
+{% if ring.aps_channel %}
+  aps-channel {{ ring.aps_channel }}
+{% endif %}
+{% if ring.level %}
+  level {{ ring.level }}
+{% endif %}
+!
+
+{# Interface configuration for ring ports #}
+{% if ring.port0 %}
+interface {{ ring.port0 }}
+  description ERPS Ring {{ ring.ring_id }} Port 0
+  switchport mode trunk
+{% if ring.inclusion_list_vlans %}
+  switchport trunk allowed vlan {{ ring.inclusion_list_vlans }}
+{% endif %}
+  ethernet ring g8032 {{ ring.ring_id }} port0
+  no shutdown
+!
+{% endif %}
+
+{% if ring.port1 %}
+interface {{ ring.port1 }}
+  description ERPS Ring {{ ring.ring_id }} Port 1
+  switchport mode trunk
+{% if ring.inclusion_list_vlans %}
+  switchport trunk allowed vlan {{ ring.inclusion_list_vlans }}
+{% endif %}
+  ethernet ring g8032 {{ ring.ring_id }} port1
+  no shutdown
+!
+{% endif %}
+
+{% endfor %}
+{% endif %}{# end rings #}
+
+{# MEP (Maintenance End Point) Configuration for CFM #}
+{% if l2.erps.get('cfm') and l2.erps.cfm.get('enabled') %}
+! CFM (Connectivity Fault Management) for ERPS
+ethernet cfm global
+!
+
+{% for domain in l2.erps.cfm.get('domains', []) %}
+ethernet cfm domain {{ domain.name }} level {{ domain.level }}
+  service {{ domain.service }} vlan {{ domain.vlan }}
+    continuity-check
+    mip auto-create all
+!
+{% endfor %}
+
+{% for mep in l2.erps.cfm.get('meps', []) %}
+interface {{ mep.interface }}
+  ethernet cfm mep domain {{ mep.domain }} mpid {{ mep.mpid }}
+!
+{% endfor %}
+{% endif %}{# end cfm #}
+
+{# Sub-ring Configuration (G.8032v2) #}
+{% if l2.erps.get('sub_rings') %}
+{% for sub_ring in l2.erps.sub_rings %}
+! Sub-Ring {{ sub_ring.ring_id }}
+ethernet ring g8032 {{ sub_ring.ring_id }}
+  profile {{ sub_ring.profile_name }}
+  control-vlan {{ sub_ring.control_vlan }}
+  port0 interface {{ sub_ring.port0 }}
+  port1 interface {{ sub_ring.port1 }}
+  sub-ring
+  virtual-channel
+  tc-propagate
+!
+{% endfor %}
+{% endif %}
+
+{# Multiple Spanning Tree (MST) Interaction #}
+{% if l2.erps.get('mst_interaction') and l2.erps.mst_interaction.get('enabled') %}
+! MST and ERPS Interaction
+spanning-tree mst configuration
+  name {{ l2.erps.mst_interaction.region_name | default('ERPS-MST-REGION') }}
+  revision {{ l2.erps.mst_interaction.revision | default(1) }}
+{% for instance in l2.erps.mst_interaction.get('instances', []) %}
+  instance {{ instance.id }} vlan {{ instance.vlans }}
+{% endfor %}
+!
+{% endif %}
+
+{# ERPS Administrative Commands #}
+{% if l2.erps.get('admin_commands') %}
+! Administrative Commands (for reference)
+{% for cmd in l2.erps.admin_commands %}
+! {{ cmd.description }}
+! Command: ethernet ring g8032 {{ cmd.ring_id }} {{ cmd.action }}
+{% endfor %}
+{% endif %}
+
+{# ERPS Monitoring #}
+{% if l2.erps.get('monitoring') %}
+{% if l2.erps.monitoring.get('logging') %}
+! ERPS Logging
+logging host {{ l2.erps.monitoring.logging.server }} transport udp port {{ l2.erps.monitoring.logging.port | default(514) }}
+logging trap {{ l2.erps.monitoring.logging.level | default('informational') }}
+logging source-interface {{ l2.erps.monitoring.logging.source_interface | default('Loopback0') }}
+{% endif %}
+
+{% if l2.erps.monitoring.get('snmp_traps') %}
+! ERPS SNMP Traps
+snmp-server enable traps erps
+{% endif %}
+{% endif %}
+
+{# ERPS Statistics and Debugging #}
+{% if l2.erps.get('debug') %}
+! ERPS Debug (disabled by default)
+! debug ethernet ring g8032 events
+! debug ethernet ring g8032 packets
+{% endif %}
+
+{% endif %}{# end l2.erps #}

@@ -254,3 +254,18 @@ interface {{ port }}
 {% if l2.get('rep') and l2.rep.get('enabled') %}
 {% include '_rep.j2' %}
 {% endif %}
+
+{# DCB (Data Center Bridging) #}
+{% if l2.get('dcb') and l2.dcb.get('enabled') %}
+{% include '_dcb.j2' %}
+{% endif %}
+
+{# ERPS (Ethernet Ring Protection Switching) #}
+{% if l2.get('erps') and l2.erps.get('enabled') %}
+{% include '_erps.j2' %}
+{% endif %}
+
+{# MLAG (Multi-Chassis Link Aggregation) #}
+{% if l2.get('mlag') and l2.mlag.get('enabled') %}
+{% include '_mlag.j2' %}
+{% endif %}

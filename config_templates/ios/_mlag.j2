@@ -1,0 +1,291 @@
+{# MLAG (Multi-Chassis Link Aggregation) Configuration #}
+{# Note: Implementation varies by vendor (vPC for Nexus, StackWise Virtual for Cat9k, VSS for older Catalyst) #}
+
+{% if l2.get('mlag') and l2.mlag.get('enabled') %}
+! ========================================
+! MLAG Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! Type: {{ l2.mlag.type | default('vpc') }}
+! ========================================
+
+{% if l2.mlag.get('type') == 'vpc' or not l2.mlag.get('type') %}
+{# Cisco Nexus vPC (Virtual Port Channel) Configuration #}
+
+{# Enable features #}
+feature vpc
+feature lacp
+
+{# vPC Domain Configuration #}
+vpc domain {{ l2.mlag.domain_id }}
+{% if l2.mlag.role %}
+  role priority {{ l2.mlag.role_priority | default(32768) }}
+{% endif %}
+{% if l2.mlag.system_priority %}
+  system-priority {{ l2.mlag.system_priority }}
+{% endif %}
+{% if l2.mlag.system_mac %}
+  system-mac {{ l2.mlag.system_mac }}
+{% endif %}
+{% if l2.mlag.get('peer_keepalive') %}
+  peer-keepalive destination {{ l2.mlag.peer_keepalive.ip | default(l2.mlag.keepalive_ip) }}{% if l2.mlag.peer_keepalive.source %} source {{ l2.mlag.peer_keepalive.source }}{% endif %}{% if l2.mlag.peer_keepalive.vrf %} vrf {{ l2.mlag.peer_keepalive.vrf }}{% endif %}
+{% if l2.mlag.peer_keepalive.interval %}
+  peer-keepalive interval {{ l2.mlag.peer_keepalive.interval }} timeout {{ l2.mlag.peer_keepalive.timeout | default(5) }}
+{% endif %}
+{% endif %}
+{% if l2.mlag.get('peer_gateway') %}
+  peer-gateway
+{% endif %}
+{% if l2.mlag.get('peer_switch') %}
+  peer-switch
+{% endif %}
+{% if l2.mlag.get('layer3_peer_router') %}
+  layer3 peer-router
+{% endif %}
+{% if l2.mlag.get('auto_recovery') %}
+  auto-recovery{% if l2.mlag.auto_recovery.reload_delay %} reload-delay {{ l2.mlag.auto_recovery.reload_delay }}{% endif %}
+{% endif %}
+{% if l2.mlag.get('delay_restore') %}
+  delay restore {{ l2.mlag.delay_restore }}
+{% endif %}
+{% if l2.mlag.get('delay_restore_interface_vlan') %}
+  delay restore interface-vlan {{ l2.mlag.delay_restore_interface_vlan }}
+{% endif %}
+{% if l2.mlag.get('graceful_consistency_check') %}
+  graceful consistency-check
+{% endif %}
+{% if l2.mlag.get('ip_arp_synchronize') %}
+  ip arp synchronize
+{% endif %}
+{% if l2.mlag.get('ipv6_nd_synchronize') %}
+  ipv6 nd synchronize
+{% endif %}
+{% if l2.mlag.get('fabricpath_switch_id') %}
+  fabricpath switch-id {{ l2.mlag.fabricpath_switch_id }}
+{% endif %}
+!
+
+{# vPC Peer-Link Configuration #}
+{% if l2.mlag.get('peer_link') %}
+interface {{ l2.mlag.peer_link }}
+  description vPC Peer-Link
+  switchport mode trunk
+{% if l2.mlag.peer_link_vlans %}
+  switchport trunk allowed vlan {{ l2.mlag.peer_link_vlans }}
+{% else %}
+  switchport trunk allowed vlan all
+{% endif %}
+  spanning-tree port type network
+  vpc peer-link
+  no shutdown
+!
+{% endif %}
+
+{# Peer-Keepalive VLAN/Interface #}
+{% if l2.mlag.get('keepalive_vlan') %}
+vlan {{ l2.mlag.keepalive_vlan }}
+  name vPC-KEEPALIVE
+!
+
+interface Vlan{{ l2.mlag.keepalive_vlan }}
+  description vPC Peer-Keepalive
+  no shutdown
+{% if l2.mlag.keepalive_ip %}
+  ip address {{ l2.mlag.keepalive_ip }}
+{% endif %}
+{% if l2.mlag.keepalive_vrf or l2.mlag.peer_keepalive.vrf %}
+  vrf member {{ l2.mlag.keepalive_vrf | default(l2.mlag.peer_keepalive.vrf) }}
+{% endif %}
+!
+{% endif %}
+
+{# vPC Member Interfaces (Port-Channels) #}
+{% if l2.mlag.get('port_channels') %}
+{% for vpc in l2.mlag.port_channels %}
+interface port-channel{{ vpc.id }}
+  description {{ vpc.description | default('vPC ' ~ vpc.id) }}
+  switchport mode {{ vpc.mode | default('trunk') }}
+{% if vpc.mode == 'trunk' %}
+{% if vpc.allowed_vlans %}
+  switchport trunk allowed vlan {{ vpc.allowed_vlans }}
+{% endif %}
+{% if vpc.native_vlan %}
+  switchport trunk native vlan {{ vpc.native_vlan }}
+{% endif %}
+{% elif vpc.mode == 'access' %}
+  switchport access vlan {{ vpc.access_vlan }}
+{% endif %}
+{% if vpc.vpc_id %}
+  vpc {{ vpc.vpc_id }}
+{% endif %}
+{% if vpc.lacp %}
+  lacp mode {{ vpc.lacp | default('active') }}
+{% endif %}
+  no shutdown
+!
+
+{# Physical member interfaces #}
+{% if vpc.members %}
+{% for member in vpc.members %}
+interface {{ member }}
+  description vPC{{ vpc.vpc_id | default(vpc.id) }} Member
+  switchport mode {{ vpc.mode | default('trunk') }}
+{% if vpc.mode == 'trunk' and vpc.allowed_vlans %}
+  switchport trunk allowed vlan {{ vpc.allowed_vlans }}
+{% endif %}
+  channel-group {{ vpc.id }} mode {{ vpc.lacp | default('active') }}
+  no shutdown
+!
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Orphan Ports (non-vPC ports) #}
+{% if l2.mlag.get('orphan_ports') %}
+{% for port in l2.mlag.orphan_ports %}
+interface {{ port.interface }}
+  description {{ port.description | default('Orphan Port') }}
+{% if port.peer_link_tracking %}
+  vpc orphan-port suspend
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# vPC Anycast VTEP (for VXLAN) #}
+{% if l2.mlag.get('anycast_vtep') and l2.mlag.anycast_vtep.get('enabled') %}
+! vPC Anycast VTEP Configuration
+interface nve1
+  source-interface loopback{{ l2.mlag.anycast_vtep.loopback_id | default(1) }}
+  host-reachability protocol bgp
+!
+
+interface loopback{{ l2.mlag.anycast_vtep.loopback_id | default(1) }}
+  description Anycast VTEP
+  ip address {{ l2.mlag.anycast_vtep.ip }}/32
+  ip address {{ l2.mlag.anycast_vtep.anycast_ip }}/32 secondary
+  ip router ospf {{ l2.mlag.anycast_vtep.ospf_process | default(1) }} area {{ l2.mlag.anycast_vtep.ospf_area | default('0.0.0.0') }}
+  ip pim sparse-mode
+!
+{% endif %}
+
+{% elif l2.mlag.get('type') == 'stackwise-virtual' %}
+{# Cisco StackWise Virtual (Catalyst 9000) #}
+
+stackwise-virtual
+  domain {{ l2.mlag.domain_id }}
+!
+
+interface {{ l2.mlag.svl_link_1 | default('TenGigabitEthernet1/0/1') }}
+  stackwise-virtual link 1
+  no shutdown
+!
+
+{% if l2.mlag.svl_link_2 %}
+interface {{ l2.mlag.svl_link_2 }}
+  stackwise-virtual link 2
+  no shutdown
+!
+{% endif %}
+
+interface {{ l2.mlag.dual_active_detection_link | default('TenGigabitEthernet1/0/48') }}
+  stackwise-virtual dual-active-detection
+  no shutdown
+!
+
+{% elif l2.mlag.get('type') == 'vss' %}
+{# Cisco VSS (Virtual Switching System) - Legacy Catalyst 6500 #}
+
+switch virtual domain {{ l2.mlag.domain_id }}
+  switch {{ l2.mlag.switch_number | default(1) }}
+{% if l2.mlag.switch_priority %}
+    priority {{ l2.mlag.switch_priority }}
+{% endif %}
+!
+
+{% if l2.mlag.vsl_ports %}
+{% for vsl in l2.mlag.vsl_ports %}
+interface {{ vsl.interface }}
+  switch virtual link {{ vsl.link_id }}
+  no shutdown
+!
+{% endfor %}
+{% endif %}
+
+{% elif l2.mlag.get('type') == 'mclag' %}
+{# Generic MC-LAG (Multi-Chassis LAG) - Arista MLAG style #}
+
+{# Global MLAG Configuration #}
+mlag configuration
+  domain-id {{ l2.mlag.domain_id }}
+{% if l2.mlag.local_interface %}
+  local-interface {{ l2.mlag.local_interface }}
+{% endif %}
+{% if l2.mlag.peer_address %}
+  peer-address {{ l2.mlag.peer_address }}
+{% endif %}
+{% if l2.mlag.peer_link %}
+  peer-link {{ l2.mlag.peer_link }}
+{% endif %}
+{% if l2.mlag.reload_delay %}
+  reload-delay mlag {{ l2.mlag.reload_delay.mlag | default(300) }}
+  reload-delay non-mlag {{ l2.mlag.reload_delay.non_mlag | default(330) }}
+{% endif %}
+!
+
+{# MLAG Interfaces #}
+{% if l2.mlag.mlag_interfaces %}
+{% for mlag_iface in l2.mlag.mlag_interfaces %}
+interface {{ mlag_iface.interface }}
+  description {{ mlag_iface.description | default('MLAG ' ~ mlag_iface.mlag_id) }}
+  mlag {{ mlag_iface.mlag_id }}
+!
+{% endfor %}
+{% endif %}
+
+{% endif %}{# end mlag type #}
+
+{# Common LACP System-ID (for all MLAG types) #}
+{% if l2.mlag.get('lacp_system_id') %}
+lacp system-priority {{ l2.mlag.lacp_system_priority | default(32768) }}
+{% if l2.mlag.lacp_system_mac %}
+lacp system-mac {{ l2.mlag.lacp_system_mac }}
+{% endif %}
+{% endif %}
+
+{# BFD for fast failover detection #}
+{% if l2.mlag.get('bfd') and l2.mlag.bfd.get('enabled') %}
+! BFD for MLAG peer detection
+feature bfd
+vpc domain {{ l2.mlag.domain_id }}
+  peer-keepalive bfd
+!
+{% endif %}
+
+{# Consistency Checks #}
+{% if l2.mlag.get('consistency_checks') %}
+! Consistency Check Parameters
+vpc domain {{ l2.mlag.domain_id }}
+{% for check in l2.mlag.consistency_checks %}
+{% if check.type == 'global' %}
+  vpc consistency-check global
+{% elif check.type == 'interface' %}
+  vpc consistency-check interface-vlan
+{% endif %}
+{% endfor %}
+!
+{% endif %}
+
+{# MLAG Role (Primary/Secondary) #}
+{% if l2.mlag.get('role') %}
+! MLAG Role Configuration
+! Device Role: {{ l2.mlag.role | upper }}
+! Priority: {{ l2.mlag.role_priority | default(32768) }}
+{% if l2.mlag.role == 'primary' %}
+! This device should be primary (lower priority value)
+{% elif l2.mlag.role == 'secondary' %}
+! This device is secondary (higher priority value)
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l2.mlag #}

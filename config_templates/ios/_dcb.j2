@@ -1,0 +1,265 @@
+{# DCB (Data Center Bridging) Configuration for Cisco Nexus / IOS-XE #}
+
+{% if l2.get('dcb') and l2.dcb.get('enabled') %}
+! ========================================
+! Data Center Bridging (DCB) Configuration
+! Device: {{ global.hostname | default('Switch') }}
+! ========================================
+
+{# Enable DCB globally #}
+{% if l2.dcb.get('global_enable') %}
+system qos
+  service-policy type qos input default-in-policy
+  service-policy type queuing output default-out-policy
+  service-policy type network-qos default-nq-policy
+!
+{% endif %}
+
+{# Priority Flow Control (PFC) #}
+{% if l2.dcb.get('pfc') and l2.dcb.pfc.get('enabled') %}
+! Priority Flow Control (PFC) - IEEE 802.1Qbb
+class-map type network-qos match-any pfc-class
+{% if l2.dcb.pfc.get('priorities') %}
+{% for priority in l2.dcb.pfc.priorities.split(',') %}
+  match cos {{ priority.strip() }}
+{% endfor %}
+{% endif %}
+!
+
+policy-map type network-qos pfc-policy
+  class pfc-class
+    pause no-drop
+{% if l2.dcb.pfc.get('buffer_size') %}
+    mtu {{ l2.dcb.pfc.buffer_size }}
+{% endif %}
+  class class-default
+    mtu 9216
+!
+
+system qos
+  service-policy type network-qos pfc-policy
+!
+
+{# Enable PFC on interfaces #}
+{% if l2.dcb.pfc.get('interfaces') %}
+{% for iface in l2.dcb.pfc.interfaces %}
+interface {{ iface.interface }}
+  priority-flow-control mode {{ iface.mode | default('auto') }}
+{% if iface.priorities %}
+  priority-flow-control watch-dog-interval {{ iface.watchdog | default('on') }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+{% endif %}{# end pfc #}
+
+{# Enhanced Transmission Selection (ETS) - IEEE 802.1Qaz #}
+{% if l2.dcb.get('ets') and l2.dcb.ets.get('enabled') %}
+! Enhanced Transmission Selection (ETS)
+class-map type queuing match-any ets-class-0
+  match qos-group 0
+!
+class-map type queuing match-any ets-class-1
+  match qos-group 1
+!
+class-map type queuing match-any ets-class-2
+  match qos-group 2
+!
+class-map type queuing match-any ets-class-3
+  match qos-group 3
+!
+
+policy-map type queuing ets-policy
+  class type queuing ets-class-0
+{% if l2.dcb.ets.get('tc0_bandwidth') %}
+    bandwidth percent {{ l2.dcb.ets.tc0_bandwidth }}
+{% endif %}
+  class type queuing ets-class-1
+{% if l2.dcb.ets.get('tc1_bandwidth') %}
+    bandwidth percent {{ l2.dcb.ets.tc1_bandwidth }}
+{% endif %}
+  class type queuing ets-class-2
+{% if l2.dcb.ets.get('tc2_bandwidth') %}
+    bandwidth percent {{ l2.dcb.ets.tc2_bandwidth }}
+{% endif %}
+  class type queuing ets-class-3
+{% if l2.dcb.ets.get('tc3_bandwidth') %}
+    bandwidth percent {{ l2.dcb.ets.tc3_bandwidth }}
+{% endif %}
+  class class-default
+    bandwidth percent 10
+!
+
+system qos
+  service-policy type queuing output ets-policy
+!
+
+{# ETS Traffic Class to CoS Mapping #}
+{% if l2.dcb.ets.get('cos_mapping') %}
+qos map cos {{ l2.dcb.ets.cos_mapping }}
+{% endif %}
+{% endif %}{# end ets #}
+
+{# DCBX (Data Center Bridging eXchange) Protocol #}
+{% if l2.dcb.get('dcbx') %}
+! DCBX Protocol Configuration
+{% if l2.dcb.dcbx.get('version') %}
+{% if l2.dcb.dcbx.version == 'ieee' %}
+dcbx version ieee
+{% elif l2.dcb.dcbx.version == 'cee' %}
+dcbx version cee
+{% elif l2.dcb.dcbx.version == 'auto' %}
+dcbx version auto
+{% endif %}
+{% endif %}
+
+{# DCBX per interface #}
+{% if l2.dcb.dcbx.get('interfaces') %}
+{% for iface in l2.dcb.dcbx.interfaces %}
+interface {{ iface.interface }}
+{% if iface.dcbx_enable %}
+  dcbx port-role auto-upstream
+{% endif %}
+{% if iface.willing %}
+  dcbx port mode willing
+{% else %}
+  dcbx port mode non-willing
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+{% endif %}{# end dcbx #}
+
+{# QCN (Quantized Congestion Notification) - IEEE 802.1Qau #}
+{% if l2.dcb.get('qcn') and l2.dcb.qcn.get('enabled') %}
+! Quantized Congestion Notification (QCN)
+qos congestion-control random-detect
+!
+
+class-map type queuing match-any qcn-class
+  match qos-group {{ l2.dcb.qcn.qos_group | default(0) }}
+!
+
+policy-map type queuing qcn-policy
+  class type queuing qcn-class
+    random-detect minimum-threshold {{ l2.dcb.qcn.min_threshold | default(400) }} kbytes maximum-threshold {{ l2.dcb.qcn.max_threshold | default(500) }} kbytes
+!
+{% endif %}
+
+{# Application Priority Groups #}
+{% if l2.dcb.get('application_priority') %}
+! Application Priority Groups
+{% for app in l2.dcb.application_priority %}
+qos priority-group {{ app.group_id }}
+  description {{ app.description | default('Priority Group ' ~ app.group_id) }}
+{% if app.cos_values %}
+  cos {{ app.cos_values }}
+{% endif %}
+{% if app.bandwidth_percent %}
+  bandwidth percent {{ app.bandwidth_percent }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+
+{# FCoE (Fibre Channel over Ethernet) Priority #}
+{% if l2.dcb.get('fcoe') and l2.dcb.fcoe.get('enabled') %}
+! FCoE Priority Configuration
+class-map type qos match-any fcoe-class
+  match cos 3
+!
+
+policy-map type qos fcoe-qos
+  class fcoe-class
+    set qos-group 1
+  class class-default
+    set qos-group 0
+!
+
+class-map type queuing match-any fcoe-queue
+  match qos-group 1
+!
+
+policy-map type queuing fcoe-out
+  class type queuing fcoe-queue
+    bandwidth percent {{ l2.dcb.fcoe.bandwidth_percent | default(50) }}
+    pause no-drop
+  class class-default
+    bandwidth percent {{ 100 - (l2.dcb.fcoe.bandwidth_percent | default(50)) }}
+!
+
+system qos
+  service-policy type qos input fcoe-qos
+  service-policy type queuing output fcoe-out
+!
+
+{# FCoE interfaces #}
+{% if l2.dcb.fcoe.get('interfaces') %}
+{% for iface in l2.dcb.fcoe.interfaces %}
+interface {{ iface.interface }}
+  switchport mode trunk
+  spanning-tree port type edge trunk
+  priority-flow-control mode auto
+{% if iface.vsan %}
+  switchport trunk allowed vlan {{ iface.vsan }}
+{% endif %}
+!
+{% endfor %}
+{% endif %}
+{% endif %}{# end fcoe #}
+
+{# iSCSI Priority #}
+{% if l2.dcb.get('iscsi') and l2.dcb.iscsi.get('enabled') %}
+! iSCSI Priority Configuration
+class-map type qos match-any iscsi-class
+  match cos {{ l2.dcb.iscsi.cos | default(4) }}
+!
+
+policy-map type qos iscsi-qos
+  class iscsi-class
+    set qos-group 2
+!
+
+class-map type queuing match-any iscsi-queue
+  match qos-group 2
+!
+
+policy-map type queuing iscsi-out
+  class type queuing iscsi-queue
+    bandwidth percent {{ l2.dcb.iscsi.bandwidth_percent | default(30) }}
+!
+{% endif %}
+
+{# Buffer Management #}
+{% if l2.dcb.get('buffer_allocation') %}
+! Buffer Allocation
+hardware qos ns-buffer-profile burst-optimized
+{% if l2.dcb.buffer_allocation.get('ingress_lossy') %}
+hardware qos input-queuing-lossy weight {{ l2.dcb.buffer_allocation.ingress_lossy }}
+{% endif %}
+{% if l2.dcb.buffer_allocation.get('ingress_lossless') %}
+hardware qos input-queuing-lossless weight {{ l2.dcb.buffer_allocation.ingress_lossless }}
+{% endif %}
+{% endif %}
+
+{# CoS to Queue Mapping #}
+{% if l2.dcb.get('cos_to_queue_map') %}
+! CoS to Queue Mapping
+{% for mapping in l2.dcb.cos_to_queue_map %}
+qos map cos {{ mapping.cos }} to queue {{ mapping.queue }}
+{% endfor %}
+{% endif %}
+
+{# Global DCB Settings #}
+{% if l2.dcb.get('settings') %}
+{% if l2.dcb.settings.get('flow_control') %}
+! Global Flow Control
+{% for direction in ['receive', 'send'] %}
+{% if l2.dcb.settings.flow_control.get(direction) %}
+flowcontrol {{ direction }} {{ l2.dcb.settings.flow_control[direction] }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% endif %}{# end l2.dcb #}
