@@ -598,22 +598,218 @@ function saveVlanData() {
 function saveOspfData() {
     if (!app.data.l3.ospf) app.data.l3.ospf = [];
 
-    const processId = document.getElementById('ospf_process_id')?.value;
-    const routerId = document.getElementById('ospf_router_id')?.value;
-    const refBw = document.getElementById('ospf_ref_bw')?.value;
-    const grEnabled = document.getElementById('ospf_gr')?.checked;
+    // Basic Configuration
+    const processId = parseInt(document.getElementById('ospf_process_id')?.value) || 10;
+    const routerId = document.getElementById('ospf_router_id')?.value || '';
+    const refBw = parseInt(document.getElementById('ospf_ref_bw')?.value) || 100000;
+    const vrf = document.getElementById('ospf_vrf')?.value || '';
 
     const ospfConfig = {
-        process_id: parseInt(processId) || 10,
-        router_id: routerId || '',
-        reference_bandwidth: parseInt(refBw) || 100000,
-        graceful_restart: grEnabled || false,
-        areas: [{id: '0.0.0.0', type: 'normal'}],
-        interfaces: []
+        process_id: processId,
+        router_id: routerId,
+        reference_bandwidth: refBw
     };
 
+    if (vrf) {
+        ospfConfig.vrf = vrf;
+    }
+
+    // Areas Configuration
+    ospfConfig.areas = [];
+    const areaId = document.getElementById('ospf_area_id')?.value || '0.0.0.0';
+    const areaType = document.getElementById('ospf_area_type')?.value || 'normal';
+    const areaDefaultCost = document.getElementById('ospf_area_default_cost')?.value;
+    const nssaDefaultOriginate = document.getElementById('ospf_nssa_default_originate')?.checked;
+
+    const area = {
+        id: areaId,
+        type: areaType
+    };
+
+    if (areaDefaultCost) {
+        area.default_cost = parseInt(areaDefaultCost);
+    }
+
+    if (areaType === 'nssa' && nssaDefaultOriginate) {
+        area.nssa = { default_originate: true };
+    }
+
+    if (areaType === 'stub' || areaType === 'nssa') {
+        area.no_summary = areaType === 'totally-stub' || areaType === 'totally-nssa';
+    }
+
+    ospfConfig.areas.push(area);
+
+    // SPF Timers
+    const spfInitial = document.getElementById('ospf_spf_initial')?.value;
+    const spfMinHold = document.getElementById('ospf_spf_min_hold')?.value;
+    const spfMaxHold = document.getElementById('ospf_spf_max_hold')?.value;
+
+    if (spfInitial || spfMinHold || spfMaxHold) {
+        ospfConfig.spf_timers = {
+            initial_delay: parseInt(spfInitial) || 5000,
+            min_hold: parseInt(spfMinHold) || 10000,
+            max_hold: parseInt(spfMaxHold) || 10000
+        };
+    }
+
+    // LSA Timers
+    const lsaArrival = document.getElementById('ospf_lsa_arrival')?.value;
+    const lsaGroupPacing = document.getElementById('ospf_lsa_group_pacing')?.value;
+
+    if (lsaArrival || lsaGroupPacing) {
+        ospfConfig.lsa_timers = {};
+        if (lsaArrival) {
+            ospfConfig.lsa_timers.arrival = parseInt(lsaArrival);
+        }
+        if (lsaGroupPacing) {
+            ospfConfig.lsa_timers.group_pacing = parseInt(lsaGroupPacing);
+        }
+    }
+
+    // Graceful Restart
+    const grEnabled = document.getElementById('ospf_gr')?.checked;
+    const grIetf = document.getElementById('ospf_gr_ietf')?.checked;
+
+    ospfConfig.graceful_restart = grEnabled || false;
+    if (grIetf) {
+        ospfConfig.graceful_restart_ietf = true;
+    }
+
+    // Stub Router (Max-Metric)
+    const stubRouterOnStartup = document.getElementById('ospf_stub_router_on_startup')?.checked;
+    const stubRouterDuration = document.getElementById('ospf_stub_router_duration')?.value;
+    const stubRouterAlways = document.getElementById('ospf_stub_router_always')?.checked;
+
+    if (stubRouterOnStartup || stubRouterAlways) {
+        ospfConfig.max_metric = {};
+        if (stubRouterOnStartup) {
+            ospfConfig.max_metric.on_startup = parseInt(stubRouterDuration) || 300;
+        }
+        if (stubRouterAlways) {
+            ospfConfig.max_metric.always = true;
+        }
+    }
+
+    // Summarization
+    ospfConfig.summaries = [];
+
+    const summaryArea = document.getElementById('ospf_summary_area')?.value;
+    const summaryRange = document.getElementById('ospf_summary_range')?.value;
+    const summaryNotAdvertise = document.getElementById('ospf_summary_not_advertise')?.checked;
+
+    if (summaryArea && summaryRange) {
+        ospfConfig.summaries.push({
+            area: summaryArea,
+            prefix: summaryRange,
+            not_advertise: summaryNotAdvertise || false
+        });
+    }
+
+    const summaryAddress = document.getElementById('ospf_summary_address')?.value;
+    const summaryTag = document.getElementById('ospf_summary_tag')?.value;
+
+    if (summaryAddress) {
+        ospfConfig.summaries.push({
+            prefix: summaryAddress,
+            tag: summaryTag ? parseInt(summaryTag) : undefined,
+            not_advertise: false
+        });
+    }
+
+    // Virtual Links
+    const vlinkTransitArea = document.getElementById('ospf_vlink_transit_area')?.value;
+    const vlinkNeighbor = document.getElementById('ospf_vlink_neighbor')?.value;
+    const vlinkAuthType = document.getElementById('ospf_vlink_auth_type')?.value;
+    const vlinkAuthKey = document.getElementById('ospf_vlink_auth_key')?.value;
+
+    if (vlinkTransitArea && vlinkNeighbor) {
+        if (!ospfConfig.virtual_links) {
+            ospfConfig.virtual_links = [];
+        }
+        ospfConfig.virtual_links.push({
+            transit_area: vlinkTransitArea,
+            neighbor: vlinkNeighbor,
+            authentication: vlinkAuthType ? {
+                type: vlinkAuthType,
+                key: vlinkAuthKey || ''
+            } : undefined
+        });
+    }
+
+    // Redistribution
+    const redistProto = document.getElementById('ospf_redistribute_protocol')?.value;
+    if (redistProto) {
+        ospfConfig.redistribute = [];
+        ospfConfig.redistribute.push({
+            protocol: redistProto,
+            metric: parseInt(document.getElementById('ospf_redistribute_metric')?.value) || 20,
+            metric_type: parseInt(document.getElementById('ospf_redistribute_metric_type')?.value) || 2,
+            route_map: document.getElementById('ospf_redistribute_route_map')?.value || ''
+        });
+    }
+
+    // Default Route Origination
+    const defaultOriginateEnabled = document.getElementById('ospf_default_originate_enabled')?.checked;
+    if (defaultOriginateEnabled) {
+        ospfConfig.default_originate = {
+            enabled: true,
+            always: document.getElementById('ospf_default_originate_always')?.checked || false,
+            metric: parseInt(document.getElementById('ospf_default_originate_metric')?.value) || 1,
+            metric_type: parseInt(document.getElementById('ospf_default_originate_metric_type')?.value) || 2,
+            route_map: document.getElementById('ospf_default_originate_route_map')?.value || ''
+        };
+    }
+
+    // Interface Configuration
+    ospfConfig.interfaces = [];
+    const ifaceName = document.getElementById('ospf_interface_name')?.value;
+    const ifaceArea = document.getElementById('ospf_interface_area')?.value;
+
+    if (ifaceName && ifaceArea) {
+        const iface = {
+            interface: ifaceName,
+            area: ifaceArea,
+            network_type: document.getElementById('ospf_interface_network_type')?.value || undefined,
+            cost: parseInt(document.getElementById('ospf_interface_cost')?.value) || undefined,
+            priority: parseInt(document.getElementById('ospf_interface_priority')?.value) || 1,
+            passive: document.getElementById('ospf_interface_passive')?.checked || false,
+            bfd: document.getElementById('ospf_interface_bfd')?.checked || false,
+            mtu_ignore: document.getElementById('ospf_interface_mtu_ignore')?.checked || false
+        };
+
+        // Interface Authentication
+        const authType = document.getElementById('ospf_auth_type')?.value;
+        if (authType) {
+            iface.authentication = {
+                type: authType,
+                key: document.getElementById('ospf_auth_key')?.value || '',
+                key_id: parseInt(document.getElementById('ospf_auth_key_id')?.value) || 1,
+                keychain: document.getElementById('ospf_auth_keychain')?.value || undefined
+            };
+        }
+
+        // Interface Timers
+        const helloInterval = document.getElementById('ospf_hello_interval')?.value;
+        const deadInterval = document.getElementById('ospf_dead_interval')?.value;
+        const retransmitInterval = document.getElementById('ospf_retransmit_interval')?.value;
+        const transmitDelay = document.getElementById('ospf_transmit_delay')?.value;
+
+        if (helloInterval || deadInterval || retransmitInterval || transmitDelay) {
+            iface.timers = {
+                hello: parseInt(helloInterval) || 10,
+                dead: parseInt(deadInterval) || 40,
+                retransmit: parseInt(retransmitInterval) || 5,
+                transmit_delay: parseInt(transmitDelay) || 1
+            };
+        }
+
+        ospfConfig.interfaces.push(iface);
+    }
+
     app.data.l3.ospf = [ospfConfig];
-    console.log('OSPF saved:', app.data.l3.ospf);
+    console.log('OSPF saved (complete):', app.data.l3.ospf);
+    alert('✅ Complete OSPF configuration saved!');
 }
 
 // BGP data functions
@@ -2883,26 +3079,346 @@ function generateForm(protocolPath, protocolData) {
         case 'ospf':
             html += `
                 <h4>OSPF Configuration</h4>
+
+                {# Basic Configuration #}
                 <div class="form-group">
                     <label>Process ID</label>
-                    <input type="number" id="ospf_process_id" value="10" min="1" max="65535">
+                    <input type="number" id="ospf_process_id" value="10" min="1" max="65535" required>
+                    <small class="help-text">OSPF process identifier (1-65535)</small>
                 </div>
                 <div class="form-group">
                     <label>Router ID</label>
-                    <input type="text" id="ospf_router_id" placeholder="1.1.1.1">
+                    <input type="text" id="ospf_router_id" placeholder="1.1.1.1" pattern="^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$">
+                    <small class="help-text">IPv4 address format (e.g., 1.1.1.1)</small>
                 </div>
                 <div class="form-group">
                     <label>Reference Bandwidth (Mbps)</label>
-                    <input type="number" id="ospf_ref_bw" value="100000" step="1000">
+                    <input type="number" id="ospf_ref_bw" value="100000" step="1000" min="1" max="4294967">
+                    <small class="help-text">Reference bandwidth for cost calculation (default: 100, recommended: 100000 for 100G)</small>
                 </div>
-                <details class="advanced-section">
-                    <summary>Advanced Options</summary>
+                <div class="form-group">
+                    <label>VRF (optional)</label>
+                    <input type="text" id="ospf_vrf" placeholder="VRF-A">
+                    <small class="help-text">VRF instance name (leave empty for global)</small>
+                </div>
+
+                {# Areas Configuration #}
+                <details class="advanced-section" open>
+                    <summary>🌍 OSPF Areas</summary>
+                    <h6>Area Configuration</h6>
                     <div class="form-group">
-                        <label><input type="checkbox" id="ospf_gr"> Graceful Restart</label>
+                        <label>Area ID</label>
+                        <input type="text" id="ospf_area_id" placeholder="0.0.0.0 or 0" value="0.0.0.0">
+                        <small class="help-text">Area identifier (0.0.0.0 for backbone)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Area Type</label>
+                        <select id="ospf_area_type">
+                            <option value="normal">Normal Area</option>
+                            <option value="stub">Stub Area</option>
+                            <option value="totally-stub">Totally Stubby Area</option>
+                            <option value="nssa">NSSA (Not-So-Stubby Area)</option>
+                            <option value="totally-nssa">Totally NSSA</option>
+                        </select>
+                        <small class="help-text">Area type determines LSA filtering</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Default Cost (for stub/NSSA)</label>
+                        <input type="number" id="ospf_area_default_cost" min="0" max="16777215" placeholder="1">
+                        <small class="help-text">Cost of default route injected into stub area</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_nssa_default_originate"> NSSA Default Information Originate</label>
+                        <small class="help-text">Inject default route into NSSA</small>
                     </div>
                 </details>
-                <button class="btn btn-primary" onclick="saveFormData('${protocolPath}')" style="margin-top: 1rem; width: 100%;">
-                    💾 Save OSPF Configuration
+
+                {# Authentication #}
+                <details class="advanced-section">
+                    <summary>🔐 OSPF Authentication</summary>
+                    <div class="form-group">
+                        <label>Interface Authentication Type</label>
+                        <select id="ospf_auth_type">
+                            <option value="">-- None --</option>
+                            <option value="text">Clear Text</option>
+                            <option value="md5">MD5</option>
+                            <option value="sha">SHA (IOS-XE 17.x+)</option>
+                            <option value="null">Null (disable)</option>
+                        </select>
+                        <small class="help-text">Authentication method for OSPF adjacencies</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Authentication Key</label>
+                        <input type="password" id="ospf_auth_key" placeholder="MySecretKey">
+                        <small class="help-text">Authentication password/key</small>
+                    </div>
+                    <div class="form-group">
+                        <label>MD5/SHA Key ID</label>
+                        <input type="number" id="ospf_auth_key_id" min="1" max="255" value="1" placeholder="1">
+                        <small class="help-text">Key ID for MD5/SHA authentication (1-255)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Keychain Name (IOS-XE 17.x+)</label>
+                        <input type="text" id="ospf_auth_keychain" placeholder="OSPF-KEYCHAIN">
+                        <small class="help-text">Keychain for cryptographic authentication</small>
+                    </div>
+                </details>
+
+                {# Summarization #}
+                <details class="advanced-section">
+                    <summary>📦 Route Summarization (ABR/ASBR)</summary>
+                    <h6>Inter-Area Summary (ABR)</h6>
+                    <div class="form-group">
+                        <label>Area for Summary</label>
+                        <input type="text" id="ospf_summary_area" placeholder="0.0.0.0">
+                        <small class="help-text">Area ID to advertise summary into</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Summary Range (CIDR)</label>
+                        <input type="text" id="ospf_summary_range" placeholder="10.0.0.0/8">
+                        <small class="help-text">Aggregate prefix for inter-area routes</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_summary_not_advertise"> Not Advertise</label>
+                        <small class="help-text">Suppress this summary (filter routes)</small>
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">External Summary (ASBR)</h6>
+                    <div class="form-group">
+                        <label>Summary Address (CIDR)</label>
+                        <input type="text" id="ospf_summary_address" placeholder="192.168.0.0/16">
+                        <small class="help-text">Aggregate external routes (Type-5 LSAs)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Summary Tag</label>
+                        <input type="number" id="ospf_summary_tag" min="0" max="4294967295" placeholder="100">
+                        <small class="help-text">Tag value for external summary</small>
+                    </div>
+                </details>
+
+                {# Virtual Links #}
+                <details class="advanced-section">
+                    <summary>🔗 Virtual Links</summary>
+                    <div class="form-group">
+                        <label>Transit Area ID</label>
+                        <input type="text" id="ospf_vlink_transit_area" placeholder="0.0.0.1">
+                        <small class="help-text">Non-backbone area connecting to backbone via virtual link</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Neighbor Router ID</label>
+                        <input type="text" id="ospf_vlink_neighbor" placeholder="2.2.2.2">
+                        <small class="help-text">ABR router-id at other end of virtual link</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Virtual Link Authentication Type</label>
+                        <select id="ospf_vlink_auth_type">
+                            <option value="">-- None --</option>
+                            <option value="md5">MD5</option>
+                            <option value="text">Clear Text</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Virtual Link Authentication Key</label>
+                        <input type="password" id="ospf_vlink_auth_key" placeholder="VLinkKey">
+                    </div>
+                </details>
+
+                {# Timers #}
+                <details class="advanced-section">
+                    <summary>⏱️ OSPF Timers</summary>
+                    <h6>SPF Throttle Timers</h6>
+                    <div class="form-group">
+                        <label>Initial Delay (ms)</label>
+                        <input type="number" id="ospf_spf_initial" min="1" max="600000" value="5000" placeholder="5000">
+                        <small class="help-text">Initial SPF delay (default: 5000ms)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Min Hold Time (ms)</label>
+                        <input type="number" id="ospf_spf_min_hold" min="1" max="600000" value="10000" placeholder="10000">
+                        <small class="help-text">Minimum time between SPF runs (default: 10000ms)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Hold Time (ms)</label>
+                        <input type="number" id="ospf_spf_max_hold" min="1" max="600000" value="10000" placeholder="10000">
+                        <small class="help-text">Maximum time between SPF runs (default: 10000ms)</small>
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">LSA Timers</h6>
+                    <div class="form-group">
+                        <label>LSA Arrival (ms)</label>
+                        <input type="number" id="ospf_lsa_arrival" min="0" max="600000" value="1000" placeholder="1000">
+                        <small class="help-text">Minimum interval between LSAs (default: 1000ms)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>LSA Group Pacing (seconds)</label>
+                        <input type="number" id="ospf_lsa_group_pacing" min="10" max="1800" value="240" placeholder="240">
+                        <small class="help-text">LSA refresh/maxage group pacing (default: 240s)</small>
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">Interface Timers (per interface)</h6>
+                    <div class="form-group">
+                        <label>Hello Interval (seconds)</label>
+                        <input type="number" id="ospf_hello_interval" min="1" max="65535" value="10" placeholder="10">
+                        <small class="help-text">Hello packet interval (default: 10s broadcast, 30s NBMA)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Dead Interval (seconds)</label>
+                        <input type="number" id="ospf_dead_interval" min="1" max="65535" value="40" placeholder="40">
+                        <small class="help-text">Dead neighbor timeout (default: 40s, 4× hello)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Retransmit Interval (seconds)</label>
+                        <input type="number" id="ospf_retransmit_interval" min="1" max="65535" value="5" placeholder="5">
+                        <small class="help-text">LSA retransmission interval (default: 5s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Transmit Delay (seconds)</label>
+                        <input type="number" id="ospf_transmit_delay" min="1" max="65535" value="1" placeholder="1">
+                        <small class="help-text">LSA transmit delay (default: 1s)</small>
+                    </div>
+                </details>
+
+                {# Stub Router #}
+                <details class="advanced-section">
+                    <summary>🛑 Stub Router (Max-Metric)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_stub_router_on_startup"> Max-Metric On Startup</label>
+                        <small class="help-text">Advertise max metric temporarily after boot</small>
+                    </div>
+                    <div class="form-group">
+                        <label>On-Startup Duration (seconds)</label>
+                        <input type="number" id="ospf_stub_router_duration" min="5" max="86400" value="300" placeholder="300">
+                        <small class="help-text">Time to advertise max metric (default: 300s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_stub_router_always"> Max-Metric Always</label>
+                        <small class="help-text">Permanently advertise max metric (maintenance mode)</small>
+                    </div>
+                </details>
+
+                {# Redistribution #}
+                <details class="advanced-section">
+                    <summary>♻️ Route Redistribution</summary>
+                    <div class="form-group">
+                        <label>Redistribute Protocol</label>
+                        <select id="ospf_redistribute_protocol">
+                            <option value="">-- None --</option>
+                            <option value="connected">Connected</option>
+                            <option value="static">Static</option>
+                            <option value="bgp">BGP</option>
+                            <option value="eigrp">EIGRP</option>
+                            <option value="isis">IS-IS</option>
+                            <option value="rip">RIP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Metric</label>
+                        <input type="number" id="ospf_redistribute_metric" min="0" max="16777214" placeholder="20">
+                        <small class="help-text">Metric for redistributed routes (default: 20)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Metric Type</label>
+                        <select id="ospf_redistribute_metric_type">
+                            <option value="1">Type-1 (E1 - adds internal cost)</option>
+                            <option value="2" selected>Type-2 (E2 - external cost only)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Route-Map</label>
+                        <input type="text" id="ospf_redistribute_route_map" placeholder="REDIST-TO-OSPF">
+                        <small class="help-text">Filter/modify redistributed routes</small>
+                    </div>
+                </details>
+
+                {# Default Route #}
+                <details class="advanced-section">
+                    <summary>🌐 Default Route Origination</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_default_originate_enabled"> Originate Default Route</label>
+                        <small class="help-text">Advertise default route (0.0.0.0/0) into OSPF</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_default_originate_always"> Always</label>
+                        <small class="help-text">Advertise even without default in routing table</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Metric</label>
+                        <input type="number" id="ospf_default_originate_metric" min="0" max="16777214" value="1" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Metric Type</label>
+                        <select id="ospf_default_originate_metric_type">
+                            <option value="1">Type-1</option>
+                            <option value="2" selected>Type-2</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Route-Map</label>
+                        <input type="text" id="ospf_default_originate_route_map" placeholder="DEFAULT-ORIGINATE-MAP">
+                    </div>
+                </details>
+
+                {# Interface Configuration #}
+                <details class="advanced-section">
+                    <summary>🔌 Interface Configuration</summary>
+                    <div class="form-group">
+                        <label>Interface Name</label>
+                        <input type="text" id="ospf_interface_name" placeholder="GigabitEthernet0/0">
+                    </div>
+                    <div class="form-group">
+                        <label>Interface Area</label>
+                        <input type="text" id="ospf_interface_area" placeholder="0.0.0.0" value="0.0.0.0">
+                    </div>
+                    <div class="form-group">
+                        <label>Network Type</label>
+                        <select id="ospf_interface_network_type">
+                            <option value="">-- Default --</option>
+                            <option value="point-to-point">Point-to-Point</option>
+                            <option value="broadcast">Broadcast</option>
+                            <option value="non-broadcast">Non-Broadcast (NBMA)</option>
+                            <option value="point-to-multipoint">Point-to-Multipoint</option>
+                            <option value="point-to-multipoint non-broadcast">Point-to-Multipoint Non-Broadcast</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cost</label>
+                        <input type="number" id="ospf_interface_cost" min="1" max="65535" placeholder="Auto">
+                        <small class="help-text">Manual cost override (default: auto based on bandwidth)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <input type="number" id="ospf_interface_priority" min="0" max="255" value="1" placeholder="1">
+                        <small class="help-text">DR/BDR election priority (0 = never DR/BDR)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_interface_passive"> Passive Interface</label>
+                        <small class="help-text">Suppress OSPF hellos, advertise only</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_interface_bfd"> Enable BFD</label>
+                        <small class="help-text">Bidirectional Forwarding Detection for fast failure</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_interface_mtu_ignore"> MTU Ignore</label>
+                        <small class="help-text">Ignore MTU mismatch for adjacency</small>
+                    </div>
+                </details>
+
+                {# Graceful Restart #}
+                <details class="advanced-section">
+                    <summary>🔄 Graceful Restart / NSF</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_gr"> Enable Graceful Restart (NSF Cisco)</label>
+                        <small class="help-text">Non-Stop Forwarding for OSPF (Cisco proprietary)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ospf_gr_ietf"> Enable NSF IETF (RFC 5187)</label>
+                        <small class="help-text">IETF Graceful OSPF Restart</small>
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveOspfData()" style="margin-top: 1rem; width: 100%;">
+                    💾 Save Complete OSPF Configuration
                 </button>
             `;
             break;
