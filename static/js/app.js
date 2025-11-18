@@ -2424,6 +2424,72 @@ function saveErpsData() {
     alert('✅ ERPS configuration saved!');
 }
 
+function saveRepData() {
+    if (!app.data.l2.rep) {
+        app.data.l2.rep = { enabled: false, segments: [] };
+    }
+
+    app.data.l2.rep.enabled = document.getElementById('rep_enabled')?.checked || false;
+
+    const segmentId = parseInt(document.getElementById('rep_segment_id')?.value);
+    if (segmentId) {
+        const ports = [];
+
+        const port1Interface = document.getElementById('rep_port1_interface')?.value;
+        const port2Interface = document.getElementById('rep_port2_interface')?.value;
+
+        if (port1Interface) {
+            ports.push({
+                interface: port1Interface,
+                role: document.getElementById('rep_port1_role')?.value || 'intermediate',
+                edge: document.getElementById('rep_port1_role')?.value === 'edge',
+                primary: document.getElementById('rep_port1_role')?.value === 'primary'
+            });
+        }
+
+        if (port2Interface) {
+            ports.push({
+                interface: port2Interface,
+                role: document.getElementById('rep_port2_role')?.value || 'intermediate',
+                edge: document.getElementById('rep_port2_role')?.value === 'edge',
+                primary: document.getElementById('rep_port2_role')?.value === 'primary'
+            });
+        }
+
+        const segment = {
+            segment_id: segmentId,
+            admin_vlan: parseInt(document.getElementById('rep_admin_vlan')?.value) || 1,
+            preferred_vlan: parseInt(document.getElementById('rep_preferred_vlan')?.value) || undefined,
+            vlan_load_balance: document.getElementById('rep_vlan_load_balance')?.checked || false,
+            ports: ports,
+            preemption_delay: parseInt(document.getElementById('rep_preemption_delay')?.value) || 100
+        };
+
+        // Timers
+        const lslAgeTimer = document.getElementById('rep_lsl_age_timer')?.value;
+        const lslRetries = document.getElementById('rep_lsl_retries')?.value;
+        if (lslAgeTimer || lslRetries) {
+            segment.lsl = {
+                max_age: parseInt(lslAgeTimer) || 5000,
+                retries: parseInt(lslRetries) || 3
+            };
+        }
+
+        // VLANs
+        const vlansStr = document.getElementById('rep_vlans')?.value;
+        if (vlansStr) {
+            segment.vlans = vlansStr.split(',').map(v => v.trim());
+        }
+
+        app.data.l2.rep.segments.push(segment);
+    }
+
+    app.data.l2.rep.snmp_traps = document.getElementById('rep_snmp_traps')?.checked || false;
+
+    console.log('REP saved:', app.data.l2.rep);
+    alert('✅ REP configuration saved!');
+}
+
 function saveDiscoveryData() {
     if (!app.data.l2.discovery) {
         app.data.l2.discovery = {};
@@ -6441,6 +6507,89 @@ VRF-PROD:50003:3000:auto:50003:50003:yes"></textarea>
                 </details>
                 <button class="btn btn-primary" onclick="saveErpsData()" style="width: 100%;">
                     💾 Save ERPS Configuration
+                </button>
+
+                <hr style="margin: 20px 0;">
+                <h4>REP (Resilient Ethernet Protocol) - Cisco</h4>
+                <p class="help-text">Cisco proprietary ring protection</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="rep_enabled"> Enable REP</label>
+                </div>
+
+                <details class="advanced-section">
+                    <summary>REP Segment Configuration</summary>
+                    <div class="form-group">
+                        <label>Segment ID</label>
+                        <input type="number" id="rep_segment_id" min="1" max="1024" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Admin VLAN</label>
+                        <input type="number" id="rep_admin_vlan" min="1" max="4094" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Preferred VLAN</label>
+                        <input type="number" id="rep_preferred_vlan" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label>VLANs (comma-separated)</label>
+                        <input type="text" id="rep_vlans" placeholder="10,20,30-40">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="rep_vlan_load_balance"> VLAN Load Balancing</label>
+                    </div>
+                </details>
+
+                <details class="advanced-section">
+                    <summary>REP Ports</summary>
+                    <div class="form-group">
+                        <label>Port 1 Interface</label>
+                        <input type="text" id="rep_port1_interface" placeholder="GigabitEthernet0/1">
+                    </div>
+                    <div class="form-group">
+                        <label>Port 1 Role</label>
+                        <select id="rep_port1_role">
+                            <option value="intermediate">Intermediate</option>
+                            <option value="edge">Edge</option>
+                            <option value="primary">Primary Edge</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Port 2 Interface</label>
+                        <input type="text" id="rep_port2_interface" placeholder="GigabitEthernet0/2">
+                    </div>
+                    <div class="form-group">
+                        <label>Port 2 Role</label>
+                        <select id="rep_port2_role">
+                            <option value="intermediate">Intermediate</option>
+                            <option value="edge">Edge</option>
+                            <option value="primary">Primary Edge</option>
+                        </select>
+                    </div>
+                </details>
+
+                <details class="advanced-section">
+                    <summary>REP Timers</summary>
+                    <div class="form-group">
+                        <label>Preemption Delay (seconds)</label>
+                        <input type="number" id="rep_preemption_delay" min="0" max="300" placeholder="100">
+                    </div>
+                    <div class="form-group">
+                        <label>LSL Age Timer (ms)</label>
+                        <input type="number" id="rep_lsl_age_timer" placeholder="5000">
+                    </div>
+                    <div class="form-group">
+                        <label>LSL Retries</label>
+                        <input type="number" id="rep_lsl_retries" min="3" max="10" placeholder="3">
+                    </div>
+                </details>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="rep_snmp_traps"> Enable SNMP Traps</label>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveRepData()" style="width: 100%;">
+                    💾 Save REP Configuration
                 </button>
             `;
             break;
