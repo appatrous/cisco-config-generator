@@ -88,6 +88,26 @@ class ConfigRenderer:
         env.filters['cidr_to_wildcard'] = cidr_to_wildcard
         env.filters['regex_replace'] = regex_replace
 
+    def _cleanup_output(self, config: str) -> str:
+        """
+        Clean up configuration output by removing excessive blank lines
+
+        Args:
+            config: Raw configuration output from template
+
+        Returns:
+            Cleaned configuration with at most 2 consecutive blank lines
+        """
+        # Replace 3+ consecutive newlines with exactly 2 newlines
+        # This preserves intentional section breaks while removing excess whitespace
+        cleaned = re.sub(r'\n{3,}', '\n\n', config)
+
+        # Remove trailing whitespace from each line
+        lines = cleaned.split('\n')
+        cleaned_lines = [line.rstrip() for line in lines]
+
+        return '\n'.join(cleaned_lines)
+
     def render(self, vendor: str, config_data: Dict[str, Any],
                template_name: str = 'base.j2') -> str:
         """
@@ -117,6 +137,8 @@ class ConfigRenderer:
         try:
             template = env.get_template(template_name)
             rendered = template.render(**config_data)
+            # Clean up excessive blank lines
+            rendered = self._cleanup_output(rendered)
             return rendered
         except UndefinedError as e:
             raise TemplateError(f"Undefined variable in template: {e}")
