@@ -4,22 +4,22 @@
 {# Global Configuration #}
 {% if global %}
 hostname {{ global.hostname }}
-{% if global.domain_name %}
+{% if 'domain_name' in global and global.domain_name %}
 ip domain-name {{ global.domain_name }}
 {% endif %}
-{% if global.enable_secret %}
+{% if 'enable_secret' in global and global.enable_secret %}
 enable secret {{ global.enable_secret }}
 {% endif %}
 
 {# Banner #}
-{% if global.banner_motd %}
+{% if 'banner_motd' in global and global.banner_motd %}
 banner motd ^
 {{ global.banner_motd }}
 ^
 {% endif %}
 
 {# Timezone & NTP #}
-{% if global.timezone %}
+{% if 'timezone' in global and global.timezone %}
 clock timezone {{ global.timezone }}
 {% endif %}
 {% for ntp in global.ntp_servers | default([]) %}
@@ -37,13 +37,17 @@ logging host {{ log_server }}
 {% endfor %}
 
 {# SNMP #}
-{% if global.snmp and global.snmp.enabled %}
+{% if 'snmp' in global and global.snmp %}
+{% if 'enabled' in global.snmp and global.snmp.enabled %}
 {% include 'ios/_snmp.j2' %}
+{% endif %}
 {% endif %}
 
 {# AAA #}
-{% if global.aaa and global.aaa.enabled %}
+{% if 'aaa' in global and global.aaa %}
+{% if 'enabled' in global.aaa and global.aaa.enabled %}
 {% include 'ios/_aaa.j2' %}
+{% endif %}
 {% endif %}
 
 {# Users #}
