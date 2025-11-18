@@ -645,10 +645,7 @@ function saveEigrpData() {
 
 function saveDmvpnData() {
     if (!app.data.l3.tunnels) {
-        app.data.l3.tunnels = { dmvpn: [] };
-    }
-    if (!app.data.l3.tunnels.dmvpn) {
-        app.data.l3.tunnels.dmvpn = [];
+        app.data.l3.tunnels = [];
     }
 
     const tunnelId = parseInt(document.getElementById('dmvpn_tunnel_id')?.value);
@@ -667,26 +664,135 @@ function saveDmvpnData() {
 
     const dmvpnConfig = {
         tunnel_id: tunnelId,
-        phase: parseInt(phase),
-        source: source,
-        ip_address: ip,
-        nhrp: {
-            network_id: parseInt(document.getElementById('dmvpn_nhrp_network_id')?.value) || 1,
-            authentication: document.getElementById('dmvpn_nhrp_auth')?.value || '',
-            holdtime: parseInt(document.getElementById('dmvpn_nhrp_holdtime')?.value) || 600,
-            shortcut: document.getElementById('dmvpn_nhrp_shortcut')?.checked || false,
-            redirect: document.getElementById('dmvpn_nhrp_redirect')?.checked || false,
-            nhs_ip: document.getElementById('dmvpn_nhs_ip')?.value || '',
-            registration_timeout: parseInt(document.getElementById('dmvpn_registration_timeout')?.value) || 60
-        },
-        tunnel_key: parseInt(document.getElementById('dmvpn_tunnel_key')?.value) || null,
-        mtu: parseInt(document.getElementById('dmvpn_mtu')?.value) || 1400,
-        tcp_mss: parseInt(document.getElementById('dmvpn_tcp_mss')?.value) || 1360,
-        bandwidth: parseInt(document.getElementById('dmvpn_bandwidth')?.value) || null
+        mode: 'gre-multipoint',
+        source: source
     };
 
-    app.data.l3.tunnels.dmvpn.push(dmvpnConfig);
-    console.log('DMVPN saved:', app.data.l3.tunnels.dmvpn);
+    // Description and VRF
+    const description = document.getElementById('dmvpn_description')?.value;
+    if (description) dmvpnConfig.description = description;
+
+    const vrf = document.getElementById('dmvpn_vrf')?.value;
+    if (vrf) dmvpnConfig.vrf = vrf;
+
+    // Destination (for P2P tunnels)
+    const destination = document.getElementById('dmvpn_destination')?.value;
+    if (destination) dmvpnConfig.destination = destination;
+
+    // IP Addresses
+    dmvpnConfig.ipv4 = [{ address: ip }];
+
+    const ipv6 = document.getElementById('dmvpn_ipv6')?.value;
+    if (ipv6) {
+        dmvpnConfig.ipv6 = [{ address: ipv6 }];
+    }
+
+    // Tunnel key
+    const tunnelKey = document.getElementById('dmvpn_tunnel_key')?.value;
+    if (tunnelKey) dmvpnConfig.key = parseInt(tunnelKey);
+
+    // MTU and bandwidth
+    const mtu = document.getElementById('dmvpn_mtu')?.value;
+    if (mtu) dmvpnConfig.mtu = parseInt(mtu);
+
+    const tcpMss = document.getElementById('dmvpn_tcp_mss')?.value;
+    if (tcpMss) dmvpnConfig.tcp_mss = parseInt(tcpMss);
+
+    const bandwidth = document.getElementById('dmvpn_bandwidth')?.value;
+    if (bandwidth) dmvpnConfig.bandwidth = parseInt(bandwidth);
+
+    // Keepalive
+    const keepaliveInterval = document.getElementById('dmvpn_keepalive_interval')?.value;
+    const keepaliveRetries = document.getElementById('dmvpn_keepalive_retries')?.value;
+    if (keepaliveInterval || keepaliveRetries) {
+        dmvpnConfig.keepalive = {
+            interval: parseInt(keepaliveInterval) || 10,
+            retries: parseInt(keepaliveRetries) || 3
+        };
+    }
+
+    // NHRP Configuration
+    dmvpnConfig.nhrp = {
+        enabled: true,
+        network_id: parseInt(document.getElementById('dmvpn_nhrp_network_id')?.value) || 1
+    };
+
+    const nhrpAuth = document.getElementById('dmvpn_nhrp_auth')?.value;
+    if (nhrpAuth) dmvpnConfig.nhrp.authentication = nhrpAuth;
+
+    const holdtime = document.getElementById('dmvpn_nhrp_holdtime')?.value;
+    if (holdtime) dmvpnConfig.nhrp.holdtime = parseInt(holdtime);
+
+    const regTimeout = document.getElementById('dmvpn_registration_timeout')?.value;
+    if (regTimeout) dmvpnConfig.nhrp.registration_timeout = parseInt(regTimeout);
+
+    // DMVPN Phase 2/3 features
+    if (parseInt(phase) >= 2) {
+        dmvpnConfig.nhrp.shortcut = document.getElementById('dmvpn_nhrp_shortcut')?.checked || false;
+    }
+    if (parseInt(phase) === 3) {
+        dmvpnConfig.nhrp.redirect = document.getElementById('dmvpn_nhrp_redirect')?.checked || false;
+    }
+
+    // IPsec Profile
+    const ipsecProfile = document.getElementById('dmvpn_ipsec_profile')?.value;
+    if (ipsecProfile) dmvpnConfig.ipsec_profile = ipsecProfile;
+
+    // QoS settings
+    const tosReflect = document.getElementById('dmvpn_tos_reflect')?.checked;
+    const tosValue = document.getElementById('dmvpn_tos_value')?.value;
+    const dscp = document.getElementById('dmvpn_dscp')?.value;
+
+    if (tosReflect || tosValue || dscp) {
+        dmvpnConfig.qos = {};
+        if (tosReflect) dmvpnConfig.qos.tos_reflect = true;
+        if (tosValue) dmvpnConfig.qos.tos_value = parseInt(tosValue);
+        if (dscp) dmvpnConfig.qos.dscp = dscp;
+    }
+
+    // Routing protocols
+    const ospfEnabled = document.getElementById('dmvpn_ospf_enabled')?.checked;
+    const eigrpEnabled = document.getElementById('dmvpn_eigrp_enabled')?.checked;
+
+    if (ospfEnabled || eigrpEnabled) {
+        dmvpnConfig.routing = {};
+
+        if (ospfEnabled) {
+            const ospfProcess = document.getElementById('dmvpn_ospf_process')?.value;
+            const ospfArea = document.getElementById('dmvpn_ospf_area')?.value;
+            if (ospfProcess && ospfArea) {
+                dmvpnConfig.routing.ospf = {
+                    process_id: parseInt(ospfProcess),
+                    area: ospfArea,
+                    network_type: document.getElementById('dmvpn_ospf_network_type')?.value || 'point-to-point'
+                };
+                const ospfCost = document.getElementById('dmvpn_ospf_cost')?.value;
+                if (ospfCost) dmvpnConfig.routing.ospf.cost = parseInt(ospfCost);
+            }
+        }
+
+        if (eigrpEnabled) {
+            const eigrpAsn = document.getElementById('dmvpn_eigrp_asn')?.value;
+            if (eigrpAsn) {
+                dmvpnConfig.routing.eigrp = {
+                    asn: parseInt(eigrpAsn),
+                    split_horizon: !document.getElementById('dmvpn_eigrp_split_horizon')?.checked
+                };
+            }
+        }
+    }
+
+    // Multicast
+    const pimEnabled = document.getElementById('dmvpn_pim_enabled')?.checked;
+    if (pimEnabled) {
+        dmvpnConfig.multicast = {
+            pim_mode: document.getElementById('dmvpn_pim_mode')?.value || 'sparse-mode',
+            pim_nbma_mode: document.getElementById('dmvpn_pim_nbma')?.checked || false
+        };
+    }
+
+    app.data.l3.tunnels.push(dmvpnConfig);
+    console.log('DMVPN saved:', app.data.l3.tunnels);
     alert('✅ DMVPN configuration saved!');
 }
 
@@ -1181,25 +1287,143 @@ function saveSecurityData() {
         app.data.l2.security = {};
     }
 
+    // Port Security
+    const portSecurity = {
+        enabled: document.getElementById('security_port_security')?.checked || false,
+        default_max_macs: parseInt(document.getElementById('security_max_macs')?.value) || 2,
+        violation_action: document.getElementById('security_violation')?.value || 'restrict',
+        sticky: document.getElementById('security_port_sticky')?.checked || false
+    };
+
+    const agingTime = document.getElementById('security_port_aging_time')?.value;
+    if (agingTime) portSecurity.aging_time = parseInt(agingTime);
+
+    const agingType = document.getElementById('security_port_aging_type')?.value;
+    if (agingType) portSecurity.aging_type = agingType;
+
+    // DHCP Snooping
+    const dhcpSnooping = {
+        enabled: document.getElementById('security_dhcp_snooping')?.checked || false
+    };
+
+    const dhcpVlans = document.getElementById('security_dhcp_vlans')?.value;
+    if (dhcpVlans) {
+        dhcpSnooping.vlans = dhcpVlans.split(',').map(v => v.trim()).filter(v => v);
+    }
+
+    const dhcpTrusted = document.getElementById('security_dhcp_trusted')?.value;
+    if (dhcpTrusted) {
+        dhcpSnooping.trusted_interfaces = dhcpTrusted.split(',').map(i => i.trim()).filter(i => i);
+    }
+
+    dhcpSnooping.verify_mac = document.getElementById('security_dhcp_verify_mac')?.checked || false;
+
+    dhcpSnooping.option_82 = {
+        enabled: document.getElementById('security_dhcp_option82')?.checked || false
+    };
+
+    const rateLimit = document.getElementById('security_dhcp_rate_limit')?.value;
+    if (rateLimit) dhcpSnooping.rate_limit = parseInt(rateLimit);
+
+    const dbEnabled = document.getElementById('security_dhcp_database')?.checked;
+    if (dbEnabled) {
+        dhcpSnooping.database = {
+            persistent: true,
+            file: document.getElementById('security_dhcp_database_file')?.value || 'flash:dhcp_snooping.db'
+        };
+    }
+
+    // DAI (Dynamic ARP Inspection)
+    const dai = {
+        enabled: document.getElementById('security_dai')?.checked || false
+    };
+
+    const daiVlans = document.getElementById('security_dai_vlans')?.value;
+    if (daiVlans) {
+        dai.vlans = daiVlans.split(',').map(v => v.trim()).filter(v => v);
+    }
+
+    const daiTrusted = document.getElementById('security_dai_trusted')?.value;
+    if (daiTrusted) {
+        dai.trusted_interfaces = daiTrusted.split(',').map(i => i.trim()).filter(i => i);
+    }
+
+    dai.validate = {
+        src_mac: document.getElementById('security_dai_validate_src_mac')?.checked || false,
+        dst_mac: document.getElementById('security_dai_validate_dst_mac')?.checked || false,
+        ip: document.getElementById('security_dai_validate_ip')?.checked || false
+    };
+
+    const arpAcl = document.getElementById('security_dai_arp_acl')?.value;
+    if (arpAcl) dai.arp_acl = arpAcl;
+
+    const daiRateLimit = document.getElementById('security_dai_rate_limit')?.value;
+    if (daiRateLimit) dai.rate_limit = parseInt(daiRateLimit);
+
+    // 802.1X
+    const dot1x = {
+        enabled: document.getElementById('security_dot1x')?.checked || false,
+        system_auth_control: document.getElementById('security_dot1x_system_auth')?.checked || false,
+        mab: document.getElementById('security_dot1x_mab')?.checked || false
+    };
+
+    const reauthInterval = document.getElementById('security_dot1x_reauth')?.value;
+    if (reauthInterval) dot1x.reauth_interval = parseInt(reauthInterval);
+
+    const quietPeriod = document.getElementById('security_dot1x_quiet')?.value;
+    if (quietPeriod) dot1x.quiet_period = parseInt(quietPeriod);
+
+    const txPeriod = document.getElementById('security_dot1x_tx_period')?.value;
+    if (txPeriod) dot1x.tx_period = parseInt(txPeriod);
+
+    const maxReauth = document.getElementById('security_dot1x_max_reauth')?.value;
+    if (maxReauth) dot1x.max_reauth_req = parseInt(maxReauth);
+
+    const guestVlan = document.getElementById('security_dot1x_guest_vlan')?.value;
+    if (guestVlan) dot1x.guest_vlan = parseInt(guestVlan);
+
+    const criticalVlan = document.getElementById('security_dot1x_critical_vlan')?.value;
+    if (criticalVlan) dot1x.critical_vlan = parseInt(criticalVlan);
+
+    // IP Source Guard
+    const ipsg = {
+        enabled: document.getElementById('security_ipsg')?.checked || false
+    };
+
+    const ipsgInterfaces = document.getElementById('security_ipsg_interfaces')?.value;
+    if (ipsgInterfaces) {
+        ipsg.bindings = ipsgInterfaces.split(',').map(iface => ({
+            interface: iface.trim(),
+            enabled: true
+        })).filter(b => b.interface);
+    }
+
+    // MACsec
+    const macsec = {
+        enabled: document.getElementById('security_macsec')?.checked || false
+    };
+
+    const macsecPolicy = document.getElementById('security_macsec_policy')?.value;
+    if (macsecPolicy) macsec.policy = macsecPolicy;
+
+    const macsecCipher = document.getElementById('security_macsec_cipher')?.value;
+    if (macsecCipher) macsec.cipher_suite = macsecCipher;
+
+    const macsecInterfaces = document.getElementById('security_macsec_interfaces')?.value;
+    if (macsecInterfaces) {
+        macsec.per_interface = macsecInterfaces.split(',').map(iface => ({
+            interface: iface.trim(),
+            enabled: true
+        })).filter(i => i.interface);
+    }
+
     app.data.l2.security = {
-        port_security: {
-            enabled: document.getElementById('security_port_security')?.checked || false,
-            max_macs: parseInt(document.getElementById('security_max_macs')?.value) || 2,
-            violation_mode: document.getElementById('security_violation')?.value || 'restrict'
-        },
-        dhcp_snooping: {
-            enabled: document.getElementById('security_dhcp_snooping')?.checked || false,
-            vlans: document.getElementById('security_dhcp_vlans')?.value || '',
-            option82: document.getElementById('security_dhcp_option82')?.checked || false
-        },
-        dai: {
-            enabled: document.getElementById('security_dai')?.checked || false,
-            vlans: document.getElementById('security_dai_vlans')?.value || ''
-        },
-        dot1x: {
-            enabled: document.getElementById('security_dot1x')?.checked || false,
-            mode: document.getElementById('security_dot1x_mode')?.value || 'single-host'
-        }
+        port_security: portSecurity,
+        dhcp_snooping: dhcpSnooping,
+        dai: dai,
+        dot1x: dot1x,
+        ipsg: ipsg,
+        macsec: macsec
     };
 
     console.log('Security saved:', app.data.l2.security);
@@ -1582,6 +1806,10 @@ function generateForm(protocolPath, protocolData) {
                     <input type="number" id="dmvpn_tunnel_id" min="0" max="9999" placeholder="0" required>
                 </div>
                 <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="dmvpn_description" placeholder="DMVPN Tunnel to Branch">
+                </div>
+                <div class="form-group">
                     <label>DMVPN Phase</label>
                     <select id="dmvpn_phase" required>
                         <option value="">Select Phase...</option>
@@ -1591,12 +1819,24 @@ function generateForm(protocolPath, protocolData) {
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>VRF Name</label>
+                    <input type="text" id="dmvpn_vrf" placeholder="MGMT">
+                </div>
+                <div class="form-group">
                     <label>Tunnel Source</label>
                     <input type="text" id="dmvpn_source" placeholder="GigabitEthernet0/0 or IP address" required>
                 </div>
                 <div class="form-group">
-                    <label>Tunnel IP Address (CIDR)</label>
+                    <label>Tunnel Destination (for P2P)</label>
+                    <input type="text" id="dmvpn_destination" placeholder="1.1.1.1">
+                </div>
+                <div class="form-group">
+                    <label>Tunnel IPv4 Address (CIDR)</label>
                     <input type="text" id="dmvpn_ip" placeholder="10.0.0.1/24" required>
+                </div>
+                <div class="form-group">
+                    <label>Tunnel IPv6 Address</label>
+                    <input type="text" id="dmvpn_ipv6" placeholder="2001:db8::1/64">
                 </div>
                 <details class="advanced-section">
                     <summary>NHRP Configuration</summary>
@@ -1645,6 +1885,88 @@ function generateForm(protocolPath, protocolData) {
                         <label>Bandwidth (kbps)</label>
                         <input type="number" id="dmvpn_bandwidth" placeholder="1000">
                     </div>
+                    <div class="form-group">
+                        <label>Keepalive Interval (seconds)</label>
+                        <input type="number" id="dmvpn_keepalive_interval" placeholder="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Keepalive Retries</label>
+                        <input type="number" id="dmvpn_keepalive_retries" placeholder="3">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>IPsec & QoS Settings</summary>
+                    <div class="form-group">
+                        <label>IPsec Profile Name</label>
+                        <input type="text" id="dmvpn_ipsec_profile" placeholder="IPSEC-PROFILE">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dmvpn_tos_reflect"> TOS Reflect</label>
+                    </div>
+                    <div class="form-group">
+                        <label>TOS Value</label>
+                        <input type="number" id="dmvpn_tos_value" placeholder="0" min="0" max="255">
+                    </div>
+                    <div class="form-group">
+                        <label>DSCP Value</label>
+                        <input type="text" id="dmvpn_dscp" placeholder="ef">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Routing Protocol on Tunnel</summary>
+                    <div class="form-group">
+                        <label>Enable OSPF on Tunnel</label>
+                        <input type="checkbox" id="dmvpn_ospf_enabled">
+                    </div>
+                    <div class="form-group">
+                        <label>OSPF Process ID</label>
+                        <input type="number" id="dmvpn_ospf_process" placeholder="1">
+                    </div>
+                    <div class="form-group">
+                        <label>OSPF Area</label>
+                        <input type="text" id="dmvpn_ospf_area" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>OSPF Network Type</label>
+                        <select id="dmvpn_ospf_network_type">
+                            <option value="point-to-point">Point-to-Point</option>
+                            <option value="broadcast">Broadcast</option>
+                            <option value="point-to-multipoint">Point-to-Multipoint</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>OSPF Cost</label>
+                        <input type="number" id="dmvpn_ospf_cost" placeholder="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Enable EIGRP on Tunnel</label>
+                        <input type="checkbox" id="dmvpn_eigrp_enabled">
+                    </div>
+                    <div class="form-group">
+                        <label>EIGRP ASN</label>
+                        <input type="number" id="dmvpn_eigrp_asn" placeholder="100">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dmvpn_eigrp_split_horizon"> Disable EIGRP Split Horizon</label>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Multicast Settings</summary>
+                    <div class="form-group">
+                        <label>Enable PIM</label>
+                        <input type="checkbox" id="dmvpn_pim_enabled">
+                    </div>
+                    <div class="form-group">
+                        <label>PIM Mode</label>
+                        <select id="dmvpn_pim_mode">
+                            <option value="sparse-mode">Sparse Mode</option>
+                            <option value="dense-mode">Dense Mode</option>
+                            <option value="sparse-dense-mode">Sparse-Dense Mode</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="dmvpn_pim_nbma"> Enable PIM NBMA Mode</label>
+                    </div>
                 </details>
                 <button class="btn btn-primary" onclick="saveDmvpnData()" style="width: 100%;">
                     💾 Save DMVPN Configuration
@@ -1660,6 +1982,10 @@ function generateForm(protocolPath, protocolData) {
                     <input type="text" id="ipsec_map_name" placeholder="CRYPTO-MAP" required>
                 </div>
                 <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="ipsec_map_description" placeholder="Site-to-Site VPN to Branch">
+                </div>
+                <div class="form-group">
                     <label>Sequence Number</label>
                     <input type="number" id="ipsec_sequence" min="1" max="65535" placeholder="10" required>
                 </div>
@@ -1668,17 +1994,36 @@ function generateForm(protocolPath, protocolData) {
                     <input type="text" id="ipsec_peer" placeholder="203.0.113.1" required>
                 </div>
                 <div class="form-group">
+                    <label>Interface to Apply Crypto Map</label>
+                    <input type="text" id="ipsec_interface" placeholder="GigabitEthernet0/0">
+                </div>
+                <div class="form-group">
                     <label>Pre-Shared Key</label>
                     <input type="password" id="ipsec_psk" placeholder="Enter PSK" required>
                 </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="ipsec_reverse_route"> Enable Reverse Route Injection</label>
+                </div>
                 <details class="advanced-section">
-                    <summary>IKEv2 Profile</summary>
+                    <summary>IKE Configuration</summary>
                     <div class="form-group">
                         <label>IKE Version</label>
                         <select id="ipsec_ike_version">
                             <option value="2">IKEv2 (Recommended)</option>
                             <option value="1">IKEv1</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>IKEv2 Profile Name</label>
+                        <input type="text" id="ipsec_ikev2_profile_name" placeholder="IKEV2-PROFILE">
+                    </div>
+                    <div class="form-group">
+                        <label>IKEv2 Keyring Name</label>
+                        <input type="text" id="ipsec_ikev2_keyring" placeholder="IKEV2-KEYRING">
+                    </div>
+                    <div class="form-group">
+                        <label>Match FVRF</label>
+                        <input type="text" id="ipsec_match_fvrf" placeholder="any">
                     </div>
                     <div class="form-group">
                         <label>IKE Encryption</label>
@@ -1699,8 +2044,21 @@ function generateForm(protocolPath, protocolData) {
                         </select>
                     </div>
                     <div class="form-group">
+                        <label>PRF (Pseudo-Random Function)</label>
+                        <select id="ipsec_ike_prf">
+                            <option value="sha512">SHA-512</option>
+                            <option value="sha384">SHA-384</option>
+                            <option value="sha256">SHA-256</option>
+                            <option value="sha1">SHA-1</option>
+                            <option value="md5">MD5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>IKE DH Group</label>
                         <select id="ipsec_ike_dh">
+                            <option value="21">Group 21 (521-bit ECC)</option>
+                            <option value="20">Group 20 (384-bit ECC)</option>
+                            <option value="19">Group 19 (256-bit ECC)</option>
                             <option value="16">Group 16 (4096-bit)</option>
                             <option value="15">Group 15 (3072-bit)</option>
                             <option value="14">Group 14 (2048-bit)</option>
@@ -1714,6 +2072,24 @@ function generateForm(protocolPath, protocolData) {
                     </div>
                 </details>
                 <details class="advanced-section">
+                    <summary>Dead Peer Detection (DPD)</summary>
+                    <div class="form-group">
+                        <label>DPD Interval (seconds)</label>
+                        <input type="number" id="ipsec_dpd_interval" placeholder="10" min="2" max="3600">
+                    </div>
+                    <div class="form-group">
+                        <label>DPD Retries</label>
+                        <input type="number" id="ipsec_dpd_retries" placeholder="3" min="2" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>DPD Action on Failure</label>
+                        <select id="ipsec_dpd_action">
+                            <option value="clear">Clear (Recommended)</option>
+                            <option value="restart">Restart</option>
+                        </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
                     <summary>IPsec Transform Set</summary>
                     <div class="form-group">
                         <label>Transform Set Name</label>
@@ -1722,8 +2098,10 @@ function generateForm(protocolPath, protocolData) {
                     <div class="form-group">
                         <label>ESP Encryption</label>
                         <select id="ipsec_esp_encryption">
+                            <option value="esp-aes-256-gcm">ESP-AES-256-GCM</option>
                             <option value="esp-aes-256">ESP-AES-256</option>
                             <option value="esp-aes-192">ESP-AES-192</option>
+                            <option value="esp-aes-128-gcm">ESP-AES-128-GCM</option>
                             <option value="esp-aes-128">ESP-AES-128</option>
                             <option value="esp-3des">ESP-3DES</option>
                         </select>
@@ -1735,6 +2113,14 @@ function generateForm(protocolPath, protocolData) {
                             <option value="esp-sha256-hmac">ESP-SHA256-HMAC</option>
                             <option value="esp-sha-hmac">ESP-SHA-HMAC</option>
                             <option value="esp-md5-hmac">ESP-MD5-HMAC</option>
+                            <option value="">None (for GCM modes)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Transform Mode</label>
+                        <select id="ipsec_transform_mode">
+                            <option value="tunnel">Tunnel (Recommended)</option>
+                            <option value="transport">Transport</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1747,10 +2133,34 @@ function generateForm(protocolPath, protocolData) {
                     <div class="form-group">
                         <label>PFS DH Group</label>
                         <select id="ipsec_pfs_group">
+                            <option value="21">Group 21 (521-bit ECC)</option>
+                            <option value="20">Group 20 (384-bit ECC)</option>
+                            <option value="19">Group 19 (256-bit ECC)</option>
                             <option value="16">Group 16</option>
                             <option value="14">Group 14</option>
                             <option value="5">Group 5</option>
                         </select>
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>Global IPsec Settings</summary>
+                    <div class="form-group">
+                        <label>Fragmentation</label>
+                        <select id="ipsec_fragmentation">
+                            <option value="before-encryption">Before Encryption (Recommended)</option>
+                            <option value="after-encryption">After Encryption</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>DF-Bit Policy</label>
+                        <select id="ipsec_df_bit">
+                            <option value="clear">Clear DF-bit</option>
+                            <option value="copy">Copy DF-bit</option>
+                            <option value="set">Set DF-bit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="ipsec_nat_transparency"> Enable NAT Transparency (NAT-T)</label>
                     </div>
                 </details>
                 <details class="advanced-section">
@@ -2534,15 +2944,30 @@ function generateForm(protocolPath, protocolData) {
                         <label><input type="checkbox" id="security_port_security"> Enable Port Security</label>
                     </div>
                     <div class="form-group">
-                        <label>Maximum MACs</label>
+                        <label>Default Maximum MACs</label>
                         <input type="number" id="security_max_macs" placeholder="2" min="1" max="8192">
                     </div>
                     <div class="form-group">
-                        <label>Violation Mode</label>
+                        <label>Violation Action</label>
                         <select id="security_violation">
                             <option value="protect">Protect</option>
                             <option value="restrict">Restrict</option>
                             <option value="shutdown">Shutdown</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_port_sticky"> Enable Sticky MAC Learning</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Aging Time (minutes)</label>
+                        <input type="number" id="security_port_aging_time" placeholder="0" min="0" max="1440">
+                    </div>
+                    <div class="form-group">
+                        <label>Aging Type</label>
+                        <select id="security_port_aging_type">
+                            <option value="">None</option>
+                            <option value="absolute">Absolute</option>
+                            <option value="inactivity">Inactivity</option>
                         </select>
                     </div>
                 </details>
@@ -2556,7 +2981,25 @@ function generateForm(protocolPath, protocolData) {
                         <input type="text" id="security_dhcp_vlans" placeholder="10,20,30-40">
                     </div>
                     <div class="form-group">
+                        <label>Trusted Interfaces (comma-separated)</label>
+                        <input type="text" id="security_dhcp_trusted" placeholder="GigabitEthernet0/1,GigabitEthernet0/24">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dhcp_verify_mac"> Verify MAC Address</label>
+                    </div>
+                    <div class="form-group">
                         <label><input type="checkbox" id="security_dhcp_option82"> Insert Option 82</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Rate Limit (pps)</label>
+                        <input type="number" id="security_dhcp_rate_limit" placeholder="100" min="1" max="2048">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dhcp_database"> Enable Database Persistence</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Database File</label>
+                        <input type="text" id="security_dhcp_database_file" placeholder="flash:dhcp_snooping.db">
                     </div>
                 </details>
                 <details class="advanced-section">
@@ -2568,6 +3011,27 @@ function generateForm(protocolPath, protocolData) {
                         <label>DAI VLANs</label>
                         <input type="text" id="security_dai_vlans" placeholder="10,20,30-40">
                     </div>
+                    <div class="form-group">
+                        <label>Trusted Interfaces (comma-separated)</label>
+                        <input type="text" id="security_dai_trusted" placeholder="GigabitEthernet0/1,GigabitEthernet0/24">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dai_validate_src_mac"> Validate Source MAC</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dai_validate_dst_mac"> Validate Destination MAC</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dai_validate_ip"> Validate IP</label>
+                    </div>
+                    <div class="form-group">
+                        <label>ARP ACL Name</label>
+                        <input type="text" id="security_dai_arp_acl" placeholder="DAI_ACL">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate Limit (pps)</label>
+                        <input type="number" id="security_dai_rate_limit" placeholder="15" min="1" max="2048">
+                    </div>
                 </details>
                 <details class="advanced-section">
                     <summary>802.1X Authentication</summary>
@@ -2575,12 +3039,67 @@ function generateForm(protocolPath, protocolData) {
                         <label><input type="checkbox" id="security_dot1x"> Enable 802.1X</label>
                     </div>
                     <div class="form-group">
-                        <label>Authentication Mode</label>
-                        <select id="security_dot1x_mode">
-                            <option value="single-host">Single Host</option>
-                            <option value="multi-host">Multi Host</option>
-                            <option value="multi-auth">Multi Auth</option>
+                        <label><input type="checkbox" id="security_dot1x_system_auth"> Enable System Auth Control</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Re-authentication Interval (seconds)</label>
+                        <input type="number" id="security_dot1x_reauth" placeholder="3600" min="60" max="65535">
+                    </div>
+                    <div class="form-group">
+                        <label>Quiet Period (seconds)</label>
+                        <input type="number" id="security_dot1x_quiet" placeholder="60" min="1" max="65535">
+                    </div>
+                    <div class="form-group">
+                        <label>TX Period (seconds)</label>
+                        <input type="number" id="security_dot1x_tx_period" placeholder="30" min="1" max="65535">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Re-authentication Requests</label>
+                        <input type="number" id="security_dot1x_max_reauth" placeholder="2" min="1" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_dot1x_mab"> Enable MAC Authentication Bypass (MAB)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Guest VLAN</label>
+                        <input type="number" id="security_dot1x_guest_vlan" placeholder="100" min="1" max="4094">
+                    </div>
+                    <div class="form-group">
+                        <label>Critical VLAN (Server Dead)</label>
+                        <input type="number" id="security_dot1x_critical_vlan" placeholder="999" min="1" max="4094">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>IP Source Guard (IPSG)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_ipsg"> Enable IP Source Guard</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Interfaces (comma-separated)</label>
+                        <input type="text" id="security_ipsg_interfaces" placeholder="GigabitEthernet0/1,GigabitEthernet0/2">
+                    </div>
+                </details>
+                <details class="advanced-section">
+                    <summary>MACsec (802.1AE)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="security_macsec"> Enable MACsec</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Policy Name</label>
+                        <input type="text" id="security_macsec_policy" placeholder="MACSEC_POLICY">
+                    </div>
+                    <div class="form-group">
+                        <label>Cipher Suite</label>
+                        <select id="security_macsec_cipher">
+                            <option value="gcm-aes-128">GCM-AES-128</option>
+                            <option value="gcm-aes-256">GCM-AES-256</option>
+                            <option value="gcm-aes-xpn-128">GCM-AES-XPN-128</option>
+                            <option value="gcm-aes-xpn-256">GCM-AES-XPN-256</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Interfaces (comma-separated)</label>
+                        <input type="text" id="security_macsec_interfaces" placeholder="TenGigabitEthernet0/1">
                     </div>
                 </details>
                 <button class="btn btn-primary" onclick="saveSecurityData()" style="width: 100%;">
