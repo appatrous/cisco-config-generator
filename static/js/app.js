@@ -1725,31 +1725,176 @@ function saveNatData() {
         app.data.l3.nat = {};
     }
 
-    const natType = document.getElementById('nat_type')?.value;
+    // Basic Configuration
+    app.data.l3.nat.enabled = document.getElementById('nat_enabled')?.checked || false;
 
-    if (!natType) {
-        alert('❌ NAT type is required');
-        return;
+    // Inside/Outside Interfaces
+    const insideIfStr = document.getElementById('nat_inside_if')?.value || '';
+    const outsideIfStr = document.getElementById('nat_outside_if')?.value || '';
+
+    app.data.l3.nat.inside_interfaces = insideIfStr ? insideIfStr.split(',').map(i => i.trim()) : [];
+    app.data.l3.nat.outside_interfaces = outsideIfStr ? outsideIfStr.split(',').map(i => i.trim()) : [];
+
+    // NAT Pools
+    const poolName = document.getElementById('nat_pool_name')?.value;
+    if (poolName) {
+        app.data.l3.nat.pools = [{
+            name: poolName,
+            start_ip: document.getElementById('nat_pool_start')?.value || '',
+            end_ip: document.getElementById('nat_pool_end')?.value || '',
+            netmask: document.getElementById('nat_pool_netmask')?.value || '255.255.255.0',
+            type: document.getElementById('nat_pool_type')?.value || 'normal'
+        }];
     }
 
-    app.data.l3.nat = {
-        type: natType,
-        inside_interface: document.getElementById('nat_inside_if')?.value || '',
-        outside_interface: document.getElementById('nat_outside_if')?.value || '',
-        pool: {
-            name: document.getElementById('nat_pool_name')?.value || '',
-            start: document.getElementById('nat_pool_start')?.value || '',
-            end: document.getElementById('nat_pool_end')?.value || '',
-            netmask: document.getElementById('nat_pool_netmask')?.value || ''
-        },
-        static_mappings: [{
-            inside_local: document.getElementById('nat_inside_local')?.value || '',
-            inside_global: document.getElementById('nat_inside_global')?.value || ''
-        }]
+    // NAT ACLs
+    const aclName = document.getElementById('nat_acl_name')?.value;
+    const aclPermits = document.getElementById('nat_acl_permits')?.value;
+    if (aclName && aclPermits) {
+        app.data.l3.nat.acls = [{
+            name: aclName,
+            permits: aclPermits.split('\n').filter(p => p.trim())
+        }];
+    }
+
+    // Static NAT
+    const insideLocal = document.getElementById('nat_inside_local')?.value;
+    const insideGlobal = document.getElementById('nat_inside_global')?.value;
+    if (insideLocal && insideGlobal) {
+        app.data.l3.nat.static_mappings = [{
+            inside_local: insideLocal,
+            inside_global: insideGlobal,
+            vrf: document.getElementById('nat_static_vrf')?.value || undefined,
+            extendable: document.getElementById('nat_static_extendable')?.checked || false,
+            no_alias: document.getElementById('nat_static_no_alias')?.checked || false
+        }];
+    }
+
+    // Static PAT
+    const patInsideLocal = document.getElementById('nat_pat_inside_local')?.value;
+    const patInsideGlobal = document.getElementById('nat_pat_inside_global')?.value;
+    const patInsidePort = document.getElementById('nat_pat_inside_port')?.value;
+    const patOutsidePort = document.getElementById('nat_pat_outside_port')?.value;
+
+    if (patInsideLocal && patInsideGlobal && patInsidePort && patOutsidePort) {
+        app.data.l3.nat.static_pat = [{
+            protocol: document.getElementById('nat_pat_protocol')?.value || 'tcp',
+            inside_local: patInsideLocal,
+            inside_port: parseInt(patInsidePort),
+            inside_global: patInsideGlobal,
+            outside_port: parseInt(patOutsidePort)
+        }];
+    }
+
+    // Dynamic NAT
+    const dynAcl = document.getElementById('nat_dynamic_acl')?.value;
+    const dynPool = document.getElementById('nat_dynamic_pool')?.value;
+    if (dynAcl && dynPool) {
+        app.data.l3.nat.dynamic = [{
+            acl: dynAcl,
+            pool: dynPool,
+            overload: document.getElementById('nat_dynamic_overload')?.checked || false,
+            vrf: document.getElementById('nat_dynamic_vrf')?.value || undefined
+        }];
+    }
+
+    // PAT with Interface
+    const patAcl = document.getElementById('nat_pat_acl')?.value;
+    const patInterface = document.getElementById('nat_pat_interface')?.value;
+    if (patAcl && patInterface) {
+        app.data.l3.nat.pat = [{
+            acl: patAcl,
+            interface: patInterface
+        }];
+    }
+
+    // Route-Map Based NAT
+    if (document.getElementById('nat_route_map_enabled')?.checked) {
+        const rmName = document.getElementById('nat_route_map_name')?.value;
+        const rmPool = document.getElementById('nat_route_map_pool')?.value;
+        if (rmName && rmPool) {
+            app.data.l3.nat.route_map_nat = [{
+                route_map: rmName,
+                pool: rmPool,
+                overload: document.getElementById('nat_route_map_overload')?.checked || false,
+                reversible: document.getElementById('nat_route_map_reversible')?.checked || false
+            }];
+        }
+    }
+
+    // ALG Disable
+    app.data.l3.nat.alg_disable = [];
+    if (document.getElementById('nat_alg_disable_ftp')?.checked) app.data.l3.nat.alg_disable.push('ftp');
+    if (document.getElementById('nat_alg_disable_tftp')?.checked) app.data.l3.nat.alg_disable.push('tftp');
+    if (document.getElementById('nat_alg_disable_sip')?.checked) app.data.l3.nat.alg_disable.push('sip');
+    if (document.getElementById('nat_alg_disable_h323')?.checked) app.data.l3.nat.alg_disable.push('h323');
+    if (document.getElementById('nat_alg_disable_rtsp')?.checked) app.data.l3.nat.alg_disable.push('rtsp');
+    if (document.getElementById('nat_alg_disable_pptp')?.checked) app.data.l3.nat.alg_disable.push('pptp');
+    if (document.getElementById('nat_alg_disable_dns')?.checked) app.data.l3.nat.alg_disable.push('dns');
+
+    // Timeouts
+    app.data.l3.nat.timeouts = {
+        tcp: parseInt(document.getElementById('nat_timeout_tcp')?.value) || 86400,
+        udp: parseInt(document.getElementById('nat_timeout_udp')?.value) || 300,
+        icmp: parseInt(document.getElementById('nat_timeout_icmp')?.value) || 60,
+        finrst: parseInt(document.getElementById('nat_timeout_finrst')?.value) || 60,
+        syn: parseInt(document.getElementById('nat_timeout_syn')?.value) || 60,
+        dns: parseInt(document.getElementById('nat_timeout_dns')?.value) || 60
     };
 
-    console.log('NAT saved:', app.data.l3.nat);
-    alert('✅ NAT configuration saved!');
+    // Translation Limits
+    const translationMax = document.getElementById('nat_translation_max')?.value;
+    if (translationMax) {
+        app.data.l3.nat.translation_max = parseInt(translationMax);
+    }
+
+    // Logging
+    const loggingEnabled = document.getElementById('nat_logging_enabled')?.checked;
+    const flowExportEnabled = document.getElementById('nat_flow_export_enabled')?.checked;
+
+    if (loggingEnabled || flowExportEnabled) {
+        app.data.l3.nat.logging = {
+            enabled: loggingEnabled || false
+        };
+
+        if (flowExportEnabled) {
+            app.data.l3.nat.logging.flow_export = {
+                destination: document.getElementById('nat_flow_export_dest')?.value || '',
+                port: parseInt(document.getElementById('nat_flow_export_port')?.value) || 2055
+            };
+        }
+    }
+
+    // NVI (NAT Virtual Interface)
+    if (document.getElementById('nat_nvi_enabled')?.checked) {
+        app.data.l3.nat.nvi = {
+            enabled: true
+        };
+    }
+
+    // NAT64
+    if (document.getElementById('nat64_enabled')?.checked) {
+        const nat64Prefix = document.getElementById('nat64_prefix')?.value;
+        const nat64PoolName = document.getElementById('nat64_v4_pool_name')?.value;
+        const nat64PoolStart = document.getElementById('nat64_v4_pool_start')?.value;
+        const nat64PoolEnd = document.getElementById('nat64_v4_pool_end')?.value;
+
+        app.data.l3.nat.nat64 = {
+            enabled: true,
+            prefix: nat64Prefix || '64:ff9b::/96'
+        };
+
+        if (nat64PoolName && nat64PoolStart && nat64PoolEnd) {
+            app.data.l3.nat.nat64.v4_pool = {
+                name: nat64PoolName,
+                start: nat64PoolStart,
+                end: nat64PoolEnd
+            };
+        }
+    }
+
+    console.log('NAT saved (complete):', app.data.l3.nat);
+    alert('✅ Complete NAT configuration saved!');
 }
 
 function saveMplsData() {
@@ -4801,29 +4946,30 @@ SOO:100:1"></textarea>
         case 'nat':
             html += `
                 <h4>NAT Configuration</h4>
+
+                {# Basic NAT Configuration #}
                 <div class="form-group">
-                    <label>NAT Type</label>
-                    <select id="nat_type" required>
-                        <option value="">Select NAT Type...</option>
-                        <option value="static">Static NAT</option>
-                        <option value="dynamic">Dynamic NAT (Pool)</option>
-                        <option value="pat">PAT (Port Address Translation)</option>
-                        <option value="cgnat">CGNAT (Carrier Grade NAT)</option>
-                    </select>
+                    <label><input type="checkbox" id="nat_enabled" checked> Enable NAT</label>
+                </div>
+
+                <div class="form-group">
+                    <label>Inside Interfaces (comma-separated)</label>
+                    <input type="text" id="nat_inside_if" placeholder="GigabitEthernet0/0, GigabitEthernet0/1">
+                    <small class="help-text">Interfaces facing private network</small>
                 </div>
                 <div class="form-group">
-                    <label>Inside Interface</label>
-                    <input type="text" id="nat_inside_if" placeholder="GigabitEthernet0/0">
+                    <label>Outside Interfaces (comma-separated)</label>
+                    <input type="text" id="nat_outside_if" placeholder="GigabitEthernet0/2">
+                    <small class="help-text">Interfaces facing public network</small>
                 </div>
-                <div class="form-group">
-                    <label>Outside Interface</label>
-                    <input type="text" id="nat_outside_if" placeholder="GigabitEthernet0/1">
-                </div>
-                <details class="advanced-section">
-                    <summary>NAT Pool Configuration</summary>
+
+                {# NAT Pools #}
+                <details class="advanced-section" open>
+                    <summary>📦 NAT Pools</summary>
                     <div class="form-group">
                         <label>Pool Name</label>
                         <input type="text" id="nat_pool_name" placeholder="NAT-POOL-1">
+                        <small class="help-text">Pool identifier for dynamic NAT</small>
                     </div>
                     <div class="form-group">
                         <label>Pool Start IP</label>
@@ -4835,22 +4981,289 @@ SOO:100:1"></textarea>
                     </div>
                     <div class="form-group">
                         <label>Netmask</label>
-                        <input type="text" id="nat_pool_netmask" placeholder="255.255.255.0">
+                        <input type="text" id="nat_pool_netmask" placeholder="255.255.255.0" value="255.255.255.0">
+                    </div>
+                    <div class="form-group">
+                        <label>Pool Type</label>
+                        <select id="nat_pool_type">
+                            <option value="normal">Normal</option>
+                            <option value="rotary">Rotary (Load Distribution)</option>
+                        </select>
+                        <small class="help-text">Rotary pools for server load balancing</small>
                     </div>
                 </details>
+
+                {# NAT ACLs #}
                 <details class="advanced-section">
-                    <summary>Static NAT Mappings</summary>
+                    <summary>🔐 NAT Access Lists</summary>
+                    <div class="form-group">
+                        <label>ACL Name</label>
+                        <input type="text" id="nat_acl_name" placeholder="NAT-ACL">
+                        <small class="help-text">ACL to match traffic for NAT</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Permitted Networks (one per line, CIDR)</label>
+                        <textarea id="nat_acl_permits" rows="3" placeholder="192.168.1.0/24
+10.0.0.0/8"></textarea>
+                        <small class="help-text">Networks allowed to be translated</small>
+                    </div>
+                </details>
+
+                {# Static NAT #}
+                <details class="advanced-section">
+                    <summary>🔗 Static NAT Mappings</summary>
                     <div class="form-group">
                         <label>Inside Local IP</label>
                         <input type="text" id="nat_inside_local" placeholder="192.168.1.10">
+                        <small class="help-text">Private IP address</small>
                     </div>
                     <div class="form-group">
                         <label>Inside Global IP</label>
                         <input type="text" id="nat_inside_global" placeholder="203.0.113.10">
+                        <small class="help-text">Public IP address</small>
+                    </div>
+                    <div class="form-group">
+                        <label>VRF (optional)</label>
+                        <input type="text" id="nat_static_vrf" placeholder="CUSTOMER-A">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_static_extendable"> Extendable</label>
+                        <small class="help-text">Allow multiple inside locals to same global</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_static_no_alias"> No Alias</label>
+                        <small class="help-text">Do not create alias for outside local address</small>
                     </div>
                 </details>
+
+                {# Static PAT #}
+                <details class="advanced-section">
+                    <summary>🔌 Static PAT (Port Forwarding)</summary>
+                    <div class="form-group">
+                        <label>Protocol</label>
+                        <select id="nat_pat_protocol">
+                            <option value="tcp">TCP</option>
+                            <option value="udp">UDP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Inside Local IP</label>
+                        <input type="text" id="nat_pat_inside_local" placeholder="192.168.1.10">
+                    </div>
+                    <div class="form-group">
+                        <label>Inside Port</label>
+                        <input type="number" id="nat_pat_inside_port" min="1" max="65535" placeholder="80">
+                    </div>
+                    <div class="form-group">
+                        <label>Inside Global IP</label>
+                        <input type="text" id="nat_pat_inside_global" placeholder="203.0.113.10">
+                    </div>
+                    <div class="form-group">
+                        <label>Outside Port</label>
+                        <input type="number" id="nat_pat_outside_port" min="1" max="65535" placeholder="8080">
+                        <small class="help-text">External port users connect to</small>
+                    </div>
+                </details>
+
+                {# Dynamic NAT #}
+                <details class="advanced-section">
+                    <summary>🔄 Dynamic NAT</summary>
+                    <div class="form-group">
+                        <label>ACL Name</label>
+                        <input type="text" id="nat_dynamic_acl" placeholder="NAT-ACL">
+                    </div>
+                    <div class="form-group">
+                        <label>Pool Name</label>
+                        <input type="text" id="nat_dynamic_pool" placeholder="NAT-POOL-1">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_dynamic_overload"> Overload (PAT)</label>
+                        <small class="help-text">Enable Port Address Translation</small>
+                    </div>
+                    <div class="form-group">
+                        <label>VRF (optional)</label>
+                        <input type="text" id="nat_dynamic_vrf" placeholder="">
+                    </div>
+                </details>
+
+                {# PAT with Interface #}
+                <details class="advanced-section">
+                    <summary>🌐 PAT (Interface Overload)</summary>
+                    <div class="form-group">
+                        <label>ACL Name</label>
+                        <input type="text" id="nat_pat_acl" placeholder="NAT-ACL">
+                    </div>
+                    <div class="form-group">
+                        <label>Interface</label>
+                        <input type="text" id="nat_pat_interface" placeholder="GigabitEthernet0/2">
+                        <small class="help-text">Use interface IP for PAT</small>
+                    </div>
+                </details>
+
+                {# Route-Map Based NAT #}
+                <details class="advanced-section">
+                    <summary>🗺️ Route-Map Based NAT</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_route_map_enabled"> Enable Route-Map NAT</label>
+                        <small class="help-text">Conditional NAT based on route-map matching</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Route-Map Name</label>
+                        <input type="text" id="nat_route_map_name" placeholder="NAT-ROUTE-MAP">
+                    </div>
+                    <div class="form-group">
+                        <label>Pool Name</label>
+                        <input type="text" id="nat_route_map_pool" placeholder="NAT-POOL-1">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_route_map_overload"> Overload</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_route_map_reversible"> Reversible</label>
+                        <small class="help-text">Allow bidirectional translation</small>
+                    </div>
+                </details>
+
+                {# NAT ALG Configuration #}
+                <details class="advanced-section">
+                    <summary>🔧 ALG (Application Layer Gateway) Configuration</summary>
+                    <p class="help-text">Disable ALGs for applications that don't work with NAT inspection</p>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_ftp"> Disable FTP ALG</label>
+                        <small class="help-text">FTP (Port 21)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_tftp"> Disable TFTP ALG</label>
+                        <small class="help-text">TFTP (Port 69)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_sip"> Disable SIP ALG</label>
+                        <small class="help-text">SIP (VoIP - Port 5060)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_h323"> Disable H.323 ALG</label>
+                        <small class="help-text">H.323 (VoIP - Port 1720)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_rtsp"> Disable RTSP ALG</label>
+                        <small class="help-text">RTSP (Streaming - Port 554)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_pptp"> Disable PPTP ALG</label>
+                        <small class="help-text">PPTP (VPN - Port 1723)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_alg_disable_dns"> Disable DNS ALG</label>
+                        <small class="help-text">DNS (Port 53)</small>
+                    </div>
+                </details>
+
+                {# NAT Timeouts #}
+                <details class="advanced-section">
+                    <summary>⏱️ NAT Translation Timeouts</summary>
+                    <div class="form-group">
+                        <label>TCP Timeout (seconds)</label>
+                        <input type="number" id="nat_timeout_tcp" min="0" max="2147483" value="86400" placeholder="86400">
+                        <small class="help-text">TCP translation timeout (default: 86400s / 24h)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>UDP Timeout (seconds)</label>
+                        <input type="number" id="nat_timeout_udp" min="0" max="2147483" value="300" placeholder="300">
+                        <small class="help-text">UDP translation timeout (default: 300s / 5min)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>ICMP Timeout (seconds)</label>
+                        <input type="number" id="nat_timeout_icmp" min="0" max="2147483" value="60" placeholder="60">
+                        <small class="help-text">ICMP translation timeout (default: 60s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>FIN/RST Timeout (seconds)</label>
+                        <input type="number" id="nat_timeout_finrst" min="0" max="2147483" value="60" placeholder="60">
+                        <small class="help-text">TCP FIN/RST timeout (default: 60s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>SYN Timeout (seconds)</label>
+                        <input type="number" id="nat_timeout_syn" min="0" max="2147483" value="60" placeholder="60">
+                        <small class="help-text">TCP SYN timeout (default: 60s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>DNS Timeout (seconds)</label>
+                        <input type="number" id="nat_timeout_dns" min="0" max="2147483" value="60" placeholder="60">
+                        <small class="help-text">DNS translation timeout (default: 60s)</small>
+                    </div>
+                </details>
+
+                {# NAT Translation Limits #}
+                <details class="advanced-section">
+                    <summary>📊 NAT Translation Limits & Statistics</summary>
+                    <div class="form-group">
+                        <label>Maximum Translations</label>
+                        <input type="number" id="nat_translation_max" min="1" max="2147483647" placeholder="Unlimited">
+                        <small class="help-text">Maximum concurrent NAT translations (leave empty for unlimited)</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_statistics_enabled"> Enable NAT Statistics</label>
+                        <small class="help-text">Track NAT translation statistics</small>
+                    </div>
+                </details>
+
+                {# NAT Logging #}
+                <details class="advanced-section">
+                    <summary>📝 NAT Logging</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_logging_enabled"> Enable NAT Translation Logging</label>
+                        <small class="help-text">Log NAT translations to syslog</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_flow_export_enabled"> Enable Flow Export</label>
+                        <small class="help-text">Export NAT flows via NetFlow v9</small>
+                    </div>
+                    <div class="form-group">
+                        <label>NetFlow Destination</label>
+                        <input type="text" id="nat_flow_export_dest" placeholder="10.0.0.100">
+                    </div>
+                    <div class="form-group">
+                        <label>NetFlow Port</label>
+                        <input type="number" id="nat_flow_export_port" min="1" max="65535" value="2055" placeholder="2055">
+                    </div>
+                </details>
+
+                {# NVI (NAT Virtual Interface) #}
+                <details class="advanced-section">
+                    <summary>🔀 NVI (NAT Virtual Interface)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat_nvi_enabled"> Enable NVI</label>
+                        <small class="help-text">Use 'ip nat enable' instead of inside/outside (more flexible)</small>
+                    </div>
+                </details>
+
+                {# NAT64 #}
+                <details class="advanced-section">
+                    <summary>🌐 NAT64 (IPv6 to IPv4 Translation)</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nat64_enabled"> Enable NAT64</label>
+                    </div>
+                    <div class="form-group">
+                        <label>NAT64 Prefix</label>
+                        <input type="text" id="nat64_prefix" placeholder="64:ff9b::/96">
+                        <small class="help-text">Well-known NAT64 prefix (RFC 6052)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>IPv4 Pool Name</label>
+                        <input type="text" id="nat64_v4_pool_name" placeholder="NAT64-POOL">
+                    </div>
+                    <div class="form-group">
+                        <label>IPv4 Pool Start</label>
+                        <input type="text" id="nat64_v4_pool_start" placeholder="203.0.113.10">
+                    </div>
+                    <div class="form-group">
+                        <label>IPv4 Pool End</label>
+                        <input type="text" id="nat64_v4_pool_end" placeholder="203.0.113.20">
+                    </div>
+                </details>
+
                 <button class="btn btn-primary" onclick="saveNatData()" style="width: 100%;">
-                    💾 Save NAT Configuration
+                    💾 Save Complete NAT Configuration
                 </button>
             `;
             break;
