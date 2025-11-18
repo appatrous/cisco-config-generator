@@ -662,10 +662,208 @@ function saveBgpData() {
         app.data.l3.bgp = {};
     }
 
+    // Basic Configuration
     app.data.l3.bgp.asn = parseInt(document.getElementById('bgp_asn')?.value) || 65000;
     app.data.l3.bgp.router_id = document.getElementById('bgp_router_id')?.value || '';
+    app.data.l3.bgp.log_neighbor_changes = document.getElementById('bgp_log_neighbor_changes')?.checked || false;
 
-    console.log('BGP saved:', app.data.l3.bgp);
+    // Graceful Restart
+    if (document.getElementById('bgp_graceful_restart')?.checked) {
+        app.data.l3.bgp.graceful_restart = {
+            enabled: true,
+            restart_time: parseInt(document.getElementById('bgp_gr_restart_time')?.value) || 120,
+            stalepath_time: parseInt(document.getElementById('bgp_gr_stalepath_time')?.value) || 360
+        };
+    }
+
+    // Confederation
+    if (document.getElementById('bgp_confederation_enabled')?.checked) {
+        const peersStr = document.getElementById('bgp_confederation_peers')?.value || '';
+        app.data.l3.bgp.confederation = {
+            id: parseInt(document.getElementById('bgp_confederation_id')?.value) || 0,
+            peers: peersStr ? peersStr.split(/\s+/).map(p => parseInt(p)).filter(p => !isNaN(p)) : []
+        };
+    }
+
+    // Route Reflector
+    if (document.getElementById('bgp_route_reflector_enabled')?.checked) {
+        app.data.l3.bgp.route_reflector = {
+            cluster_id: document.getElementById('bgp_rr_cluster_id')?.value || ''
+        };
+    }
+
+    // BGP Dampening
+    if (document.getElementById('bgp_dampening_enabled')?.checked) {
+        app.data.l3.bgp.dampening = {
+            enabled: true,
+            half_life: parseInt(document.getElementById('bgp_dampening_half_life')?.value) || 15,
+            reuse: parseInt(document.getElementById('bgp_dampening_reuse')?.value) || 750,
+            suppress: parseInt(document.getElementById('bgp_dampening_suppress')?.value) || 2000,
+            max_suppress_time: parseInt(document.getElementById('bgp_dampening_max_suppress')?.value) || 60
+        };
+    }
+
+    // Address Families
+    app.data.l3.bgp.address_families = {};
+
+    // IPv4 Unicast
+    if (document.getElementById('bgp_af_ipv4_enabled')?.checked) {
+        const ipv4NetworksStr = document.getElementById('bgp_af_ipv4_networks')?.value || '';
+        const ipv4Networks = ipv4NetworksStr.split('\n').filter(n => n.trim()).map(n => ({
+            prefix: n.trim()
+        }));
+
+        app.data.l3.bgp.address_families.ipv4_unicast = {
+            enabled: true,
+            networks: ipv4Networks,
+            maximum_paths: parseInt(document.getElementById('bgp_af_ipv4_max_paths')?.value) || 4,
+            maximum_paths_ibgp: parseInt(document.getElementById('bgp_af_ipv4_max_paths_ibgp')?.value) || 4,
+            neighbors_activate: [],
+            aggregates: [],
+            redistribute: []
+        };
+
+        // Add aggregate if specified
+        const aggregateAddr = document.getElementById('bgp_aggregate_address')?.value;
+        if (aggregateAddr) {
+            app.data.l3.bgp.address_families.ipv4_unicast.aggregates.push({
+                prefix: aggregateAddr,
+                summary_only: document.getElementById('bgp_aggregate_summary_only')?.checked || false,
+                as_set: document.getElementById('bgp_aggregate_as_set')?.checked || false
+            });
+        }
+
+        // Add redistribution if specified
+        const redistProto = document.getElementById('bgp_redistribute_protocol')?.value;
+        if (redistProto) {
+            app.data.l3.bgp.address_families.ipv4_unicast.redistribute.push({
+                protocol: redistProto,
+                route_map: document.getElementById('bgp_redistribute_route_map')?.value || ''
+            });
+        }
+
+        // Add dampening to address family if enabled
+        if (document.getElementById('bgp_dampening_enabled')?.checked) {
+            app.data.l3.bgp.address_families.ipv4_unicast.dampening = true;
+        }
+    }
+
+    // IPv6 Unicast
+    if (document.getElementById('bgp_af_ipv6_enabled')?.checked) {
+        const ipv6NetworksStr = document.getElementById('bgp_af_ipv6_networks')?.value || '';
+        const ipv6Networks = ipv6NetworksStr.split('\n').filter(n => n.trim()).map(n => ({
+            prefix: n.trim()
+        }));
+
+        app.data.l3.bgp.address_families.ipv6_unicast = {
+            enabled: true,
+            networks: ipv6Networks,
+            neighbors_activate: [],
+            aggregates: [],
+            redistribute: []
+        };
+    }
+
+    // L2VPN EVPN
+    if (document.getElementById('bgp_af_evpn_enabled')?.checked) {
+        app.data.l3.bgp.address_families.l2vpn_evpn = {
+            enabled: true,
+            neighbors_activate: []
+        };
+    }
+
+    // VPNv4 Unicast
+    if (document.getElementById('bgp_af_vpnv4_enabled')?.checked) {
+        app.data.l3.bgp.address_families.vpnv4_unicast = {
+            enabled: true,
+            neighbors_activate: []
+        };
+    }
+
+    // Peer Groups
+    const pgName = document.getElementById('bgp_pg_name')?.value;
+    if (pgName) {
+        if (!app.data.l3.bgp.peer_groups) {
+            app.data.l3.bgp.peer_groups = [];
+        }
+
+        const sendCommunitySelect = document.getElementById('bgp_pg_send_community');
+        const selectedComm = Array.from(sendCommunitySelect?.selectedOptions || []).map(opt => opt.value);
+
+        app.data.l3.bgp.peer_groups.push({
+            name: pgName,
+            remote_as: parseInt(document.getElementById('bgp_pg_remote_as')?.value) || 0,
+            description: document.getElementById('bgp_pg_description')?.value || '',
+            update_source: document.getElementById('bgp_pg_update_source')?.value || '',
+            next_hop_self: document.getElementById('bgp_pg_next_hop_self')?.checked || false,
+            remove_private_as: document.getElementById('bgp_pg_remove_private_as')?.checked || false,
+            ebgp_multihop: parseInt(document.getElementById('bgp_pg_ebgp_multihop')?.value) || 0,
+            send_community: selectedComm
+        });
+    }
+
+    // BGP Timers
+    app.data.l3.bgp.timers = {
+        keepalive: parseInt(document.getElementById('bgp_timer_keepalive')?.value) || 60,
+        holdtime: parseInt(document.getElementById('bgp_timer_holdtime')?.value) || 180
+    };
+
+    // Route Filtering
+    const routeMapIn = document.getElementById('bgp_route_map_in')?.value;
+    const routeMapOut = document.getElementById('bgp_route_map_out')?.value;
+    const prefixListIn = document.getElementById('bgp_prefix_list_in')?.value;
+    const prefixListOut = document.getElementById('bgp_prefix_list_out')?.value;
+    const filterListIn = document.getElementById('bgp_filter_list_in')?.value;
+    const filterListOut = document.getElementById('bgp_filter_list_out')?.value;
+
+    if (routeMapIn || routeMapOut || prefixListIn || prefixListOut || filterListIn || filterListOut) {
+        app.data.l3.bgp.route_filtering = {
+            route_map_in: routeMapIn,
+            route_map_out: routeMapOut,
+            prefix_list_in: prefixListIn,
+            prefix_list_out: prefixListOut,
+            filter_list_in: filterListIn,
+            filter_list_out: filterListOut
+        };
+    }
+
+    // Communities
+    const stdCommStr = document.getElementById('bgp_communities_standard')?.value || '';
+    const extCommStr = document.getElementById('bgp_communities_extended')?.value || '';
+    const largeCommStr = document.getElementById('bgp_communities_large')?.value || '';
+
+    if (stdCommStr || extCommStr || largeCommStr) {
+        app.data.l3.bgp.communities = {
+            standard: stdCommStr.split('\n').filter(c => c.trim()),
+            extended: extCommStr.split('\n').filter(c => c.trim()),
+            large: largeCommStr.split('\n').filter(c => c.trim())
+        };
+    }
+
+    // Add-Path
+    if (document.getElementById('bgp_add_path_enabled')?.checked) {
+        app.data.l3.bgp.add_path = {
+            enabled: true,
+            capability: document.getElementById('bgp_add_path_capability')?.value || 'both',
+            best_paths: parseInt(document.getElementById('bgp_add_path_best')?.value) || 2
+        };
+    }
+
+    // BFD
+    if (document.getElementById('bgp_bfd_enabled')?.checked) {
+        app.data.l3.bgp.bfd = {
+            enabled: true
+        };
+    }
+
+    // Neighbors (preserve existing neighbors added via addBgpNeighbor)
+    // Don't overwrite, just ensure it exists
+    if (!app.data.l3.bgp.neighbors) {
+        app.data.l3.bgp.neighbors = [];
+    }
+
+    console.log('BGP saved (complete):', app.data.l3.bgp);
+    alert('✅ Complete BGP configuration saved!');
 }
 
 // NEW: Save functions for additional protocols
@@ -2712,19 +2910,342 @@ function generateForm(protocolPath, protocolData) {
         case 'bgp':
             html += `
                 <h4>BGP Configuration</h4>
+
+                {# Basic Configuration #}
                 <div class="form-group">
-                    <label>AS Number</label>
-                    <input type="number" id="bgp_asn" min="1" max="4294967295" placeholder="65000">
+                    <label>AS Number (ASN)</label>
+                    <input type="number" id="bgp_asn" min="1" max="4294967295" placeholder="65000" required>
+                    <small class="help-text">1-65535 (16-bit) or 1-4294967295 (32-bit AS)</small>
                 </div>
                 <div class="form-group">
                     <label>Router ID</label>
-                    <input type="text" id="bgp_router_id" placeholder="1.1.1.1">
+                    <input type="text" id="bgp_router_id" placeholder="1.1.1.1" pattern="^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$">
+                    <small class="help-text">IPv4 address format (e.g., 1.1.1.1)</small>
                 </div>
-                <h5>Neighbors</h5>
-                <button class="btn-add" onclick="addBgpNeighbor()">+ Add Neighbor</button>
-                <div id="bgp-neighbors-list" style="margin-top: 1rem;"></div>
-                <button class="btn btn-primary" onclick="saveFormData('${protocolPath}')" style="margin-top: 1rem; width: 100%;">
-                    💾 Save BGP Configuration
+                <div class="form-group">
+                    <label><input type="checkbox" id="bgp_log_neighbor_changes" checked> Log Neighbor Changes</label>
+                    <small class="help-text">Enable BGP neighbor change logging</small>
+                </div>
+
+                {# Graceful Restart #}
+                <details class="advanced-section">
+                    <summary>🔄 Graceful Restart</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_graceful_restart"> Enable Graceful Restart</label>
+                        <small class="help-text">BGP Graceful Restart (RFC 4724)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Restart Time (seconds)</label>
+                        <input type="number" id="bgp_gr_restart_time" min="1" max="3600" value="120" placeholder="120">
+                        <small class="help-text">Time to restart (default: 120s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Stalepath Time (seconds)</label>
+                        <input type="number" id="bgp_gr_stalepath_time" min="1" max="3600" value="360" placeholder="360">
+                        <small class="help-text">Time to retain stale paths (default: 360s)</small>
+                    </div>
+                </details>
+
+                {# Confederation #}
+                <details class="advanced-section">
+                    <summary>🏛️ BGP Confederation</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_confederation_enabled"> Enable Confederation</label>
+                        <small class="help-text">BGP Confederation for large AS</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Confederation Identifier (AS)</label>
+                        <input type="number" id="bgp_confederation_id" min="1" max="4294967295" placeholder="65000">
+                        <small class="help-text">Main AS number advertised externally</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Confederation Peers (space-separated AS numbers)</label>
+                        <input type="text" id="bgp_confederation_peers" placeholder="65001 65002 65003">
+                        <small class="help-text">Sub-AS numbers within confederation</small>
+                    </div>
+                </details>
+
+                {# Route Reflector #}
+                <details class="advanced-section">
+                    <summary>🔁 Route Reflector</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_route_reflector_enabled"> Enable Route Reflector</label>
+                        <small class="help-text">Configure this router as a route reflector</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Cluster ID</label>
+                        <input type="text" id="bgp_rr_cluster_id" placeholder="1.1.1.1">
+                        <small class="help-text">Route reflector cluster ID (IPv4 format or number)</small>
+                    </div>
+                </details>
+
+                {# BGP Dampening #}
+                <details class="advanced-section">
+                    <summary>📉 Route Dampening</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_dampening_enabled"> Enable Route Dampening</label>
+                        <small class="help-text">Suppress flapping routes</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Half-life (minutes)</label>
+                        <input type="number" id="bgp_dampening_half_life" min="1" max="45" value="15" placeholder="15">
+                        <small class="help-text">Time to decay penalty by half (default: 15)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Reuse Threshold</label>
+                        <input type="number" id="bgp_dampening_reuse" min="1" max="20000" value="750" placeholder="750">
+                        <small class="help-text">Unsuppress routes below this (default: 750)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Suppress Threshold</label>
+                        <input type="number" id="bgp_dampening_suppress" min="1" max="20000" value="2000" placeholder="2000">
+                        <small class="help-text">Suppress routes above this (default: 2000)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Suppress Time (minutes)</label>
+                        <input type="number" id="bgp_dampening_max_suppress" min="1" max="255" value="60" placeholder="60">
+                        <small class="help-text">Maximum suppression time (default: 60)</small>
+                    </div>
+                </details>
+
+                {# Address Families #}
+                <details class="advanced-section" open>
+                    <summary>🌐 Address Families</summary>
+
+                    <h6>IPv4 Unicast</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_af_ipv4_enabled" checked> Enable IPv4 Unicast</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Networks (one per line, CIDR format)</label>
+                        <textarea id="bgp_af_ipv4_networks" rows="3" placeholder="10.0.0.0/8
+192.168.0.0/16"></textarea>
+                        <small class="help-text">Networks to advertise via BGP</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Maximum Paths (ECMP)</label>
+                        <input type="number" id="bgp_af_ipv4_max_paths" min="1" max="32" value="4" placeholder="4">
+                        <small class="help-text">Maximum parallel paths for load balancing</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Maximum Paths iBGP</label>
+                        <input type="number" id="bgp_af_ipv4_max_paths_ibgp" min="1" max="32" value="4" placeholder="4">
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">IPv6 Unicast</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_af_ipv6_enabled"> Enable IPv6 Unicast</label>
+                    </div>
+                    <div class="form-group">
+                        <label>IPv6 Networks (one per line)</label>
+                        <textarea id="bgp_af_ipv6_networks" rows="3" placeholder="2001:db8::/32
+2001:db8:1::/48"></textarea>
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">L2VPN EVPN</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_af_evpn_enabled"> Enable L2VPN EVPN</label>
+                        <small class="help-text">For VXLAN/EVPN deployments</small>
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">VPNv4 Unicast</h6>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_af_vpnv4_enabled"> Enable VPNv4 Unicast</label>
+                        <small class="help-text">For MPLS L3VPN</small>
+                    </div>
+                </details>
+
+                {# Neighbors #}
+                <details class="advanced-section" open>
+                    <summary>👥 BGP Neighbors</summary>
+                    <h5>Neighbors</h5>
+                    <button class="btn-add" onclick="addBgpNeighbor()">+ Add Neighbor</button>
+                    <div id="bgp-neighbors-list" style="margin-top: 1rem;"></div>
+                </details>
+
+                {# Peer Groups #}
+                <details class="advanced-section">
+                    <summary>👪 Peer Groups</summary>
+                    <div class="form-group">
+                        <label>Peer Group Name</label>
+                        <input type="text" id="bgp_pg_name" placeholder="EBGP-PEERS">
+                        <small class="help-text">Group name for common neighbor settings</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Remote AS</label>
+                        <input type="number" id="bgp_pg_remote_as" min="1" max="4294967295" placeholder="65001">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="bgp_pg_description" placeholder="External BGP Peers">
+                    </div>
+                    <div class="form-group">
+                        <label>Update Source Interface</label>
+                        <input type="text" id="bgp_pg_update_source" placeholder="Loopback0">
+                        <small class="help-text">Source interface for BGP sessions</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_pg_next_hop_self"> Next-Hop-Self</label>
+                        <small class="help-text">Set self as next hop for iBGP</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_pg_remove_private_as"> Remove Private AS</label>
+                    </div>
+                    <div class="form-group">
+                        <label>eBGP Multihop TTL</label>
+                        <input type="number" id="bgp_pg_ebgp_multihop" min="1" max="255" placeholder="2">
+                        <small class="help-text">TTL for multihop eBGP (default: 1)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Send Community</label>
+                        <select id="bgp_pg_send_community" multiple size="3">
+                            <option value="standard">Standard Communities</option>
+                            <option value="extended">Extended Communities</option>
+                            <option value="both">Both</option>
+                        </select>
+                        <small class="help-text">Hold Ctrl to select multiple</small>
+                    </div>
+                </details>
+
+                {# BGP Timers #}
+                <details class="advanced-section">
+                    <summary>⏱️ BGP Timers</summary>
+                    <div class="form-group">
+                        <label>Keepalive (seconds)</label>
+                        <input type="number" id="bgp_timer_keepalive" min="1" max="65535" value="60" placeholder="60">
+                        <small class="help-text">BGP keepalive timer (default: 60s)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Hold Time (seconds)</label>
+                        <input type="number" id="bgp_timer_holdtime" min="3" max="65535" value="180" placeholder="180">
+                        <small class="help-text">BGP hold timer (default: 180s, min: 3×keepalive)</small>
+                    </div>
+                </details>
+
+                {# Route Filtering #}
+                <details class="advanced-section">
+                    <summary>🔍 Route Filtering & Policies</summary>
+                    <div class="form-group">
+                        <label>Route-Map In (per neighbor)</label>
+                        <input type="text" id="bgp_route_map_in" placeholder="BGP-IN">
+                        <small class="help-text">Apply inbound route-map to neighbors</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Route-Map Out (per neighbor)</label>
+                        <input type="text" id="bgp_route_map_out" placeholder="BGP-OUT">
+                        <small class="help-text">Apply outbound route-map to neighbors</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Prefix-List In</label>
+                        <input type="text" id="bgp_prefix_list_in" placeholder="BGP-PREFIX-IN">
+                    </div>
+                    <div class="form-group">
+                        <label>Prefix-List Out</label>
+                        <input type="text" id="bgp_prefix_list_out" placeholder="BGP-PREFIX-OUT">
+                    </div>
+                    <div class="form-group">
+                        <label>AS-Path Filter In</label>
+                        <input type="text" id="bgp_filter_list_in" placeholder="1">
+                        <small class="help-text">AS-path access-list number for inbound filtering</small>
+                    </div>
+                    <div class="form-group">
+                        <label>AS-Path Filter Out</label>
+                        <input type="text" id="bgp_filter_list_out" placeholder="2">
+                    </div>
+                </details>
+
+                {# BGP Communities #}
+                <details class="advanced-section">
+                    <summary>🏷️ BGP Communities</summary>
+                    <div class="form-group">
+                        <label>Standard Communities (one per line)</label>
+                        <textarea id="bgp_communities_standard" rows="3" placeholder="100:10
+100:20
+no-export
+no-advertise"></textarea>
+                        <small class="help-text">Format: AS:value or well-known (no-export, no-advertise, etc.)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Extended Communities</label>
+                        <textarea id="bgp_communities_extended" rows="2" placeholder="RT:100:1
+SOO:100:1"></textarea>
+                        <small class="help-text">Route-Target (RT), Site-of-Origin (SOO)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Large Communities (RFC 8092)</label>
+                        <textarea id="bgp_communities_large" rows="2" placeholder="100:200:300"></textarea>
+                        <small class="help-text">Format: global:local1:local2</small>
+                    </div>
+                </details>
+
+                {# Aggregation & Redistribution #}
+                <details class="advanced-section">
+                    <summary>📦 Aggregation & Redistribution</summary>
+                    <div class="form-group">
+                        <label>Aggregate Address (CIDR)</label>
+                        <input type="text" id="bgp_aggregate_address" placeholder="10.0.0.0/8">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_aggregate_summary_only"> Summary-Only</label>
+                        <small class="help-text">Suppress more-specific routes</small>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_aggregate_as_set"> AS-Set</label>
+                        <small class="help-text">Include AS path information</small>
+                    </div>
+
+                    <h6 style="margin-top: 1rem;">Redistribution</h6>
+                    <div class="form-group">
+                        <label>Redistribute Protocol</label>
+                        <select id="bgp_redistribute_protocol">
+                            <option value="">-- None --</option>
+                            <option value="connected">Connected</option>
+                            <option value="static">Static</option>
+                            <option value="ospf">OSPF</option>
+                            <option value="eigrp">EIGRP</option>
+                            <option value="isis">IS-IS</option>
+                            <option value="rip">RIP</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Redistribution Route-Map</label>
+                        <input type="text" id="bgp_redistribute_route_map" placeholder="REDIST-TO-BGP">
+                    </div>
+                </details>
+
+                {# Add-Path #}
+                <details class="advanced-section">
+                    <summary>➕ BGP Add-Path</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_add_path_enabled"> Enable Add-Path</label>
+                        <small class="help-text">Advertise multiple paths (RFC 7911)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Add-Path Capability</label>
+                        <select id="bgp_add_path_capability">
+                            <option value="send">Send</option>
+                            <option value="receive">Receive</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Number of Best Paths</label>
+                        <input type="number" id="bgp_add_path_best" min="2" max="32" value="2" placeholder="2">
+                        <small class="help-text">Number of best paths to advertise</small>
+                    </div>
+                </details>
+
+                {# BFD #}
+                <details class="advanced-section">
+                    <summary>🔍 BFD for BGP</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="bgp_bfd_enabled"> Enable BFD</label>
+                        <small class="help-text">Bidirectional Forwarding Detection for fast failure detection</small>
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveBgpData()" style="margin-top: 1rem; width: 100%;">
+                    💾 Save Complete BGP Configuration
                 </button>
             `;
             setTimeout(updateBgpNeighborsList, 100);
