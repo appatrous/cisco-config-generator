@@ -411,6 +411,409 @@ setInterval(() => {
 }, 60000);
 
 // ============================================
+// Device Inventory Management
+// ============================================
+const DeviceInventory = {
+    devices: [],
+
+    // Load devices from localStorage
+    loadDevices: function() {
+        try {
+            const stored = localStorage.getItem('network-device-inventory');
+            if (stored) {
+                this.devices = JSON.parse(stored);
+            }
+        } catch (error) {
+            console.error('Failed to load device inventory:', error);
+        }
+    },
+
+    // Save devices to localStorage
+    saveDevices: function() {
+        try {
+            localStorage.setItem('network-device-inventory', JSON.stringify(this.devices));
+            return true;
+        } catch (error) {
+            console.error('Failed to save device inventory:', error);
+            return false;
+        }
+    },
+
+    // Add a new device
+    addDevice: function(device) {
+        const newDevice = {
+            id: `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            hostname: device.hostname,
+            ip_address: device.ip_address,
+            vendor: device.vendor || 'cisco',
+            model: device.model || '',
+            ios_version: device.ios_version || '',
+            device_type: device.device_type || 'switch',
+            username: device.username || '',
+            password: '',
+            enable_password: '',
+            port: device.port || 22,
+            protocol: device.protocol || 'ssh',
+            status: 'unknown',
+            last_sync: null,
+            last_config: null,
+            tags: device.tags || [],
+            location: device.location || '',
+            notes: device.notes || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        this.devices.push(newDevice);
+        this.saveDevices();
+        return newDevice;
+    },
+
+    // Update a device
+    updateDevice: function(deviceId, updates) {
+        const index = this.devices.findIndex(d => d.id === deviceId);
+        if (index !== -1) {
+            this.devices[index] = {
+                ...this.devices[index],
+                ...updates,
+                updated_at: new Date().toISOString()
+            };
+            this.saveDevices();
+            return this.devices[index];
+        }
+        return null;
+    },
+
+    // Delete a device
+    deleteDevice: function(deviceId) {
+        const index = this.devices.findIndex(d => d.id === deviceId);
+        if (index !== -1) {
+            this.devices.splice(index, 1);
+            this.saveDevices();
+            return true;
+        }
+        return false;
+    },
+
+    // Get device by ID
+    getDevice: function(deviceId) {
+        return this.devices.find(d => d.id === deviceId);
+    },
+
+    // Search devices
+    searchDevices: function(query) {
+        const lowerQuery = query.toLowerCase();
+        return this.devices.filter(d =>
+            d.hostname.toLowerCase().includes(lowerQuery) ||
+            d.ip_address.includes(lowerQuery) ||
+            d.model.toLowerCase().includes(lowerQuery) ||
+            d.location.toLowerCase().includes(lowerQuery) ||
+            d.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+        );
+    },
+
+    // Export inventory as CSV
+    exportInventoryCSV: function() {
+        const headers = ['Hostname', 'IP Address', 'Vendor', 'Model', 'IOS Version', 'Type', 'Location', 'Status', 'Last Sync'];
+        const rows = this.devices.map(d => [
+            d.hostname,
+            d.ip_address,
+            d.vendor,
+            d.model,
+            d.ios_version,
+            d.device_type,
+            d.location,
+            d.status,
+            d.last_sync ? new Date(d.last_sync).toLocaleString() : 'Never'
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `device-inventory-${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+};
+
+// ============================================
+// Configuration Management (Pull/Push)
+// ============================================
+const ConfigManagement = {
+    // Pull running configuration from device
+    pullConfig: async function(deviceId) {
+        const device = DeviceInventory.getDevice(deviceId);
+        if (!device) {
+            throw new Error('Device not found');
+        }
+
+        try {
+            const response = await fetch('/api/devices/pull-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    hostname: device.hostname,
+                    ip_address: device.ip_address,
+                    username: device.username,
+                    protocol: device.protocol,
+                    port: device.port
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                DeviceInventory.updateDevice(deviceId, {
+                    last_config: result.config,
+                    last_sync: new Date().toISOString(),
+                    status: 'reachable',
+                    ios_version: result.ios_version || device.ios_version
+                });
+
+                DeploymentTracker.logDeployment({
+                    device_id: deviceId,
+                    action: 'pull',
+                    status: 'success',
+                    config_size: result.config.length,
+                    message: 'Configuration pulled successfully'
+                });
+
+                return result.config;
+            } else {
+                DeviceInventory.updateDevice(deviceId, {
+                    status: 'unreachable'
+                });
+
+                throw new Error(result.error || 'Failed to pull configuration');
+            }
+        } catch (error) {
+            DeviceInventory.updateDevice(deviceId, {
+                status: 'unreachable'
+            });
+
+            DeploymentTracker.logDeployment({
+                device_id: deviceId,
+                action: 'pull',
+                status: 'failed',
+                error: error.message
+            });
+
+            throw error;
+        }
+    },
+
+    // Push configuration to device
+    pushConfig: async function(deviceId, config, options = {}) {
+        const device = DeviceInventory.getDevice(deviceId);
+        if (!device) {
+            throw new Error('Device not found');
+        }
+
+        try {
+            const response = await fetch('/api/devices/push-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    hostname: device.hostname,
+                    ip_address: device.ip_address,
+                    username: device.username,
+                    protocol: device.protocol,
+                    port: device.port,
+                    config: config,
+                    dry_run: options.dry_run || false,
+                    backup_first: options.backup_first !== false,
+                    commit_confirm: options.commit_confirm || 0
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                DeviceInventory.updateDevice(deviceId, {
+                    status: 'reachable'
+                });
+
+                DeploymentTracker.logDeployment({
+                    device_id: deviceId,
+                    action: 'push',
+                    status: 'success',
+                    config_size: config.length,
+                    message: options.dry_run ? 'Dry run successful' : 'Configuration pushed successfully',
+                    config_snippet: config.substring(0, 500),
+                    diff: result.diff || null
+                });
+
+                return result;
+            } else {
+                throw new Error(result.error || 'Failed to push configuration');
+            }
+        } catch (error) {
+            DeploymentTracker.logDeployment({
+                device_id: deviceId,
+                action: 'push',
+                status: 'failed',
+                error: error.message,
+                config_snippet: config.substring(0, 500)
+            });
+
+            throw error;
+        }
+    },
+
+    // Test device connectivity
+    testConnectivity: async function(deviceId) {
+        const device = DeviceInventory.getDevice(deviceId);
+        if (!device) {
+            throw new Error('Device not found');
+        }
+
+        try {
+            const response = await fetch('/api/devices/test-connectivity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    ip_address: device.ip_address,
+                    protocol: device.protocol,
+                    port: device.port
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.reachable) {
+                DeviceInventory.updateDevice(deviceId, {
+                    status: 'reachable'
+                });
+                return true;
+            } else {
+                DeviceInventory.updateDevice(deviceId, {
+                    status: 'unreachable'
+                });
+                return false;
+            }
+        } catch (error) {
+            DeviceInventory.updateDevice(deviceId, {
+                status: 'unreachable'
+            });
+            return false;
+        }
+    }
+};
+
+// ============================================
+// Deployment Tracker
+// ============================================
+const DeploymentTracker = {
+    deployments: [],
+
+    // Load deployments from localStorage
+    loadDeployments: function() {
+        try {
+            const stored = localStorage.getItem('network-deployment-history');
+            if (stored) {
+                this.deployments = JSON.parse(stored);
+            }
+        } catch (error) {
+            console.error('Failed to load deployment history:', error);
+        }
+    },
+
+    // Save deployments to localStorage
+    saveDeployments: function() {
+        try {
+            if (this.deployments.length > 500) {
+                this.deployments = this.deployments.slice(-500);
+            }
+            localStorage.setItem('network-deployment-history', JSON.stringify(this.deployments));
+        } catch (error) {
+            console.error('Failed to save deployment history:', error);
+        }
+    },
+
+    // Log a deployment
+    logDeployment: function(deployment) {
+        const newDeployment = {
+            id: `deploy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            device_id: deployment.device_id,
+            action: deployment.action,
+            status: deployment.status,
+            timestamp: new Date().toISOString(),
+            config_size: deployment.config_size || 0,
+            message: deployment.message || '',
+            error: deployment.error || null,
+            config_snippet: deployment.config_snippet || null,
+            diff: deployment.diff || null,
+            user: deployment.user || 'admin'
+        };
+
+        this.deployments.push(newDeployment);
+        this.saveDeployments();
+        return newDeployment;
+    },
+
+    // Get deployments for a device
+    getDeviceDeployments: function(deviceId, limit = 50) {
+        return this.deployments
+            .filter(d => d.device_id === deviceId)
+            .slice(-limit)
+            .reverse();
+    },
+
+    // Get all recent deployments
+    getRecentDeployments: function(limit = 100) {
+        return this.deployments.slice(-limit).reverse();
+    },
+
+    // Get deployment statistics
+    getStatistics: function(timeRange = 'day') {
+        const now = new Date();
+        let startTime;
+
+        switch (timeRange) {
+            case 'hour':
+                startTime = new Date(now - 60 * 60 * 1000);
+                break;
+            case 'day':
+                startTime = new Date(now - 24 * 60 * 60 * 1000);
+                break;
+            case 'week':
+                startTime = new Date(now - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case 'month':
+                startTime = new Date(now - 30 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startTime = new Date(0);
+        }
+
+        const recentDeployments = this.deployments.filter(d =>
+            new Date(d.timestamp) >= startTime
+        );
+
+        return {
+            total: recentDeployments.length,
+            successful: recentDeployments.filter(d => d.status === 'success').length,
+            failed: recentDeployments.filter(d => d.status === 'failed').length,
+            pulls: recentDeployments.filter(d => d.action === 'pull').length,
+            pushes: recentDeployments.filter(d => d.action === 'push').length
+        };
+    }
+};
+
+// Initialize inventory and deployments on load
+DeviceInventory.loadDevices();
+DeploymentTracker.loadDeployments();
+
+// ============================================
 // Contextual Help Object
 // ============================================
 const ContextualHelp = {
