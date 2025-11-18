@@ -5,10 +5,10 @@
 {% for vlan in l2.vlans %}
 vlan {{ vlan.id }}
   name {{ vlan.name }}
-{% if vlan.state and vlan.state != 'active' %}
-  state {{ vlan.state }}
+{% if vlan.get('state', 'active') != 'active' %}
+  state {{ vlan.get('state', 'active') }}
 {% endif %}
-{% if vlan.mtu and vlan.mtu != 1500 %}
+{% if vlan.get('mtu') and vlan.get('mtu') != 1500 %}
   mtu {{ vlan.mtu }}
 {% endif %}
 {% endfor %}
