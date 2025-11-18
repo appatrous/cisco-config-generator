@@ -1,0 +1,339 @@
+{# Huawei VRP Base Configuration Template #}
+{# ======================================== #}
+
+{# System Configuration #}
+{% if global %}
+sysname {{ global.hostname }}
+{% if 'domain_name' in global and global.domain_name %}
+domain {{ global.domain_name }}
+{% endif %}
+
+{# Clock & Timezone #}
+{% if 'timezone' in global and global.timezone %}
+clock timezone {{ global.timezone }}
+{% endif %}
+
+{# NTP #}
+{% for ntp in global.ntp_servers | default([]) %}
+ntp-service unicast-server {{ ntp }}
+{% endfor %}
+
+{# DNS #}
+{% for dns in global.dns_servers | default([]) %}
+dns resolve
+dns server {{ dns }}
+{% endfor %}
+
+{# Users & AAA #}
+{% if 'aaa' in global and global.aaa %}
+{% if 'enabled' in global.aaa and global.aaa.enabled %}
+aaa
+{% for server in global.aaa.tacacs_servers | default([]) %}
+ hwtacacs-server template {{ server.host }}
+  hwtacacs-server authentication {{ server.host }}
+  hwtacacs-server authorization {{ server.host }}
+  hwtacacs-server accounting {{ server.host }}
+  hwtacacs-server shared-key cipher {{ server.key }}
+{% endfor %}
+{% for server in global.aaa.radius_servers | default([]) %}
+ radius-server template {{ server.host }}
+  radius-server authentication {{ server.host }} 1812
+  radius-server accounting {{ server.host }} 1813
+  radius-server shared-key cipher {{ server.key }}
+{% endfor %}
+ authentication-scheme default
+  authentication-mode {% if global.aaa.tacacs_servers %}hwtacacs{% elif global.aaa.radius_servers %}radius{% else %}local{% endif %}
+
+ authorization-scheme default
+  authorization-mode {% if global.aaa.tacacs_servers %}hwtacacs{% elif global.aaa.radius_servers %}radius{% else %}local{% endif %}
+
+ accounting-scheme default
+  accounting-mode {% if global.aaa.tacacs_servers %}hwtacacs{% elif global.aaa.radius_servers %}radius{% else %}none{% endif %}
+
+ domain default
+  authentication-scheme default
+  authorization-scheme default
+  accounting-scheme default
+{% endif %}
+{% endif %}
+
+{# Local Users #}
+{% for user in global.users | default([]) %}
+aaa
+ local-user {{ user.username }} password irreversible-cipher {{ user.secret }}
+ local-user {{ user.username }} privilege level {% if user.privilege >= 15 %}15{% else %}{{ user.privilege }}{% endif %}
+
+ local-user {{ user.username }} service-type ssh telnet terminal
+{% endfor %}
+
+{# SNMP #}
+{% if 'snmp' in global and global.snmp %}
+{% if 'enabled' in global.snmp and global.snmp.enabled %}
+snmp-agent
+snmp-agent local-engineid {{ global.hostname | hash('md5') | truncate(24, true, '') }}
+snmp-agent sys-info version all
+{% if global.snmp.community_ro %}
+snmp-agent community read cipher {{ global.snmp.community_ro }}
+{% endif %}
+{% if global.snmp.community_rw %}
+snmp-agent community write cipher {{ global.snmp.community_rw }}
+{% endif %}
+{% if global.snmp.location %}
+snmp-agent sys-info location {{ global.snmp.location }}
+{% endif %}
+{% if global.snmp.contact %}
+snmp-agent sys-info contact {{ global.snmp.contact }}
+{% endif %}
+{% for trap in global.snmp.trap_servers | default([]) %}
+snmp-agent target-host trap address udp-domain {{ trap.host }} params securityname cipher {{ trap.community }}
+{% endfor %}
+snmp-agent trap enable
+{% endif %}
+{% endif %}
+
+{# Banner #}
+{% if 'banner_motd' in global and global.banner_motd %}
+header shell information "{{ global.banner_motd }}"
+{% endif %}
+
+{% endif %}{# end global #}
+
+{# VLANs #}
+{% if l2 and l2.vlans %}
+vlan batch {% for vlan in l2.vlans %}{{ vlan.id }} {% endfor %}
+
+{% for vlan in l2.vlans %}
+vlan {{ vlan.id }}
+ description {{ vlan.name }}
+{% if vlan.mtu and vlan.mtu != 1500 %}
+ mtu {{ vlan.mtu }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Spanning Tree (MSTP for Huawei) #}
+{% if l2.stp %}
+stp mode {% if l2.stp.mode == 'mst' or l2.stp.mode == 'mstp' %}mstp{% elif l2.stp.mode == 'rstp' or l2.stp.mode == 'rapid-pvst' %}rstp{% else %}stp{% endif %}
+
+{% if l2.stp.mode == 'mst' or l2.stp.mode == 'mstp' %}
+{% if l2.stp.mst_config %}
+stp region-configuration
+ region-name {{ l2.stp.mst_config.name }}
+ revision-level {{ l2.stp.mst_config.revision }}
+{% for inst in l2.stp.mst_config.instances | default([]) %}
+ instance {{ inst.id }} vlan {% for v in inst.vlans %}{{ v }} {% endfor %}
+
+{% endfor %}
+ active region-configuration
+{% endif %}
+{% endif %}
+
+{% if l2.stp.root_priority and l2.stp.root_priority.global %}
+stp priority {{ l2.stp.root_priority.global }}
+{% endif %}
+
+{% if l2.stp.guards and l2.stp.guards.bpduguard_default %}
+stp bpdu-protection
+{% endif %}
+
+{% if l2.stp.guards and l2.stp.guards.loopguard_default %}
+stp loop-protection
+{% endif %}
+{% endif %}
+
+{# Eth-Trunk (LAG) #}
+{% if l2.lag %}
+{% for bundle in l2.lag %}
+interface Eth-Trunk{{ bundle.bundle_id }}
+{% if bundle.description %}
+ description {{ bundle.description }}
+{% endif %}
+ mode {% if bundle.mode == 'on' %}manual load-balance{% else %}lacp-static{% endif %}
+
+{% if bundle.load_balance %}
+ load-balance {{ bundle.load_balance | replace('_', '-') }}
+{% endif %}
+{% if bundle.min_links %}
+ least active-linknumber {{ bundle.min_links }}
+{% endif %}
+
+{% for member in bundle.members %}
+interface {{ member }}
+ eth-trunk {{ bundle.bundle_id }}
+{% if bundle.mode != 'on' %}
+ lacp priority {{ bundle.port_priority | default(32768) }}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# Layer 3 Interfaces #}
+{% if l3 and l3.interfaces %}
+{% for iface in l3.interfaces %}
+interface {{ iface.interface }}
+{% if iface.description %}
+ description {{ iface.description }}
+{% endif %}
+{% if iface.vrf %}
+ ip binding vpn-instance {{ iface.vrf }}
+{% endif %}
+{% for ipv4 in iface.ipv4 | default([]) %}
+ ip address {{ ipv4.address | regex_replace('/.*', '') }} {{ ipv4.address | ipaddr('netmask') }}{% if ipv4.secondary | default(false) %} sub{% endif %}
+
+{% endfor %}
+{% for ipv6 in iface.ipv6 | default([]) %}
+ ipv6 enable
+ ipv6 address {{ ipv6.address }}
+{% endfor %}
+{% if iface.mtu %}
+ mtu {{ iface.mtu }}
+{% endif %}
+{% if not iface.shutdown %}
+ undo shutdown
+{% else %}
+ shutdown
+{% endif %}
+
+{# VRRP for Huawei #}
+{% if iface.fhrp and iface.fhrp.protocol == 'vrrp' %}
+ vrrp vrid {{ iface.fhrp.group }} virtual-ip {{ iface.fhrp.virtual_ip }}
+{% if iface.fhrp.priority %}
+ vrrp vrid {{ iface.fhrp.group }} priority {{ iface.fhrp.priority }}
+{% endif %}
+{% if iface.fhrp.preempt %}
+ vrrp vrid {{ iface.fhrp.group }} preempt-mode timer delay {{ iface.fhrp.preempt_delay | default(0) }}
+{% endif %}
+{% if iface.fhrp.timers %}
+ vrrp vrid {{ iface.fhrp.group }} timer advertise {{ iface.fhrp.timers.hello | default(1) }}
+{% endif %}
+{% if iface.fhrp.authentication %}
+ vrrp vrid {{ iface.fhrp.group }} authentication-mode {{ iface.fhrp.authentication.type }} cipher {{ iface.fhrp.authentication.key }}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# VRF/VPN-Instance #}
+{% if l3.vrfs %}
+{% for vrf in l3.vrfs %}
+ip vpn-instance {{ vrf.name }}
+{% if vrf.description %}
+ description {{ vrf.description }}
+{% endif %}
+{% if vrf.rd %}
+ route-distinguisher {{ vrf.rd }}
+{% endif %}
+{% if vrf.rt_import %}
+ vpn-target {% for rt in vrf.rt_import %}{{ rt }} {% endfor %}import-extcommunity
+{% endif %}
+{% if vrf.rt_export %}
+ vpn-target {% for rt in vrf.rt_export %}{{ rt }} {% endfor %}export-extcommunity
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# Static Routes #}
+{% if l3.static_routes %}
+{% for route in l3.static_routes %}
+{% if route.vrf %}
+ip route-static vpn-instance {{ route.vrf }} {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmask') }} {{ route.next_hop }}{% if route.distance %} preference {{ route.distance }}{% endif %}
+
+{% else %}
+ip route-static {{ route.prefix | ipaddr('network') }} {{ route.prefix | ipaddr('netmask') }} {{ route.next_hop }}{% if route.distance %} preference {{ route.distance }}{% endif %}
+
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{# OSPF #}
+{% if l3.ospf %}
+{% for ospf in l3.ospf %}
+ospf {{ ospf.process_id }}{% if ospf.vrf %} vpn-instance {{ ospf.vrf }}{% endif %}
+
+{% if ospf.router_id %}
+ router-id {{ ospf.router_id }}
+{% endif %}
+{% if ospf.reference_bandwidth %}
+ bandwidth-reference {{ ospf.reference_bandwidth }}
+{% endif %}
+{% for area in ospf.areas | default([]) %}
+ area {{ area.id }}
+{% if area.type == 'stub' %}
+  stub{% if area.no_summary %} no-summary{% endif %}
+
+{% elif area.type == 'nssa' %}
+  nssa{% if area.no_summary %} no-summary{% endif %}
+
+{% endif %}
+{% endfor %}
+{% for iface in ospf.interfaces | default([]) %}
+interface {{ iface.interface }}
+ ospf enable {{ ospf.process_id }} area {{ iface.area }}
+{% if iface.network_type %}
+ ospf network-type {{ iface.network_type }}
+{% endif %}
+{% if iface.cost %}
+ ospf cost {{ iface.cost }}
+{% endif %}
+{% if iface.passive %}
+ ospf silent-interface
+{% endif %}
+{% if iface.bfd %}
+ ospf bfd enable
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{# BGP #}
+{% if l3.bgp %}
+bgp {{ l3.bgp.asn }}
+{% if l3.bgp.router_id %}
+ router-id {{ l3.bgp.router_id }}
+{% endif %}
+{% for neighbor in l3.bgp.neighbors | default([]) %}
+ peer {{ neighbor.ip }} as-number {{ neighbor.remote_as }}
+{% if neighbor.description %}
+ peer {{ neighbor.ip }} description {{ neighbor.description }}
+{% endif %}
+{% if neighbor.password %}
+ peer {{ neighbor.ip }} password cipher {{ neighbor.password }}
+{% endif %}
+{% if neighbor.bfd %}
+ peer {{ neighbor.ip }} bfd enable
+{% endif %}
+{% endfor %}
+
+{% if l3.bgp.address_families %}
+{% if l3.bgp.address_families.ipv4_unicast and l3.bgp.address_families.ipv4_unicast.enabled %}
+ ipv4-family unicast
+{% for neigh in l3.bgp.address_families.ipv4_unicast.neighbors_activate | default([]) %}
+  peer {{ neigh }} enable
+{% endfor %}
+{% for net in l3.bgp.address_families.ipv4_unicast.networks | default([]) %}
+  network {{ net.prefix | ipaddr('network') }} {{ net.prefix | ipaddr('netmask') }}
+{% endfor %}
+{% if l3.bgp.address_families.ipv4_unicast.maximum_paths %}
+  maximum load-balancing {{ l3.bgp.address_families.ipv4_unicast.maximum_paths }}
+{% endif %}
+{% endif %}
+
+{% if l3.bgp.address_families.l2vpn_evpn and l3.bgp.address_families.l2vpn_evpn.enabled %}
+ l2vpn-family evpn
+{% for neigh in l3.bgp.address_families.l2vpn_evpn.neighbors_activate | default([]) %}
+  peer {{ neigh }} enable
+{% endfor %}
+{% endif %}
+{% endif %}
+{% endif %}
+
+{# BFD #}
+{% if l3.bfd and l3.bfd.enabled %}
+bfd
+{% if l3.bfd.default_timers %}
+bfd {{ l3.bfd.default_timers.min_tx | default(300) }} min-tx {{ l3.bfd.default_timers.min_rx | default(300) }} min-rx detect-multiplier {{ l3.bfd.default_timers.multiplier | default(3) }}
+{% endif %}
+{% endif %}
+
+#
+return

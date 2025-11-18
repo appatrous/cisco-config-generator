@@ -169,6 +169,7 @@ function renderVendorSelector() {
         { id: 'nxos', name: 'Cisco NX-OS', icon: '🟦' },
         { id: 'eos', name: 'Arista EOS', icon: '🟩' },
         { id: 'junos', name: 'Juniper Junos', icon: '🟨' },
+        { id: 'huawei', name: 'Huawei VRP', icon: '🔴' },
         { id: 'frr', name: 'FRRouting', icon: '🟧' }
     ];
 

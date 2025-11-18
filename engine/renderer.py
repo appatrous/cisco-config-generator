@@ -15,7 +15,7 @@ from jinja2.exceptions import TemplateError, UndefinedError
 class ConfigRenderer:
     """Main configuration renderer engine"""
 
-    SUPPORTED_VENDORS = ['ios', 'nxos', 'eos', 'junos', 'frr']
+    SUPPORTED_VENDORS = ['ios', 'nxos', 'eos', 'junos', 'frr', 'huawei']
 
     def __init__(self, templates_dir: str = 'config_templates'):
         """
