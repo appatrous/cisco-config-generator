@@ -4377,6 +4377,343 @@ function generateForm(protocolPath, protocolData) {
             `;
             break;
 
+        // ===== SECURITY =====
+
+        case 'copp':
+            html += `
+                <h4>Control Plane Policing (CoPP)</h4>
+                <p class="help-text">Protect CPU from DoS attacks</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="copp_enabled" checked> Enable CoPP</label>
+                </div>
+
+                <h5>Class-Map Configuration</h5>
+                <div class="form-group">
+                    <label>Class-Map Name</label>
+                    <input type="text" id="copp_class_name" placeholder="COPP-CRITICAL" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Match Type</label>
+                    <select id="copp_match_type">
+                        <option value="match-any">Match Any</option>
+                        <option value="match-all">Match All</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Match Access-Group</label>
+                    <input type="text" id="copp_match_acl" placeholder="COPP-ACL">
+                </div>
+
+                <h5>Policy-Map Configuration</h5>
+                <div class="form-group">
+                    <label>Policy-Map Name</label>
+                    <input type="text" id="copp_policy_name" value="COPP-POLICY" placeholder="COPP-POLICY">
+                </div>
+
+                <div class="form-group">
+                    <label>Police Rate (bps)</label>
+                    <input type="number" id="copp_police_rate" min="8000" max="10000000000" placeholder="1000000">
+                    <small class="help-text">e.g., 1000000 = 1 Mbps</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Burst Size (bytes)</label>
+                    <input type="number" id="copp_police_burst" min="1500" max="512000" placeholder="31250">
+                </div>
+
+                <div class="form-group">
+                    <label>Exceed Action</label>
+                    <select id="copp_exceed_action">
+                        <option value="drop">Drop</option>
+                        <option value="transmit">Transmit</option>
+                        <option value="policed-dscp-transmit">Set DSCP and Transmit</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveCoppData()" style="width: 100%;">
+                    💾 Save CoPP Configuration
+                </button>
+            `;
+            break;
+
+        case 'iacls':
+            html += `
+                <h4>Infrastructure ACLs (iACLs)</h4>
+                <p class="help-text">Protect management plane and infrastructure</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="iacl_enabled" checked> Enable iACLs</label>
+                </div>
+
+                <h5>ACL Configuration</h5>
+                <div class="form-group">
+                    <label>ACL Name</label>
+                    <input type="text" id="iacl_name" placeholder="INFRASTRUCTURE-ACL" required>
+                </div>
+
+                <div class="form-group">
+                    <label>ACL Type</label>
+                    <select id="iacl_type">
+                        <option value="extended">Extended</option>
+                        <option value="standard">Standard</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="iacl_description" placeholder="Infrastructure protection ACL">
+                </div>
+
+                <h5>ACL Entries</h5>
+                <div class="form-group">
+                    <label>Permitted Management Networks</label>
+                    <textarea id="iacl_permit_mgmt" rows="4" placeholder="10.0.0.0 0.255.255.255
+192.168.100.0 0.0.0.255"></textarea>
+                    <small class="help-text">One network per line (network wildcard-mask)</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Infrastructure Addresses (to protect)</label>
+                    <textarea id="iacl_infra_addrs" rows="4" placeholder="10.1.0.0 0.0.255.255
+192.168.1.0 0.0.0.255"></textarea>
+                </div>
+
+                <details class="advanced-section">
+                    <summary>VTY Protection</summary>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="iacl_vty_protection"> Apply to VTY Lines</label>
+                    </div>
+                    <div class="form-group">
+                        <label>VTY Access-Class</label>
+                        <input type="text" id="iacl_vty_access_class" placeholder="VTY-ACCESS">
+                    </div>
+                </details>
+
+                <button class="btn btn-primary" onclick="saveIaclsData()" style="width: 100%;">
+                    💾 Save iACLs Configuration
+                </button>
+            `;
+            break;
+
+        case 'ipv6_acls':
+            html += `
+                <h4>IPv6 Access Control Lists</h4>
+                <p class="help-text">Filter IPv6 traffic</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="ipv6_acl_enabled" checked> Enable IPv6 ACLs</label>
+                </div>
+
+                <div class="form-group">
+                    <label>IPv6 ACL Name</label>
+                    <input type="text" id="ipv6_acl_name" placeholder="IPV6-FILTER" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="ipv6_acl_description" placeholder="IPv6 Access Control">
+                </div>
+
+                <h5>ACL Entry</h5>
+                <div class="form-group">
+                    <label>Action</label>
+                    <select id="ipv6_acl_action">
+                        <option value="permit">Permit</option>
+                        <option value="deny">Deny</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Protocol</label>
+                    <select id="ipv6_acl_protocol">
+                        <option value="ipv6">IPv6 (any)</option>
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                        <option value="icmp">ICMPv6</option>
+                        <option value="esp">ESP</option>
+                        <option value="ahp">AH</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Source IPv6 (or "any")</label>
+                    <input type="text" id="ipv6_acl_source" placeholder="2001:db8::/32 or any" value="any">
+                </div>
+
+                <div class="form-group">
+                    <label>Destination IPv6 (or "any")</label>
+                    <input type="text" id="ipv6_acl_destination" placeholder="2001:db8:1::/64 or any" value="any">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveIpv6AclsData()" style="width: 100%;">
+                    💾 Save IPv6 ACLs Configuration
+                </button>
+            `;
+            break;
+
+        case 'time_based_acls':
+            html += `
+                <h4>Time-Based Access Control Lists</h4>
+                <p class="help-text">Schedule-based access control</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="time_acl_enabled" checked> Enable Time-Based ACLs</label>
+                </div>
+
+                <h5>Time Range Configuration</h5>
+                <div class="form-group">
+                    <label>Time-Range Name</label>
+                    <input type="text" id="time_range_name" placeholder="BUSINESS-HOURS" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="time_range_description" placeholder="Monday to Friday 8am-6pm">
+                </div>
+
+                <div class="form-group">
+                    <label>Time Range Type</label>
+                    <select id="time_range_type">
+                        <option value="periodic">Periodic (Recurring)</option>
+                        <option value="absolute">Absolute (One-time)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Start Time (HH:MM)</label>
+                    <input type="time" id="time_range_start" value="08:00">
+                </div>
+
+                <div class="form-group">
+                    <label>End Time (HH:MM)</label>
+                    <input type="time" id="time_range_end" value="18:00">
+                </div>
+
+                <h5>ACL with Time Range</h5>
+                <div class="form-group">
+                    <label>ACL Name</label>
+                    <input type="text" id="time_acl_name" placeholder="TIME-BASED-ACL" required>
+                </div>
+
+                <div class="form-group">
+                    <label>ACL Entry</label>
+                    <textarea id="time_acl_entries" rows="4" placeholder="permit tcp 192.168.1.0 0.0.0.255 any eq 80"></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveTimeBasedAclsData()" style="width: 100%;">
+                    💾 Save Time-Based ACLs Configuration
+                </button>
+            `;
+            break;
+
+        case 'trustsec':
+            html += `
+                <h4>Cisco TrustSec (Security Group Tags)</h4>
+                <p class="help-text">Software-Defined Segmentation with SGTs</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="trustsec_enabled" checked> Enable TrustSec</label>
+                </div>
+
+                <h5>TrustSec Global Configuration</h5>
+                <div class="form-group">
+                    <label>Authorization List</label>
+                    <input type="text" id="trustsec_authz_list" value="CTS-AUTH-LIST" placeholder="CTS-AUTH-LIST">
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="trustsec_role_based_enforcement" checked> Role-Based Enforcement</label>
+                </div>
+
+                <h5>RADIUS Server for CTS</h5>
+                <div class="form-group">
+                    <label>RADIUS Server Name</label>
+                    <input type="text" id="trustsec_radius_name" placeholder="ISE-SERVER">
+                </div>
+
+                <div class="form-group">
+                    <label>RADIUS Server IP</label>
+                    <input type="text" id="trustsec_radius_ip" placeholder="192.168.1.100">
+                </div>
+
+                <h5>Security Group Tag (SGT) Assignment</h5>
+                <div class="form-group">
+                    <label>IP Address</label>
+                    <input type="text" id="trustsec_sgt_ip" placeholder="192.168.1.10">
+                </div>
+
+                <div class="form-group">
+                    <label>SGT Value</label>
+                    <input type="number" id="trustsec_sgt_value" min="2" max="65519" placeholder="100">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveTrustSecData()" style="width: 100%;">
+                    💾 Save TrustSec Configuration
+                </button>
+            `;
+            break;
+
+        case 'nbar':
+            html += `
+                <h4>NBAR2 / Application Visibility and Control</h4>
+                <p class="help-text">Deep packet inspection and application recognition</p>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="nbar_enabled" checked> Enable NBAR2</label>
+                </div>
+
+                <div class="form-group">
+                    <label><input type="checkbox" id="nbar_protocol_discovery" checked> Protocol Discovery</label>
+                </div>
+
+                <h5>NBAR Class-Map</h5>
+                <div class="form-group">
+                    <label>Class-Map Name</label>
+                    <input type="text" id="nbar_class_name" placeholder="CLASS-STREAMING">
+                </div>
+
+                <div class="form-group">
+                    <label>Match Protocol</label>
+                    <input type="text" id="nbar_match_protocol" placeholder="youtube, netflix, etc. (comma-separated)">
+                    <small class="help-text">Application names recognized by NBAR</small>
+                </div>
+
+                <h5>NBAR Policy-Map</h5>
+                <div class="form-group">
+                    <label>Policy-Map Name</label>
+                    <input type="text" id="nbar_policy_name" placeholder="NBAR-POLICY">
+                </div>
+
+                <div class="form-group">
+                    <label>Class Name</label>
+                    <input type="text" id="nbar_policy_class" placeholder="CLASS-STREAMING">
+                </div>
+
+                <div class="form-group">
+                    <label>Action</label>
+                    <select id="nbar_policy_action">
+                        <option value="bandwidth">Set Bandwidth</option>
+                        <option value="priority">Set Priority</option>
+                        <option value="police">Police Rate</option>
+                        <option value="drop">Drop</option>
+                        <option value="set-dscp">Set DSCP</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Action Value</label>
+                    <input type="text" id="nbar_policy_value" placeholder="e.g., 10000 (kbps), ef, 100 100 drop">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveNbarData()" style="width: 100%;">
+                    💾 Save NBAR2 Configuration
+                </button>
+            `;
+            break;
+
         default:
             html += `
                 <p>📝 Configuration form for ${protocolData.name}</p>
