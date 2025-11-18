@@ -1,0 +1,268 @@
+{# Advanced BGP Features for Cisco IOS/IOS-XE #}
+{# BGP-Flowspec, BGP-BMP, BGP-LS, AIGP, ORR, Graceful-Shutdown, BGP-EPE #}
+
+{% if l3.bgp and l3.bgp.advanced %}
+
+{# BGP-Flowspec (DDoS Mitigation and Traffic Filtering) #}
+{% if l3.bgp.advanced.flowspec %}
+{% if l3.bgp.advanced.flowspec.enabled %}
+router bgp {{ l3.bgp.asn }}
+  !
+  address-family ipv4 flowspec
+{% for neighbor in l3.bgp.advanced.flowspec.neighbors | default([]) %}
+    neighbor {{ neighbor.ip }} activate
+{% if neighbor.send_community %}
+    neighbor {{ neighbor.ip }} send-community extended
+{% endif %}
+{% if neighbor.route_reflector_client %}
+    neighbor {{ neighbor.ip }} route-reflector-client
+{% endif %}
+{% endfor %}
+
+  {# Local Flowspec Rules #}
+{% for rule in l3.bgp.advanced.flowspec.local_rules | default([]) %}
+    {# Flowspec match criteria #}
+    flow ipv4 {{ rule.name }}
+{% if rule.match %}
+{% if rule.match.destination_prefix %}
+      match destination {{ rule.match.destination_prefix }}
+{% endif %}
+{% if rule.match.source_prefix %}
+      match source {{ rule.match.source_prefix }}
+{% endif %}
+{% if rule.match.protocol %}
+      match protocol {{ rule.match.protocol }}
+{% endif %}
+{% if rule.match.port %}
+      match destination-port {{ rule.match.port }}
+{% endif %}
+{% if rule.match.source_port %}
+      match source-port {{ rule.match.source_port }}
+{% endif %}
+{% if rule.match.icmp_type %}
+      match icmp-type {{ rule.match.icmp_type }}
+{% endif %}
+{% if rule.match.icmp_code %}
+      match icmp-code {{ rule.match.icmp_code }}
+{% endif %}
+{% if rule.match.tcp_flags %}
+      match tcp-flags {{ rule.match.tcp_flags }}
+{% endif %}
+{% if rule.match.packet_length %}
+      match packet-length {{ rule.match.packet_length }}
+{% endif %}
+{% if rule.match.dscp %}
+      match dscp {{ rule.match.dscp }}
+{% endif %}
+{% if rule.match.fragment %}
+      match fragment {{ rule.match.fragment }}
+{% endif %}
+{% endif %}{# end rule.match #}
+
+  {# Flowspec actions #}
+{% if rule.action %}
+{% if rule.action.type == 'drop' %}
+      action drop
+{% elif rule.action.type == 'rate-limit' %}
+      action rate-limit {{ rule.action.rate }}
+{% elif rule.action.type == 'redirect' %}
+      action redirect {{ rule.action.redirect_target }}
+{% elif rule.action.type == 'mark' %}
+      action mark dscp {{ rule.action.dscp }}
+{% endif %}
+{% if rule.action.log %}
+      action log
+{% endif %}
+{% if rule.action.sample %}
+      action sample
+{% endif %}
+{% endif %}{# end rule.action #}
+    !
+{% endfor %}{# end local_rules #}
+
+  {# Validation #}
+{% if l3.bgp.advanced.flowspec.validation %}
+    validation {% if l3.bgp.advanced.flowspec.validation == 'strict' %}strict{% else %}local{% endif %}
+{% endif %}
+  exit-address-family
+!
+{% endif %}{# end flowspec.enabled #}
+{% endif %}{# end flowspec #}
+
+{# BGP-BMP (BGP Monitoring Protocol) #}
+{% if l3.bgp.advanced.bmp %}
+{% if l3.bgp.advanced.bmp.enabled %}
+router bgp {{ l3.bgp.asn }}
+  bmp
+{% for server in l3.bgp.advanced.bmp.servers | default([]) %}
+    server {{ server.id }}
+      host {{ server.ip }}{% if server.port %} port {{ server.port }}{% endif %}
+{% if server.description %}
+      description {{ server.description }}
+{% endif %}
+{% if server.initial_delay %}
+      initial-delay {{ server.initial_delay }}
+{% endif %}
+{% if server.stats_reporting_period %}
+      stats-reporting-period {{ server.stats_reporting_period }}
+{% endif %}
+{% if server.update_source %}
+      update-source {{ server.update_source }}
+{% endif %}
+{% if server.vrf %}
+      vrf {{ server.vrf }}
+{% endif %}
+      activate
+    exit
+{% endfor %}
+
+  {# BMP Monitoring Options #}
+{% if l3.bgp.advanced.bmp.monitoring %}
+    monitoring
+{% if l3.bgp.advanced.bmp.monitoring.adjacency_change %}
+      adjacency-change
+{% endif %}
+{% if l3.bgp.advanced.bmp.monitoring.peer_down_cause_notification %}
+      peer-down-cause-notification
+{% endif %}
+{% if l3.bgp.advanced.bmp.monitoring.route_monitoring %}
+      route-monitoring {% if l3.bgp.advanced.bmp.monitoring.route_monitoring.pre_policy %}pre-policy{% else %}post-policy{% endif %}
+{% endif %}
+{% if l3.bgp.advanced.bmp.monitoring.stats_reporting %}
+      stats-reporting
+{% endif %}
+    exit
+{% endif %}{# end monitoring #}
+  exit
+!
+{% endif %}{# end bmp.enabled #}
+{% endif %}{# end bmp #}
+
+{# BGP-LS (BGP Link-State) for SDN Controllers #}
+{% if l3.bgp.advanced.link_state %}
+{% if l3.bgp.advanced.link_state.enabled %}
+router bgp {{ l3.bgp.asn }}
+  !
+  address-family link-state link-state
+{% for neighbor in l3.bgp.advanced.link_state.neighbors | default([]) %}
+    neighbor {{ neighbor.ip }} activate
+{% if neighbor.route_reflector_client %}
+    neighbor {{ neighbor.ip }} route-reflector-client
+{% endif %}
+{% endfor %}
+
+  {# BGP-LS Redistribution (from IGP) #}
+{% if l3.bgp.advanced.link_state.redistribute %}
+{% if l3.bgp.advanced.link_state.redistribute.ospf %}
+    redistribute ospf {{ l3.bgp.advanced.link_state.redistribute.ospf.process_id }}
+{% endif %}
+{% if l3.bgp.advanced.link_state.redistribute.isis %}
+    redistribute isis {{ l3.bgp.advanced.link_state.redistribute.isis.process_id }}
+{% endif %}
+{% endif %}
+  exit-address-family
+!
+{% endif %}{# end link_state.enabled #}
+{% endif %}{# end link_state #}
+
+{# AIGP (Accumulated IGP Metric) #}
+{% if l3.bgp.advanced.aigp %}
+{% if l3.bgp.advanced.aigp.enabled %}
+router bgp {{ l3.bgp.asn }}
+  bgp aigp
+  !
+  address-family ipv4 unicast
+{% for neighbor in l3.bgp.advanced.aigp.neighbors | default([]) %}
+    neighbor {{ neighbor.ip }} aigp{% if neighbor.aigp_send_med %} send med{% endif %}
+{% endfor %}
+  exit-address-family
+!
+{% endif %}
+{% endif %}
+
+{# ORR (Optimal Route Reflection) #}
+{% if l3.bgp.advanced.orr %}
+{% if l3.bgp.advanced.orr.enabled %}
+router bgp {{ l3.bgp.asn }}
+  bgp optimal-route-reflection {{ l3.bgp.advanced.orr.orr_group }}
+  !
+  address-family ipv4 unicast
+{% for neighbor in l3.bgp.advanced.orr.neighbors | default([]) %}
+    neighbor {{ neighbor.ip }} route-reflector-client
+{% if neighbor.orr_root %}
+    neighbor {{ neighbor.ip }} optimal-route-reflection orr-root
+{% endif %}
+{% endfor %}
+  exit-address-family
+!
+{% endif %}
+{% endif %}
+
+{# BGP Graceful-Shutdown (RFC 8326) #}
+{% if l3.bgp.advanced.graceful_shutdown %}
+{% if l3.bgp.advanced.graceful_shutdown.enabled %}
+router bgp {{ l3.bgp.asn }}
+{% if l3.bgp.advanced.graceful_shutdown.global %}
+  bgp graceful-shutdown all
+{% else %}
+{% for neighbor in l3.bgp.advanced.graceful_shutdown.neighbors | default([]) %}
+  neighbor {{ neighbor.ip }} graceful-shutdown activate
+{% endfor %}
+{% endif %}
+!
+{% endif %}
+{% endif %}
+
+{# BGP-EPE (Egress Peer Engineering) for Segment Routing #}
+{% if l3.bgp.advanced.epe %}
+{% if l3.bgp.advanced.epe.enabled %}
+router bgp {{ l3.bgp.asn }}
+  bgp segment-routing srv6
+    locator {{ l3.bgp.advanced.epe.locator_name }}
+  !
+  address-family ipv4 unicast
+{% for neighbor in l3.bgp.advanced.epe.neighbors | default([]) %}
+    neighbor {{ neighbor.ip }} egress-engineering
+{% endfor %}
+  exit-address-family
+!
+{% endif %}
+{% endif %}
+
+{# BGP Additional Features #}
+{% if l3.bgp.advanced.additional %}
+router bgp {{ l3.bgp.asn }}
+{# BGP Additional-Paths #}
+{% if l3.bgp.advanced.additional.add_path %}
+  bgp additional-paths {% if l3.bgp.advanced.additional.add_path.select %}select {{ l3.bgp.advanced.additional.add_path.select }}{% else %}install{% endif %}
+  !
+  address-family ipv4 unicast
+{% for neighbor in l3.bgp.advanced.additional.add_path.neighbors | default([]) %}
+    neighbor {{ neighbor.ip }} advertise additional-paths {% if neighbor.add_path_type %}{{ neighbor.add_path_type }}{% else %}all{% endif %}
+{% endfor %}
+  exit-address-family
+{% endif %}
+
+{# BGP Diverse-Path (for load balancing) #}
+{% if l3.bgp.advanced.additional.diverse_path %}
+  bgp bestpath as-path multipath-relax
+  maximum-paths {{ l3.bgp.advanced.additional.diverse_path.max_paths | default(8) }}
+  maximum-paths ibgp {{ l3.bgp.advanced.additional.diverse_path.max_paths_ibgp | default(8) }}
+{% endif %}
+
+{# BGP Slow-Peer Detection and Mitigation #}
+{% if l3.bgp.advanced.additional.slow_peer %}
+  bgp slow-peer detection threshold {{ l3.bgp.advanced.additional.slow_peer.threshold | default(300) }}
+{% if l3.bgp.advanced.additional.slow_peer.split_update_group_dynamic %}
+  bgp slow-peer split-update-group dynamic
+{% endif %}
+{% endif %}
+
+{# BGP Update-Delay (for faster convergence) #}
+{% if l3.bgp.advanced.additional.update_delay %}
+  bgp update-delay {{ l3.bgp.advanced.additional.update_delay }}
+{% endif %}
+!
+{% endif %}{# end additional #}
+
+{% endif %}{# end l3.bgp.advanced #}

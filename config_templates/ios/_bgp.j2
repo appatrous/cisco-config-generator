@@ -206,3 +206,8 @@ router bgp {{ l3.bgp.asn }}
 {% endfor %}
 ! Apply RPKI validation in route-map (set/match origin-as validity)
 {% endif %}
+
+{# Advanced BGP Features #}
+{% if l3.bgp.advanced %}
+{% include 'ios/_bgp_advanced.j2' %}
+{% endif %}
