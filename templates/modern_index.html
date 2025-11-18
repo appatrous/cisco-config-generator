@@ -94,9 +94,9 @@
 
             <div class="preview-content">
                 <div class="preview-tabs">
-                    <button class="tab-btn active" data-tab="config">Configuration</button>
-                    <button class="tab-btn" data-tab="validation">Validation</button>
-                    <button class="tab-btn" data-tab="diff">Diff</button>
+                    <button class="tab-btn active" data-tab="config" onclick="switchTab('config')">📝 Configuration</button>
+                    <button class="tab-btn" data-tab="validation" onclick="switchTab('validation')">✓ Validation</button>
+                    <button class="tab-btn" data-tab="diff" onclick="switchTab('diff')">🔄 Diff</button>
                 </div>
 
                 <div class="tab-content active" id="config-tab">
@@ -108,9 +108,7 @@
                 </div>
 
                 <div class="tab-content" id="diff-tab">
-                    <div id="diff-results" class="diff-results">
-                        <p class="empty-state">No previous configuration to compare</p>
-                    </div>
+                    <p class="empty-state">No previous configuration to compare</p>
                 </div>
             </div>
         </section>

@@ -177,6 +177,454 @@ const Validator = {
     }
 };
 
+// ============================================
+// DYNAMIC FIELD MANAGEMENT
+// ============================================
+
+const DynamicFields = {
+    // Counter for unique IDs
+    itemCounter: 0,
+
+    // Add a repeatable item (VLAN, route, etc.)
+    addItem: function(containerid, template, data = {}) {
+        const container = document.getElementById(containerid);
+        if (!container) return null;
+
+        const itemId = `item_${this.itemCounter++}`;
+        const itemHtml = template(itemId, data);
+
+        const div = document.createElement('div');
+        div.id = itemId;
+        div.className = 'dynamic-item';
+        div.innerHTML = itemHtml;
+
+        container.appendChild(div);
+        return itemId;
+    },
+
+    // Remove an item
+    removeItem: function(itemId) {
+        const item = document.getElementById(itemId);
+        if (item) {
+            item.remove();
+        }
+    },
+
+    // Clear all items in a container
+    clearContainer: function(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '';
+        }
+    },
+
+    // Get all items data from a container
+    getItemsData: function(containerId, getDataFunc) {
+        const container = document.getElementById(containerId);
+        if (!container) return [];
+
+        const items = container.querySelectorAll('.dynamic-item');
+        const dataArray = [];
+
+        items.forEach(item => {
+            const data = getDataFunc(item);
+            if (data) {
+                dataArray.push(data);
+            }
+        });
+
+        return dataArray;
+    }
+};
+
+// ============================================
+// IMPORT / EXPORT UTILITIES
+// ============================================
+
+const ImportExport = {
+    // Export current configuration as JSON
+    exportConfig: function() {
+        const config = {
+            vendor: app.selectedVendor,
+            activeProtocols: Array.from(app.activeProtocols),
+            data: app.data,
+            timestamp: new Date().toISOString()
+        };
+
+        const jsonStr = JSON.stringify(config, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `network-config-${app.data.global.hostname || 'device'}-${Date.now()}.json`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    },
+
+    // Import configuration from JSON
+    importConfig: function(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const config = JSON.parse(e.target.result);
+
+                    if (config.data) {
+                        app.data = config.data;
+                    }
+                    if (config.vendor) {
+                        app.selectedVendor = config.vendor;
+                    }
+                    if (config.activeProtocols) {
+                        app.activeProtocols = new Set(config.activeProtocols);
+                    }
+
+                    resolve(config);
+                } catch (error) {
+                    reject(new Error('Invalid JSON format: ' + error.message));
+                }
+            };
+
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
+        });
+    },
+
+    // Parse CSV data to array of objects
+    parseCSV: function(csvText) {
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 2) return [];
+
+        const headers = lines[0].split(',').map(h => h.trim());
+        const data = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values.length === headers.length) {
+                const obj = {};
+                headers.forEach((header, index) => {
+                    obj[header] = values[index];
+                });
+                data.push(obj);
+            }
+        }
+
+        return data;
+    },
+
+    // Convert array to CSV
+    arrayToCSV: function(data, headers) {
+        if (!data || data.length === 0) return '';
+
+        const csvLines = [];
+
+        // Add headers
+        csvLines.push(headers.join(','));
+
+        // Add data rows
+        data.forEach(row => {
+            const values = headers.map(header => {
+                const value = row[header] || '';
+                // Escape commas and quotes
+                if (value.includes(',') || value.includes('"')) {
+                    return `"${value.replace(/"/g, '""')}"`;
+                }
+                return value;
+            });
+            csvLines.push(values.join(','));
+        });
+
+        return csvLines.join('\n');
+    },
+
+    // Export to CSV
+    exportToCSV: function(data, headers, filename) {
+        const csvContent = this.arrayToCSV(data, headers);
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    },
+
+    // Save draft to localStorage
+    saveDraft: function() {
+        try {
+            const draft = {
+                vendor: app.selectedVendor,
+                activeProtocols: Array.from(app.activeProtocols),
+                data: app.data,
+                timestamp: new Date().toISOString()
+            };
+
+            localStorage.setItem('network-config-draft', JSON.stringify(draft));
+            return true;
+        } catch (error) {
+            console.error('Failed to save draft:', error);
+            return false;
+        }
+    },
+
+    // Load draft from localStorage
+    loadDraft: function() {
+        try {
+            const draftStr = localStorage.getItem('network-config-draft');
+            if (!draftStr) return null;
+
+            const draft = JSON.parse(draftStr);
+
+            if (draft.data) {
+                app.data = draft.data;
+            }
+            if (draft.vendor) {
+                app.selectedVendor = draft.vendor;
+            }
+            if (draft.activeProtocols) {
+                app.activeProtocols = new Set(draft.activeProtocols);
+            }
+
+            return draft;
+        } catch (error) {
+            console.error('Failed to load draft:', error);
+            return null;
+        }
+    },
+
+    // Clear saved draft
+    clearDraft: function() {
+        localStorage.removeItem('network-config-draft');
+    }
+};
+
+// Auto-save draft every 60 seconds
+setInterval(() => {
+    if (Object.keys(app.data).length > 1) { // More than just initial data
+        ImportExport.saveDraft();
+    }
+}, 60000);
+
+// ============================================
+// Preview Enhancer Object
+// ============================================
+const PreviewEnhancer = {
+    previousConfig: '',
+
+    // Apply syntax highlighting to configuration text
+    applySyntaxHighlighting: function(configText, elementId = 'config-output') {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+
+        // Split into lines for processing
+        const lines = configText.split('\n');
+        const highlightedLines = lines.map(line => {
+            // Comments (lines starting with !)
+            if (line.trim().startsWith('!')) {
+                return `<span class="syntax-comment">${this.escapeHtml(line)}</span>`;
+            }
+
+            // Section headers (lines with ====)
+            if (line.includes('====')) {
+                return `<span class="syntax-header">${this.escapeHtml(line)}</span>`;
+            }
+
+            // Interface declarations
+            if (line.match(/^interface\s+/i)) {
+                return `<span class="syntax-keyword">interface</span> <span class="syntax-interface">${this.escapeHtml(line.substring(10))}</span>`;
+            }
+
+            // Router declarations (router bgp, router ospf, etc.)
+            if (line.match(/^router\s+/i)) {
+                const parts = line.split(/(\s+)/);
+                return `<span class="syntax-keyword">${this.escapeHtml(parts[0])}</span>${parts[1]}<span class="syntax-protocol">${this.escapeHtml(parts.slice(2).join(''))}</span>`;
+            }
+
+            // IP addresses
+            let highlighted = this.escapeHtml(line);
+            highlighted = highlighted.replace(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g, '<span class="syntax-ip">$1</span>');
+
+            // IPv6 addresses
+            highlighted = highlighted.replace(/([0-9a-fA-F:]+::[0-9a-fA-F:]*|[0-9a-fA-F:]+:[0-9a-fA-F:]+)/g, '<span class="syntax-ip">$1</span>');
+
+            // Keywords
+            const keywords = ['no', 'shutdown', 'enable', 'password', 'username', 'permit', 'deny',
+                            'access-list', 'route-map', 'prefix-list', 'vlan', 'switchport',
+                            'description', 'neighbor', 'network', 'area', 'exit', 'end'];
+            keywords.forEach(keyword => {
+                const regex = new RegExp(`\\b(${keyword})\\b`, 'gi');
+                highlighted = highlighted.replace(regex, '<span class="syntax-keyword">$1</span>');
+            });
+
+            // Numbers (VLAN IDs, AS numbers, etc.)
+            highlighted = highlighted.replace(/\b(\d+)\b/g, '<span class="syntax-number">$1</span>');
+
+            return highlighted;
+        });
+
+        element.innerHTML = highlightedLines.join('\n');
+    },
+
+    // Escape HTML to prevent XSS
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    },
+
+    // Generate diff view between old and new config
+    generateDiff: function(oldConfig, newConfig) {
+        const oldLines = oldConfig.split('\n');
+        const newLines = newConfig.split('\n');
+
+        let diffHtml = '<div class="diff-view">';
+        const maxLen = Math.max(oldLines.length, newLines.length);
+
+        for (let i = 0; i < maxLen; i++) {
+            const oldLine = oldLines[i] || '';
+            const newLine = newLines[i] || '';
+
+            if (oldLine === newLine) {
+                // Unchanged line
+                diffHtml += `<div class="diff-line diff-unchanged">
+                    <span class="line-number">${i + 1}</span>
+                    <span class="line-content">${this.escapeHtml(newLine)}</span>
+                </div>`;
+            } else if (!oldLine && newLine) {
+                // Added line
+                diffHtml += `<div class="diff-line diff-added">
+                    <span class="line-number">+</span>
+                    <span class="line-content">${this.escapeHtml(newLine)}</span>
+                </div>`;
+            } else if (oldLine && !newLine) {
+                // Removed line
+                diffHtml += `<div class="diff-line diff-removed">
+                    <span class="line-number">-</span>
+                    <span class="line-content">${this.escapeHtml(oldLine)}</span>
+                </div>`;
+            } else {
+                // Modified line
+                diffHtml += `<div class="diff-line diff-removed">
+                    <span class="line-number">-</span>
+                    <span class="line-content">${this.escapeHtml(oldLine)}</span>
+                </div>`;
+                diffHtml += `<div class="diff-line diff-added">
+                    <span class="line-number">+</span>
+                    <span class="line-content">${this.escapeHtml(newLine)}</span>
+                </div>`;
+            }
+        }
+
+        diffHtml += '</div>';
+        return diffHtml;
+    },
+
+    // Show diff in diff tab
+    showDiff: function() {
+        const currentConfig = document.getElementById('config-output').textContent;
+        const diffTab = document.getElementById('diff-tab');
+
+        if (!this.previousConfig) {
+            diffTab.innerHTML = '<p class="empty-state">No previous configuration to compare. Generate a configuration first, then modify and regenerate to see differences.</p>';
+            return;
+        }
+
+        const diffHtml = this.generateDiff(this.previousConfig, currentConfig);
+        diffTab.innerHTML = diffHtml;
+    },
+
+    // Save current config for later diff comparison
+    saveCurrentConfig: function() {
+        const configOutput = document.getElementById('config-output');
+        if (configOutput) {
+            this.previousConfig = configOutput.textContent;
+        }
+    },
+
+    // Enhanced copy to clipboard with feedback
+    copyToClipboard: function() {
+        const configOutput = document.getElementById('config-output');
+        if (!configOutput) return;
+
+        const text = configOutput.textContent;
+
+        // Use modern clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showCopyFeedback('✓ Copied to clipboard!');
+            }).catch(err => {
+                // Fallback to older method
+                this.fallbackCopyToClipboard(text);
+            });
+        } else {
+            this.fallbackCopyToClipboard(text);
+        }
+    },
+
+    // Fallback copy method for older browsers
+    fallbackCopyToClipboard: function(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+            document.execCommand('copy');
+            this.showCopyFeedback('✓ Copied to clipboard!');
+        } catch (err) {
+            this.showCopyFeedback('✗ Failed to copy', true);
+        }
+
+        document.body.removeChild(textarea);
+    },
+
+    // Show copy feedback notification
+    showCopyFeedback: function(message, isError = false) {
+        // Remove existing feedback
+        const existing = document.querySelector('.copy-feedback');
+        if (existing) existing.remove();
+
+        const feedback = document.createElement('div');
+        feedback.className = `copy-feedback ${isError ? 'error' : 'success'}`;
+        feedback.textContent = message;
+
+        document.body.appendChild(feedback);
+
+        setTimeout(() => {
+            feedback.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            feedback.classList.remove('show');
+            setTimeout(() => feedback.remove(), 300);
+        }, 2000);
+    },
+
+    // Line numbering for config display
+    addLineNumbers: function() {
+        const configOutput = document.getElementById('config-output');
+        if (!configOutput) return;
+
+        const lines = configOutput.innerHTML.split('\n');
+        const numberedLines = lines.map((line, index) => {
+            return `<div class="code-line">
+                <span class="line-num">${index + 1}</span>
+                <span class="line-text">${line}</span>
+            </div>`;
+        }).join('');
+
+        configOutput.innerHTML = numberedLines;
+        configOutput.classList.add('with-line-numbers');
+    }
+};
+
 // Protocol definitions with metadata
 const protocols = {
     l2: {
@@ -9185,7 +9633,16 @@ function showValidationErrors(validation) {
 // Show configuration preview
 function showConfigPreview(config, validation, linting) {
     document.getElementById('preview-panel').style.display = 'block';
-    document.getElementById('config-output').textContent = config;
+
+    // Set config text first
+    const configOutput = document.getElementById('config-output');
+    configOutput.textContent = config;
+
+    // Apply syntax highlighting
+    PreviewEnhancer.applySyntaxHighlighting(config);
+
+    // Save config for diff comparison
+    setTimeout(() => PreviewEnhancer.saveCurrentConfig(), 100);
 
     // Show validation results
     const validationDiv = document.getElementById('validation-results');
@@ -9217,6 +9674,9 @@ function showConfigPreview(config, validation, linting) {
             `;
         }
     }
+
+    // Activate config tab by default
+    switchTab('config');
 }
 
 // Download configuration
@@ -9234,12 +9694,34 @@ function downloadConfig() {
 
 // Copy to clipboard
 function copyToClipboard() {
-    const config = document.getElementById('config-output').textContent;
-    navigator.clipboard.writeText(config).then(() => {
-        alert('✅ Configuration copied to clipboard!');
-    }).catch(err => {
-        alert('❌ Failed to copy: ' + err);
+    PreviewEnhancer.copyToClipboard();
+}
+
+// Switch between preview tabs
+function switchTab(tabName) {
+    // Deactivate all tabs and buttons
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
     });
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Activate selected tab
+    const tabContent = document.getElementById(`${tabName}-tab`);
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
+
+    const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (tabBtn) {
+        tabBtn.classList.add('active');
+    }
+
+    // If diff tab, generate diff
+    if (tabName === 'diff') {
+        PreviewEnhancer.showDiff();
+    }
 }
 
 // Import JSON configuration
