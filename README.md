@@ -1,467 +1,600 @@
-# Network Configuration Generator
+# 🌐 Cisco Configuration Generator v2.0
 
-**Multi-Vendor NetDevOps Tool for Enterprise and Data Center Networks**
+**Enterprise-Grade Network Configuration Management Platform**
 
-A comprehensive, production-ready web application and CLI tool that generates network device configurations from structured data (JSON/YAML) for multiple vendor platforms.
+[![CI/CD](https://github.com/yourusername/cisco-config-generator/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/yourusername/cisco-config-generator/actions)
+[![Code Coverage](https://codecov.io/gh/yourusername/cisco-config-generator/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/cisco-config-generator)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## 🌟 Features
-
-### Multi-Vendor Support
-- **Cisco IOS/IOS-XE** - Campus and Edge routers/switches
-- **Cisco NX-OS** - Data Center switches (Nexus 9K/7K)
-- **Arista EOS** - Data Center and campus switches
-- **Juniper Junos** - EX/QFX switches, set-style configuration
-- **FRRouting (FRR)** - Open-source routing platform
-
-### Comprehensive Protocol Coverage
-
-#### Layer 2
-- **VLANs & Trunking** (802.1Q, QinQ)
-- **Spanning Tree** (STP, RSTP, MSTP, PVST+)
-- **Link Aggregation** (LAG/LACP - 802.1AX)
-- **MLAG/vPC/MC-LAG** - Multi-chassis LAG with anycast VTEP
-- **Discovery** - LLDP (802.1AB) / CDP
-- **Security**:
-  - Port Security (sticky MAC, violation modes)
-  - DHCP Snooping (Option 82, trusted ports)
-  - Dynamic ARP Inspection (DAI)
-  - IP Source Guard (IPSG)
-  - 802.1X (EAP, MAB, guest VLAN, critical VLAN)
-  - MACsec (802.1AE)
-- **IGMP/MLD Snooping** - Multicast optimization
-
-#### Layer 3
-- **Routing Protocols**:
-  - **OSPFv2/v3** - All area types (normal, stub, NSSA), authentication, BFD
-  - **IS-IS** - Multi-topology, wide metrics, SR-MPLS/SRv6
-  - **EIGRP** - Named mode, stub, variance (Cisco)
-  - **BGP** - IPv4/IPv6 unicast, L2VPN EVPN, route policies, RPKI/ROV
-  - **RIP v2 / RIPng** (optional, legacy)
-- **Static Routing & PBR** - Policy-based routing with tracking
-- **VRF / VRF-Lite** - Route Distinguisher, Route Targets
-- **FHRP** - HSRP, VRRP, GLBP with tracking and BFD
-- **Multicast**:
-  - PIM (Sparse-Mode, SSM, BiDir)
-  - IGMP/MLD versions
-  - RP configuration (static, BSR, Anycast-RP)
-  - MSDP for Anycast-RP
-- **NAT** - Static, Dynamic, PAT, NAT64, NPTv6
-
-#### Advanced Features
-- **VXLAN / EVPN** - Data Center fabric (L2VNI, L3VNI, anycast gateway)
-- **MPLS** - LDP, RSVP-TE, L3VPN (VPNv4/VPNv6)
-- **Segment Routing** - SR-MPLS and SRv6 with TI-LFA
-- **BFD** - Bidirectional Forwarding Detection for fast failure detection
-- **QoS / CoPP** - Classification, marking, policing, shaping, queuing
-
-### Smart Validation & Linting
-- **Strict Validation**:
-  - IP address and CIDR format checking
-  - ASN, VLAN, VNI range validation
-  - VRF/VLAN/RP cross-reference checking
-  - Route Distinguisher / Route Target format validation
-- **Configuration Linter**:
-  - Empty section detection
-  - Duplicate line detection
-  - Syntax error checking
-  - Stable ordering verification
-
-### Modern Web Interface
-- **Tile-based UI** - Protocol selection by category (L2, L3, Advanced)
-- **Vendor Selector** - Auto-hide unsupported features per platform
-- **Live Preview** - Real-time configuration generation
-- **Diff View** - Compare configurations before deployment
-- **Import/Export** - JSON/YAML configuration profiles
-- **Hierarchical Profiles** - Global → Site → Role → Device inheritance
-
-### CLI Tool
-- Offline configuration generation
-- Batch processing for multiple devices
-- Golden test generation and validation
-- Scriptable for CI/CD pipelines
-
-## 📦 Installation
-
-### Prerequisites
-- Python 3.8+
-- pip or Poetry
-
-### Quick Start
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd cisco-config-generator
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the web application
-python app_modern.py
-
-# Or use the CLI
-python cli_generate.py --vendor ios --config examples/profiles/campus-access-switch.json --output output/
-```
-
-The web interface will be available at: `http://localhost:5000`
-
-## 🚀 Usage
-
-### Web Interface
-
-1. **Select Vendor** - Choose target platform (IOS, NX-OS, EOS, Junos, FRR)
-2. **Activate Protocols** - Click on tiles to enable desired protocols
-3. **Configure** - Fill in protocol-specific forms (or import JSON)
-4. **Generate** - Click "Generate Configuration"
-5. **Review** - Preview configuration, view validation results
-6. **Download** - Save as `.cfg` or `.conf` file
-
-### REST API
-
-#### Generate Configuration
-
-```bash
-POST /api/generate
-Content-Type: application/json
-
-{
-  "vendor": "ios",
-  "config": {
-    "global": {
-      "hostname": "router1"
-    },
-    "l3": {
-      "ospf": [{
-        "process_id": 10,
-        "router_id": "1.1.1.1"
-      }]
-    }
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "config": "hostname router1\n...",
-  "validation": {
-    "is_valid": true,
-    "errors": [],
-    "warnings": []
-  },
-  "linting": {
-    "errors": [],
-    "warnings": [],
-    "line_count": 42
-  }
-}
-```
-
-#### Validate Configuration
-
-```bash
-POST /api/validate
-Content-Type: application/json
-
-{
-  "config": { ... },
-  "vendor": "ios"
-}
-```
-
-#### Multi-Vendor Generation
-
-```bash
-POST /api/generate-multi
-Content-Type: application/json
-
-{
-  "vendors": ["ios", "nxos", "eos"],
-  "config": { ... }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "configs": {
-    "ios": "hostname router1\n...",
-    "nxos": "hostname router1\n...",
-    "eos": "hostname router1\n..."
-  }
-}
-```
-
-### CLI Tool
-
-```bash
-# Generate from JSON
-python cli_generate.py \
-  --vendor ios \
-  --config examples/profiles/campus-access-switch.json \
-  --output configs/
-
-# Validate without generating
-python cli_generate.py \
-  --validate-only \
-  --config examples/profiles/dc-leaf-evpn.json
-
-# Multi-vendor generation
-python cli_generate.py \
-  --vendors ios,nxos,eos \
-  --config myconfig.json \
-  --output configs/
-
-# Lint existing configuration
-python cli_generate.py \
-  --lint \
-  --file router1.cfg \
-  --vendor ios
-```
-
-## 📐 Configuration Schema
-
-The tool uses a comprehensive JSON/YAML schema. See `schemas/network_config_schema.yaml` for the complete reference.
-
-### Basic Example
-
-```json
-{
-  "global": {
-    "hostname": "router1",
-    "domain_name": "example.com",
-    "ntp_servers": ["10.0.0.1"]
-  },
-  "l2": {
-    "vlans": [
-      {"id": 10, "name": "DATA"},
-      {"id": 20, "name": "VOICE"}
-    ]
-  },
-  "l3": {
-    "interfaces": [
-      {
-        "interface": "Vlan10",
-        "ipv4": [{"address": "10.1.10.1/24"}]
-      }
-    ],
-    "ospf": [{
-      "process_id": 10,
-      "router_id": "1.1.1.1",
-      "areas": [{"id": "0.0.0.0"}],
-      "interfaces": [
-        {"interface": "Vlan10", "area": "0.0.0.0"}
-      ]
-    }]
-  }
-}
-```
-
-## 📚 Examples
-
-The `examples/profiles/` directory contains real-world scenarios:
-
-1. **campus-access-switch.json** - Access layer with port security, 802.1X, DHCP snooping
-2. **campus-distribution-l3.json** - Distribution layer with OSPF and HSRP
-3. **core-router-bgp.json** - Core router with BGP, OSPF, and MPLS
-4. **dc-leaf-evpn.json** - Data Center leaf with VXLAN EVPN and vPC
-5. **edge-router-nat.json** - Edge router with BGP, NAT, and firewall
-
-Load examples in the web UI: Click **"Load Example"** button.
-
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run specific test category
-pytest tests/test_renderer.py
-pytest tests/test_validator.py
-pytest tests/golden/
-
-# Generate golden test configs
-python tests/generate_golden.py
-```
-
-### Golden Tests
-
-Golden tests ensure configuration stability. Each scenario has:
-- Input JSON (e.g., `examples/profiles/campus-access-switch.json`)
-- Expected output (e.g., `golden/configs/campus-access-switch_ios.cfg`)
-
-Re-generate golden configs:
-```bash
-python tests/generate_golden.py --regenerate
-```
-
-## 🏗️ Architecture
-
-```
-cisco-config-generator/
-├── app_modern.py              # Flask application (web + API)
-├── cli_generate.py            # CLI tool
-├── engine/
-│   ├── renderer.py            # Jinja2 rendering engine
-│   ├── validator.py           # Configuration validator
-│   └── __init__.py
-├── config_templates/          # Jinja2 templates per vendor
-│   ├── ios/
-│   │   ├── base.j2
-│   │   ├── _l2.j2
-│   │   ├── _l3.j2
-│   │   ├── _ospf.j2
-│   │   └── _bgp.j2
-│   ├── nxos/
-│   ├── eos/
-│   ├── junos/
-│   └── frr/
-├── templates/                 # HTML templates (web UI)
-│   └── modern_index.html
-├── static/
-│   ├── css/modern-style.css
-│   └── js/app.js
-├── examples/profiles/         # Example configurations
-├── golden/configs/            # Golden test outputs
-├── schemas/                   # JSON/YAML schema definition
-└── tests/                     # Unit and integration tests
-```
-
-### Technology Stack
-- **Backend**: Flask, Jinja2
-- **Frontend**: Vanilla JavaScript, CSS Grid/Flexbox
-- **Validation**: Custom validators with ipaddress library
-- **Templating**: Modular Jinja2 templates with partials
-- **CLI**: argparse
-
-## 🔧 Advanced Configuration
-
-### Hierarchical Profiles
-
-Use profile inheritance for consistent multi-site deployments:
-
-```json
-{
-  "profiles": {
-    "global": {
-      "ntp_servers": ["10.0.0.1"],
-      "dns_servers": ["10.0.1.10"]
-    },
-    "sites": [
-      {
-        "name": "site-A",
-        "ntp_servers": ["10.1.0.1"]
-      }
-    ],
-    "roles": [
-      {
-        "name": "campus-access",
-        "site": "site-A",
-        "protocols": ["vlans", "stp", "security"]
-      }
-    ],
-    "devices": [
-      {
-        "hostname": "access-sw01",
-        "role": "campus-access",
-        "management_ip": "10.99.1.10"
-      }
-    ]
-  }
-}
-```
-
-Merge profiles via API:
-```bash
-POST /api/merge-profiles
-```
-
-### Vendor-Specific Notes
-
-#### Cisco IOS/IOS-XE
-- Uses wildcard masks for OSPF networks
-- HSRP standby groups
-- TCP MD5 authentication for BGP
-
-#### Cisco NX-OS
-- Feature enablement required (`feature ospf`, `feature vpc`)
-- vPC for MLAG
-- NVE interface for VXLAN
-
-#### Arista EOS
-- MLAG (not vPC)
-- `Vxlan1` interface
-- Route-map syntax for BGP policies
-
-#### Juniper Junos
-- Set-style configuration
-- `routing-instances` for VRFs
-- Interface units (`unit 0`)
-- VRRP integrated into interface config
-
-#### FRRouting
-- Integrated vtysh configuration
-- Interface-based OSPF/IS-IS
-- Standard Linux routing
-
-### Default Values (Security & Stability)
-
-- **STP**: Rapid-PVST (campus) or MST (DC), PortFast + BPDU Guard on access
-- **LACP**: Active mode, min-links=1, L2+L3 hashing
-- **OSPF**: Hello/Dead 10/40s, reference-bandwidth 100000 Mbps
-- **BGP**: Keepalive/Hold 60/180s, next-hop-self for iBGP, max-prefix warnings
-- **BFD**: 300ms Tx/Rx, multiplier 3
-- **EVPN**: Ingress replication, anycast gateway, symmetric IRB
-
-## 🛡️ Security Considerations
-
-- **No sensitive data in examples** - Use environment variables or secrets management
-- **Enable AAA** - Use TACACS+/RADIUS for authentication
-- **Disable unused services** - HTTP server, CDP (if not needed)
-- **Apply CoPP** - Control Plane Policing to protect device CPU
-- **Use ACLs** - Restrict management access (SSH, SNMP)
-
-## 🚧 Known Limitations
-
-- **RSVP-TE** - Optional, not all tunnel features implemented
-- **SR-TE Policies** - Basic support, advanced constraints WIP
-- **Platform Variations** - Some features vary by hardware/software version
-- **ASA Firewall** - Limited support (focus on routing/switching)
-
-## 🤝 Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Run linter: `flake8 engine/ tests/`
-5. Submit a pull request
-
-## 📄 License
-
-[Specify your license here]
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](link-to-issues)
-- **Docs**: See `docs/` directory for detailed guides
-- **Email**: netops@example.com
-
-## 🎯 Roadmap
-
-- [ ] Ansible integration (inventory → configs)
-- [ ] Terraform provider
-- [ ] GitOps workflow (commit → CI/CD → deploy)
-- [ ] Configuration compliance checking
-- [ ] Rollback mechanism
-- [ ] Multi-device diff view
-- [ ] REST API rate limiting
-- [ ] User authentication and RBAC
+Une plateforme complète de gestion et génération de configurations réseau avec interface web moderne, API REST, authentification JWT, base de données PostgreSQL, et déploiement automatisé.
 
 ---
 
-**Built with ❤️ for Network Engineers**
+## ✨ Nouveautés Version 2.0
+
+🎉 **Architecture Refactorisée** - Code modulaire et maintenable
+🔐 **Sécurité Renforcée** - Secrets externalisés, validation Pydantic, JWT auth
+💾 **Base de Données** - PostgreSQL avec SQLAlchemy ORM
+⚡ **Tâches Asynchrones** - Celery + Redis pour déploiements en arrière-plan
+📊 **WebSockets** - Mises à jour temps réel des déploiements
+🧪 **Tests Complets** - >50% de couverture, CI/CD automatisé
+🎨 **Frontend React** - Interface moderne avec Ant Design
+🏢 **Multi-tenant** - Support des organisations multiples
+
+---
+
+## 📋 Table des Matières
+
+- [Fonctionnalités](#-fonctionnalités)
+- [Architecture](#-architecture)
+- [Installation](#-installation)
+- [Démarrage Rapide](#-démarrage-rapide)
+- [Documentation](#-documentation)
+- [Tests](#-tests)
+- [Contribution](#-contribution)
+- [Migration](#-migration-depuis-v1)
+
+---
+
+## 🚀 Fonctionnalités
+
+### Multi-Vendor Support
+- **Cisco IOS/IOS-XE** - Routeurs et switches campus/edge
+- **Cisco NX-OS** - Switches data center (Nexus 9K/7K)
+- **Cisco ASA** - Pare-feu et sécurité
+- **Arista EOS** - Switches data center et campus
+- **Juniper Junos** - Switches EX/QFX
+
+### Protocoles Supportés
+
+#### 🔌 Layer 2
+- VLANs & Trunking (802.1Q)
+- Spanning Tree (STP, RSTP, MSTP, PVST+)
+- Link Aggregation (LACP)
+- Port Security, DHCP Snooping
+- Dynamic ARP Inspection
+- IP Source Guard
+- CDP / LLDP
+
+#### 🌐 Layer 3
+- **Routing**: OSPF, EIGRP, BGP, RIP, Static
+- **FHRP**: HSRP, VRRP, GLBP
+- **VRF/VRF-Lite** - Isolation des tables de routage
+- **Multicast**: PIM, IGMP/MLD
+- **NAT**: Static, Dynamic, PAT
+
+#### 🎯 Avancé
+- **VXLAN/EVPN** - Data center fabric
+- **QoS** - Classification, marking, policing
+- **NTP, SNMP, Syslog** - Monitoring
+- **AAA** - TACACS+, RADIUS authentication
+
+### Backend API (Nouveau v2.0)
+
+#### 🔐 Authentification & Autorisation
+- JWT (JSON Web Tokens) avec refresh tokens
+- Authentification basée sur les rôles (admin/user)
+- Multi-tenant avec isolation par organisation
+- Sessions sécurisées avec expiration
+
+#### 💾 Gestion des Périphériques
+- CRUD complet des devices
+- Import/Export CSV bulk
+- Gestion des credentials chiffrés
+- Health checks et monitoring
+- Historique des configurations
+
+#### ⚙️ Déploiement Automatisé
+- Déploiement asynchrone via Celery
+- WebSocket notifications en temps réel
+- Rollback automatique en cas d'échec
+- Logs détaillés de déploiement
+- Validation pré-déploiement
+
+#### 📊 Validation & Comparaison
+- Validation syntaxique avancée
+- Comparaison de configurations (diff)
+- Détection des changements risqués
+- Analyse de conformité
+- Suggestions d'optimisation
+
+### Frontend React (Nouveau v2.0)
+
+#### 🎨 Interface Moderne
+- **Dashboard** - Vue d'ensemble avec statistiques
+- **Inventaire** - Gestion des devices avec filtres
+- **Déploiement** - Wizard en 3 étapes
+- **Diff Viewer** - Comparaison side-by-side
+- **Timeline** - Historique interactif
+
+#### ⚡ Fonctionnalités
+- Auto-refresh (30s)
+- Import CSV bulk
+- Export configurations
+- Recherche et filtres avancés
+- Notifications temps réel
+
+---
+
+## 🏗️ Architecture
+
+### Structure Modulaire
+
+```
+cisco-config-generator/
+├── 🎯 Applications
+│   ├── app.py                     # [Legacy] Application monolithique
+│   ├── app_refactored.py         # ✨ [v2.0] Application modulaire
+│   └── app_api.py                # ✨ [v2.0] API REST avec JWT
+│
+├── 🔀 Routes (Blueprints Flask)
+│   ├── routes/
+│   │   ├── main.py               # Routes UI principales
+│   │   ├── devices.py            # Pages devices
+│   │   ├── protocols.py          # Configuration protocoles
+│   │   ├── configs.py            # Gestion configurations
+│   │   └── troubleshoot.py       # Troubleshooting
+│
+├── 🔧 Services (Business Logic)
+│   └── services/
+│       └── protocol_service.py   # Génération configurations
+│
+├── 📝 Schemas (Validation Pydantic)
+│   ├── schemas/
+│   │   ├── config_schemas.py     # Validation configs
+│   │   └── device_schemas.py     # Validation devices
+│
+├── 💾 Models (SQLAlchemy ORM)
+│   └── models/
+│       └── __init__.py           # Organization, User, Device, etc.
+│
+├── ⚡ Tasks (Celery Background Jobs)
+│   └── tasks/
+│       └── deployment_tasks.py   # Déploiements asynchrones
+│
+├── 🛠️ Utils (Helpers)
+│   ├── utils/
+│   │   ├── troubleshoot.py       # Commandes troubleshooting
+│   │   ├── config_export.py      # Export configurations
+│   │   └── generate_secrets.py   # Génération secrets sécurisés
+│
+├── 🧪 Tests (>50% Coverage)
+│   ├── tests/
+│   │   ├── conftest.py           # Fixtures pytest
+│   │   ├── unit/                 # Tests unitaires
+│   │   │   ├── test_models.py
+│   │   │   └── test_services.py
+│   │   └── integration/          # Tests intégration
+│   │       ├── test_api_auth.py
+│   │       ├── test_api_devices.py
+│   │       └── test_api_validation.py
+│
+├── 🎨 Frontend React
+│   └── frontend/
+│       └── src/
+│           ├── components/       # Composants React
+│           ├── services/         # API client
+│           └── App.jsx           # Application principale
+│
+├── 📄 Templates & Config
+│   ├── config_templates/         # Templates Jinja2
+│   ├── templates/                # Templates HTML
+│   ├── static/                   # Assets statiques
+│   └── migrations/               # Migrations DB
+│
+└── 📚 Documentation
+    ├── README.md                 # Ce fichier
+    ├── DEVELOPMENT.md            # Guide développement
+    ├── SECURITY.md               # Guide sécurité
+    ├── MIGRATION.md              # Guide migration v1→v2
+    ├── BACKEND_SETUP.md          # Setup backend
+    └── FRONTEND_SETUP.md         # Setup frontend
+```
+
+### Stack Technologique
+
+#### Backend
+- **Framework**: Flask 3.0+
+- **ORM**: SQLAlchemy 2.0+ avec Flask-Migrate
+- **Auth**: Flask-JWT-Extended (JWT tokens)
+- **Validation**: Pydantic 2.5+
+- **Queue**: Celery 5.3+ avec Redis
+- **WebSocket**: Flask-SocketIO avec Eventlet
+- **Database**: PostgreSQL 15+
+- **Cache**: Redis 7+
+
+#### Frontend
+- **Framework**: React 18.3+
+- **UI Library**: Ant Design 5.14+
+- **Routing**: React Router 6+
+- **State**: React Query 3.39+
+- **HTTP**: Axios
+- **WebSocket**: Socket.IO Client
+- **Build**: Vite 5.1+
+
+#### DevOps
+- **Containerization**: Docker + Docker Compose
+- **CI/CD**: GitHub Actions
+- **Testing**: Pytest avec coverage
+- **Linting**: Black, Flake8, isort, mypy
+- **Security**: Bandit, detect-secrets
+- **Pre-commit**: Hooks automatiques
+
+---
+
+## 📦 Installation
+
+### Prérequis
+
+- **Python** 3.11+
+- **PostgreSQL** 15+
+- **Redis** 7+
+- **Node.js** 18+ (pour le frontend)
+- **Docker** & Docker Compose (optionnel mais recommandé)
+
+### Option 1: Installation avec Docker (Recommandé)
+
+```bash
+# 1. Cloner le repository
+git clone <repository-url>
+cd cisco-config-generator
+
+# 2. Copier et configurer les variables d'environnement
+cp .env.example .env
+nano .env  # Modifier les secrets
+
+# 3. Générer des secrets sécurisés
+python utils/generate_secrets.py --env >> .env
+
+# 4. Démarrer tous les services
+docker-compose up -d
+
+# 5. Initialiser la base de données
+docker-compose exec api python init_db.py
+
+# 6. Vérifier les services
+docker-compose ps
+```
+
+Les services seront disponibles sur :
+- **API Backend**: http://localhost:5000
+- **Frontend React**: http://localhost:3000
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+
+### Option 2: Installation Manuelle
+
+#### Backend
+
+```bash
+# 1. Créer un environnement virtuel
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 2. Installer les dépendances
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 3. Configurer l'environnement
+cp .env.example .env
+python utils/generate_secrets.py --env  # Copier dans .env
+
+# 4. Démarrer PostgreSQL et Redis
+# (ou utiliser Docker Compose pour ces services uniquement)
+docker-compose up -d postgres redis
+
+# 5. Initialiser la base de données
+python init_db.py
+
+# 6. Démarrer l'application
+python app_api.py  # API Backend
+
+# Dans un autre terminal
+celery -A celery_app worker --loglevel=info  # Worker Celery
+```
+
+#### Frontend
+
+```bash
+# 1. Aller dans le répertoire frontend
+cd frontend
+
+# 2. Installer les dépendances
+npm install
+
+# 3. Démarrer le serveur de développement
+npm run dev
+```
+
+---
+
+## 🚀 Démarrage Rapide
+
+### Script de Démarrage Rapide
+
+```bash
+# Utiliser le script de démarrage
+chmod +x start_dev.sh
+./start_dev.sh
+```
+
+### Premiers Pas
+
+#### 1. Créer un Compte Administrateur
+
+```bash
+# Via l'API
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@example.com",
+    "username": "admin",
+    "password": "SecurePassword123!",
+    "first_name": "Admin",
+    "last_name": "User",
+    "organization_name": "My Organization"
+  }'
+```
+
+#### 2. Se Connecter
+
+```bash
+# Obtenir un token JWT
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "SecurePassword123!"
+  }'
+
+# Response:
+# {
+#   "access_token": "eyJ0eXAi...",
+#   "refresh_token": "eyJ0eXAi...",
+#   "user": {...}
+# }
+```
+
+#### 3. Ajouter un Device
+
+```bash
+curl -X POST http://localhost:5000/api/devices \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "hostname": "router1",
+    "ip_address": "192.168.1.1",
+    "platform": "ios",
+    "device_type": "router",
+    "location": "Data Center 1",
+    "username": "admin",
+    "password": "cisco123"
+  }'
+```
+
+#### 4. Générer une Configuration
+
+```bash
+curl -X POST http://localhost:5000/api/configs/generate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "platform": "ios",
+    "hostname": "router1",
+    "static_routes": [
+      {
+        "network": "192.168.1.0",
+        "mask": "255.255.255.0",
+        "next_hop": "10.0.0.1"
+      }
+    ],
+    "vlans": [
+      {"vlan_id": 10, "name": "VLAN_10"}
+    ]
+  }'
+```
+
+### Interface Web
+
+Ouvrez http://localhost:3000 dans votre navigateur :
+
+1. **Dashboard** - Vue d'ensemble des devices
+2. **Devices** - Ajouter/Modifier devices
+3. **Deployment** - Déployer des configurations
+4. **History** - Consulter l'historique
+
+---
+
+## 📚 Documentation
+
+### Guides Complets
+
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Guide de développement complet
+- **[SECURITY.md](SECURITY.md)** - Best practices de sécurité
+- **[MIGRATION.md](MIGRATION.md)** - Migration v1 → v2
+- **[BACKEND_SETUP.md](BACKEND_SETUP.md)** - Configuration backend détaillée
+- **[FRONTEND_SETUP.md](FRONTEND_SETUP.md)** - Configuration frontend détaillée
+
+### API Reference
+
+#### Endpoints Principaux
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/auth/register` | POST | Enregistrement utilisateur |
+| `/api/auth/login` | POST | Connexion |
+| `/api/auth/refresh` | POST | Refresh token |
+| `/api/devices` | GET/POST | Liste/Créer devices |
+| `/api/devices/{id}` | GET/PUT/DELETE | Device spécifique |
+| `/api/devices/{id}/ping` | POST | Ping device |
+| `/api/configs` | GET/POST | Configurations |
+| `/api/configs/generate` | POST | Générer config |
+| `/api/configs/compare` | POST | Comparer configs |
+| `/api/validate/config` | POST | Valider config |
+| `/api/deployments` | GET/POST | Déploiements |
+
+Documentation complète : http://localhost:5000/api/docs (quand l'app est lancée)
+
+---
+
+## 🧪 Tests
+
+### Exécuter les Tests
+
+```bash
+# Tous les tests
+pytest
+
+# Tests unitaires uniquement
+pytest tests/unit -v
+
+# Tests d'intégration uniquement
+pytest tests/integration -v
+
+# Avec coverage
+pytest --cov --cov-report=html --cov-report=term-missing
+
+# Ouvrir le rapport HTML
+open htmlcov/index.html
+```
+
+### Pre-commit Hooks
+
+```bash
+# Installer les hooks
+pre-commit install
+
+# Exécuter manuellement
+pre-commit run --all-files
+```
+
+### CI/CD
+
+Les tests sont automatiquement exécutés sur chaque push et PR via GitHub Actions :
+- ✅ Linting (black, flake8, isort, mypy)
+- ✅ Security scan (bandit, trivy)
+- ✅ Unit tests (>50% coverage)
+- ✅ Integration tests
+- ✅ Docker build
+
+---
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues ! Veuillez :
+
+1. **Fork** le repository
+2. **Créer** une branche feature (`git checkout -b feature/ma-feature`)
+3. **Ajouter** des tests pour vos modifications
+4. **Vérifier** que tous les tests passent (`pytest`)
+5. **Commit** vos changements (`git commit -m 'feat: ajouter ma feature'`)
+6. **Push** vers la branche (`git push origin feature/ma-feature`)
+7. **Créer** une Pull Request
+
+### Format des Commits
+
+Suivre [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: nouvelle fonctionnalité
+fix: correction de bug
+docs: documentation
+test: ajout de tests
+refactor: refactoring du code
+style: formatage du code
+chore: tâches de maintenance
+```
+
+---
+
+## 🔄 Migration depuis v1
+
+Si vous utilisez l'ancienne version monolithique (`app.py`), consultez **[MIGRATION.md](MIGRATION.md)** pour migrer vers v2.0.
+
+### Différences Principales
+
+| Aspect | v1.0 (Legacy) | v2.0 (Nouveau) |
+|--------|---------------|----------------|
+| **Architecture** | Monolithique (1776 lignes) | Modulaire (35+ fichiers) |
+| **Base de données** | Fichiers/mémoire | PostgreSQL |
+| **Auth** | Aucune | JWT avec multi-tenant |
+| **Déploiement** | Synchrone | Asynchrone (Celery) |
+| **Monitoring** | Aucun | WebSocket temps réel |
+| **Frontend** | Templates Jinja2 | React moderne |
+| **Tests** | Minimaux | >50% coverage |
+| **CI/CD** | Aucun | GitHub Actions |
+| **Sécurité** | Secrets hardcodés | Variables d'environnement |
+
+---
+
+## 🛡️ Sécurité
+
+### Bonnes Pratiques
+
+✅ **Secrets externalisés** - Jamais de secrets dans le code
+✅ **Validation stricte** - Pydantic pour toutes les entrées
+✅ **JWT sécurisés** - Tokens avec expiration
+✅ **Mots de passe hashés** - Bcrypt pour tous les passwords
+✅ **HTTPS recommandé** - Utiliser un reverse proxy en production
+✅ **CORS configuré** - Origines autorisées définies
+✅ **Rate limiting** - Protection contre les abus
+
+### Rapport de Vulnérabilité
+
+Pour signaler une vulnérabilité de sécurité :
+- **NE PAS** créer une issue publique
+- Envoyer un email à : security@yourcompany.com
+- Voir [SECURITY.md](SECURITY.md) pour plus de détails
+
+---
+
+## 📄 License
+
+[MIT License](LICENSE) - Copyright (c) 2025
+
+---
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/cisco-config-generator/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/cisco-config-generator/discussions)
+- **Documentation**: [Wiki](https://github.com/yourusername/cisco-config-generator/wiki)
+- **Email**: support@yourcompany.com
+
+---
+
+## 🎯 Roadmap
+
+### v2.1 (Q2 2025)
+- [ ] Swagger/OpenAPI documentation complète
+- [ ] Webhooks pour notifications externes
+- [ ] Export/Import de configurations en masse
+- [ ] Dashboard avec métriques Prometheus
+
+### v2.2 (Q3 2025)
+- [ ] Terraform provider
+- [ ] Ansible collection
+- [ ] GitOps workflow natif
+- [ ] Compliance as Code
+
+### v3.0 (Q4 2025)
+- [ ] AI-assisted configuration generation
+- [ ] Prédiction de problèmes réseau
+- [ ] Optimisation automatique de configs
+- [ ] Network Digital Twin
+
+---
+
+## 🙏 Remerciements
+
+Construit avec ❤️ pour les Network Engineers
+
+- Flask & SQLAlchemy teams
+- React & Ant Design teams
+- Celery & Redis teams
+- La communauté open source
+
+---
+
+**⭐ N'oubliez pas de mettre une étoile si ce projet vous est utile !**
