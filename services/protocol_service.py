@@ -147,6 +147,15 @@ class ProtocolService:
             return ProtocolService._generate_qos(form_data)
         elif slug in ('vrf', 'mpls'):
             return ProtocolService._generate_vrf(form_data)
+        # Layer 3 - Multicast & Routing Protocols
+        elif slug == 'rip':
+            return ProtocolService._generate_rip(form_data, get_single)
+        elif slug == 'igmp':
+            return ProtocolService._generate_igmp(form_data)
+        elif slug == 'pim':
+            return ProtocolService._generate_pim(form_data, get_single)
+        elif slug == 'multicast-routing':
+            return ProtocolService._generate_multicast_routing(form_data, get_single)
         else:
             return f"{slug}: configuration submitted"
 
@@ -919,5 +928,117 @@ class ProtocolService:
 
         if not added:
             cli_lines.append('! no VRFs provided')
+
+        return "\n".join(cli_lines)
+
+    # ========================================================================
+    # Layer 3 - Multicast & Routing Protocols
+    # ========================================================================
+
+    @staticmethod
+    def _generate_rip(form_data: Dict[str, Any], get_single) -> str:
+        """Generate RIP (Routing Information Protocol) configuration."""
+        version = get_single('rip_version') or ''
+        networks = [n for n in form_data.get('rip_network', []) if n]
+
+        cli_lines = ['! RIP configuration']
+        cli_lines.append('router rip')
+
+        if version:
+            cli_lines.append(f' version {version}')
+
+        for net in networks:
+            cli_lines.append(f' network {net}')
+
+        cli_lines.append(' no auto-summary')
+        cli_lines.append(' exit')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_igmp(form_data: Dict[str, Any]) -> str:
+        """Generate IGMP (Internet Group Management Protocol) configuration."""
+        interfaces = form_data.get('igmp_interface', [])
+        versions = form_data.get('igmp_version', [])
+
+        cli_lines = ['! IGMP configuration']
+        max_len = max(len(interfaces), len(versions))
+        added = False
+
+        for i in range(max_len):
+            intf = interfaces[i] if i < len(interfaces) else ''
+            ver = versions[i] if i < len(versions) else ''
+
+            if intf:
+                added = True
+                cli_lines.append(f'interface {intf}')
+                if ver:
+                    cli_lines.append(f' ip igmp version {ver}')
+                cli_lines.append(' exit')
+
+        if not added:
+            cli_lines.append('! no IGMP interfaces provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_pim(form_data: Dict[str, Any], get_single) -> str:
+        """Generate PIM (Protocol Independent Multicast) configuration."""
+        mode = get_single('pim_mode') or ''
+        interfaces = form_data.get('pim_interface', [])
+        rp = get_single('pim_rp_address') or ''
+        grp = get_single('pim_group_range') or ''
+
+        cli_lines = ['! PIM configuration']
+        added = False
+
+        # Configure PIM on interfaces
+        for iface in interfaces:
+            if iface:
+                added = True
+                cli_lines.append(f'interface {iface}')
+                if mode:
+                    # Convert mode to CLI (e.g. sparse -> sparse-mode)
+                    cli_lines.append(f' ip pim {mode}-mode')
+                cli_lines.append(' exit')
+
+        # RP configuration
+        if rp:
+            added = True
+            if grp:
+                cli_lines.append(f'ip pim rp-address {rp} {grp}')
+            else:
+                cli_lines.append(f'ip pim rp-address {rp}')
+
+        if not added:
+            cli_lines.append('! no PIM entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_multicast_routing(form_data: Dict[str, Any], get_single) -> str:
+        """Generate Multicast Routing configuration."""
+        enable = 'multicast_enable' in form_data
+        ssm = get_single('multicast_ssm_range') or ''
+        rp_enable = 'multicast_rp_enable' in form_data
+        rp_addr = get_single('multicast_rp_address') or ''
+        bsr = 'multicast_bsr_enable' in form_data
+
+        cli_lines = ['! Multicast Routing configuration']
+
+        if enable:
+            cli_lines.append('ip multicast-routing')
+
+        if ssm:
+            cli_lines.append(f'ip pim ssm range {ssm}')
+
+        if rp_enable and rp_addr:
+            cli_lines.append(f'ip pim rp-address {rp_addr}')
+
+        if bsr:
+            cli_lines.append('! BSR candidate configuration required')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no multicast routing entries provided')
 
         return "\n".join(cli_lines)

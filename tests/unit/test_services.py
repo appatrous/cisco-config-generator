@@ -542,6 +542,111 @@ class TestProtocolService:
         assert '! VRF/MPLS configuration' in config
         assert 'ip vrf CUSTOMER_A' in config
 
+    def test_generate_rip(self):
+        """Test RIP configuration generation."""
+        form_data = {
+            'rip_version': ['2'],
+            'rip_network': ['10.0.0.0', '192.168.1.0', '172.16.0.0']
+        }
+        config = ProtocolService.generate_config('rip', form_data)
+
+        assert '! RIP configuration' in config
+        assert 'router rip' in config
+        assert 'version 2' in config
+        assert 'network 10.0.0.0' in config
+        assert 'network 192.168.1.0' in config
+        assert 'network 172.16.0.0' in config
+        assert 'no auto-summary' in config
+
+    def test_generate_rip_minimal(self):
+        """Test RIP with minimal configuration."""
+        form_data = {
+            'rip_network': ['10.0.0.0']
+        }
+        config = ProtocolService.generate_config('rip', form_data)
+
+        assert '! RIP configuration' in config
+        assert 'router rip' in config
+        assert 'network 10.0.0.0' in config
+        assert 'no auto-summary' in config
+
+    def test_generate_igmp(self):
+        """Test IGMP configuration generation."""
+        form_data = {
+            'igmp_interface': ['GigabitEthernet0/1', 'GigabitEthernet0/2'],
+            'igmp_version': ['2', '3']
+        }
+        config = ProtocolService.generate_config('igmp', form_data)
+
+        assert '! IGMP configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip igmp version 2' in config
+        assert 'interface GigabitEthernet0/2' in config
+        assert 'ip igmp version 3' in config
+
+    def test_generate_igmp_without_version(self):
+        """Test IGMP without version specification."""
+        form_data = {
+            'igmp_interface': ['GigabitEthernet0/1']
+        }
+        config = ProtocolService.generate_config('igmp', form_data)
+
+        assert '! IGMP configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+
+    def test_generate_pim(self):
+        """Test PIM configuration generation."""
+        form_data = {
+            'pim_mode': ['sparse'],
+            'pim_interface': ['GigabitEthernet0/1', 'GigabitEthernet0/2'],
+            'pim_rp_address': ['10.0.0.1'],
+            'pim_group_range': ['224.0.0.0/4']
+        }
+        config = ProtocolService.generate_config('pim', form_data)
+
+        assert '! PIM configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip pim sparse-mode' in config
+        assert 'interface GigabitEthernet0/2' in config
+        assert 'ip pim rp-address 10.0.0.1 224.0.0.0/4' in config
+
+    def test_generate_pim_rp_only(self):
+        """Test PIM with RP address only."""
+        form_data = {
+            'pim_rp_address': ['10.0.0.1']
+        }
+        config = ProtocolService.generate_config('pim', form_data)
+
+        assert '! PIM configuration' in config
+        assert 'ip pim rp-address 10.0.0.1' in config
+
+    def test_generate_multicast_routing(self):
+        """Test Multicast Routing configuration generation."""
+        form_data = {
+            'multicast_enable': True,
+            'multicast_ssm_range': ['232.0.0.0/8'],
+            'multicast_rp_enable': True,
+            'multicast_rp_address': ['10.0.0.1'],
+            'multicast_bsr_enable': True
+        }
+        config = ProtocolService.generate_config('multicast-routing', form_data)
+
+        assert '! Multicast Routing configuration' in config
+        assert 'ip multicast-routing' in config
+        assert 'ip pim ssm range 232.0.0.0/8' in config
+        assert 'ip pim rp-address 10.0.0.1' in config
+        assert 'BSR candidate configuration required' in config
+
+    def test_generate_multicast_routing_minimal(self):
+        """Test Multicast Routing with minimal configuration."""
+        form_data = {
+            'multicast_enable': True
+        }
+        config = ProtocolService.generate_config('multicast-routing', form_data)
+
+        assert '! Multicast Routing configuration' in config
+        assert 'ip multicast-routing' in config
+
 
 class TestTroubleshootUtils:
     """Tests for troubleshoot utilities."""
