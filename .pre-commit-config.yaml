@@ -1,0 +1,135 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Prevent large files from being committed
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+
+      # Check for files that would conflict in case-insensitive filesystems
+      - id: check-case-conflict
+
+      # Check for merge conflicts
+      - id: check-merge-conflict
+
+      # Check YAML syntax
+      - id: check-yaml
+        args: ['--unsafe']  # Allow custom YAML tags
+
+      # Check TOML syntax
+      - id: check-toml
+
+      # Check JSON syntax
+      - id: check-json
+
+      # Detect private keys
+      - id: detect-private-key
+
+      # Fix end of files
+      - id: end-of-file-fixer
+        exclude: '\.json$'
+
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      # Fix mixed line endings
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+      # Check Python AST
+      - id: check-ast
+
+      # Check for debugger imports
+      - id: debug-statements
+
+      # Check docstring is first
+      - id: check-docstring-first
+
+      # Sort requirements.txt
+      - id: requirements-txt-fixer
+
+  # Python code formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: ['--line-length=100']
+        exclude: 'migrations/'
+
+  # Import sorting with isort
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black', '--line-length=100']
+        exclude: 'migrations/'
+
+  # Linting with flake8
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        args:
+          - '--max-line-length=100'
+          - '--extend-ignore=E203,W503,E501'
+          - '--exclude=migrations/,venv/,env/,.venv/,__pycache__'
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-bugbear
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.7.1
+    hooks:
+      - id: mypy
+        args: ['--ignore-missing-imports', '--no-strict-optional']
+        exclude: '(tests/|migrations/)'
+        additional_dependencies:
+          - types-PyYAML
+          - types-redis
+          - types-paramiko
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        args: ['-ll', '-i', '-x', 'tests/,venv/']
+        exclude: 'tests/'
+
+  # Check for secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '(\.git/|\.pytest_cache/|htmlcov/)'
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+
+  # Shell script checking
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+
+# Global settings
+default_language_version:
+  python: python3
+
+# Files to exclude from all hooks
+exclude: '^(\.git/|\.tox/|\.venv/|venv/|env/|build/|dist/|\.eggs/|.*\.egg-info/)'
+
+# Fail fast - stop on first error
+fail_fast: false
