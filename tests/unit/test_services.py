@@ -297,6 +297,251 @@ class TestProtocolService:
         assert 'switchport voice vlan 20' in config
         assert 'auto qos' not in config
 
+    def test_generate_bgp(self):
+        """Test BGP configuration generation."""
+        form_data = {
+            'bgp_as_number': ['65000'],
+            'bgp_router_id': ['1.1.1.1'],
+            'bgp_neighbor': ['10.0.0.1', '10.0.0.2'],
+            'bgp_remote_as': ['65001', '65002'],
+            'bgp_network': ['192.168.1.0', '192.168.2.0'],
+            'bgp_mask': ['255.255.255.0', '255.255.255.0']
+        }
+        config = ProtocolService.generate_config('bgp', form_data)
+
+        assert '! BGP configuration' in config
+        assert 'router bgp 65000' in config
+        assert 'bgp router-id 1.1.1.1' in config
+        assert 'neighbor 10.0.0.1 remote-as 65001' in config
+        assert 'neighbor 10.0.0.1 activate' in config
+        assert 'neighbor 10.0.0.2 remote-as 65002' in config
+        assert 'network 192.168.1.0 mask 255.255.255.0' in config
+        assert 'network 192.168.2.0 mask 255.255.255.0' in config
+
+    def test_generate_bgp_minimal(self):
+        """Test BGP with minimal configuration."""
+        form_data = {
+            'bgp_as_number': ['65000']
+        }
+        config = ProtocolService.generate_config('bgp', form_data)
+
+        assert '! BGP configuration' in config
+        assert 'router bgp 65000' in config
+
+    def test_generate_acl(self):
+        """Test ACL configuration generation."""
+        form_data = {
+            'acl_action': ['permit', 'deny'],
+            'acl_protocol': ['tcp', 'ip'],
+            'acl_src': ['192.168.1.0 0.0.0.255', 'any'],
+            'acl_dst': ['any', '10.0.0.0 0.255.255.255']
+        }
+        config = ProtocolService.generate_config('acl', form_data)
+
+        assert '! Access Control List' in config
+        assert 'ip access-list extended ACL_1' in config
+        assert '10 permit tcp 192.168.1.0 0.0.0.255 any' in config
+        assert '20 deny ip any 10.0.0.0 0.255.255.255' in config
+
+    def test_generate_acl_empty(self):
+        """Test ACL with no entries."""
+        form_data = {}
+        config = ProtocolService.generate_config('acl', form_data)
+
+        assert '! Access Control List' in config
+        assert 'no ACL entries provided' in config
+
+    def test_generate_aaa_tacacs(self):
+        """Test AAA with TACACS+ configuration."""
+        form_data = {
+            'aaa_use_tacacs': True,
+            'tacacs_server': ['10.0.0.10', '10.0.0.11'],
+            'local_user_name': ['admin'],
+            'local_user_password': ['cisco123'],
+            'local_user_priv': ['15']
+        }
+        config = ProtocolService.generate_config('aaa', form_data)
+
+        assert '! AAA configuration' in config
+        assert 'aaa new-model' in config
+        assert 'tacacs-server host 10.0.0.10' in config
+        assert 'tacacs-server host 10.0.0.11' in config
+        assert 'aaa authentication login default group tacacs+ local' in config
+        assert 'username admin privilege 15 secret cisco123' in config
+
+    def test_generate_aaa_radius(self):
+        """Test AAA with RADIUS configuration."""
+        form_data = {
+            'aaa_use_radius': True,
+            'radius_server': ['10.0.0.20']
+        }
+        config = ProtocolService.generate_config('aaa', form_data)
+
+        assert '! AAA configuration' in config
+        assert 'aaa new-model' in config
+        assert 'radius-server host 10.0.0.20' in config
+        assert 'aaa authentication login default group radius local' in config
+
+    def test_generate_aaa_local_only(self):
+        """Test AAA with local users only."""
+        form_data = {
+            'local_user_name': ['user1', 'user2'],
+            'local_user_password': ['pass1', 'pass2'],
+            'local_user_priv': ['10', '']
+        }
+        config = ProtocolService.generate_config('aaa', form_data)
+
+        assert '! AAA configuration' in config
+        assert 'aaa new-model' in config
+        assert 'username user1 privilege 10 secret pass1' in config
+        assert 'username user2 privilege 15 secret pass2' in config
+
+    def test_generate_snmp_v2(self):
+        """Test SNMP v2 configuration."""
+        form_data = {
+            'snmp_community': ['public', 'private'],
+            'snmp_community_access': ['RO', 'RW'],
+            'snmp_community_acl': ['10', '20'],
+            'snmp_location': ['Data Center 1'],
+            'snmp_contact': ['admin@example.com'],
+            'snmp_trap_server': ['10.0.0.100']
+        }
+        config = ProtocolService.generate_config('snmp', form_data)
+
+        assert '! SNMP configuration' in config
+        assert 'snmp-server community public RO 10' in config
+        assert 'snmp-server community private RW 20' in config
+        assert 'snmp-server location Data Center 1' in config
+        assert 'snmp-server contact admin@example.com' in config
+        assert 'snmp-server host 10.0.0.100' in config
+
+    def test_generate_snmp_v3(self):
+        """Test SNMP v3 configuration."""
+        form_data = {
+            'snmp_v3_user': ['snmpuser'],
+            'snmp_v3_auth': ['sha'],
+            'snmp_v3_auth_pwd': ['authpass123'],
+            'snmp_v3_priv': ['aes128'],
+            'snmp_v3_priv_pwd': ['privpass123']
+        }
+        config = ProtocolService.generate_config('snmp', form_data)
+
+        assert '! SNMP configuration' in config
+        assert 'snmp-server group V3GROUP v3 priv' in config
+        assert 'snmp-server user snmpuser V3GROUP v3 auth sha authpass123 priv aes128 privpass123' in config
+
+    def test_generate_syslog(self):
+        """Test Syslog configuration generation."""
+        form_data = {
+            'syslog_server_ip': ['10.0.0.50', '10.0.0.51'],
+            'syslog_server_port': ['514', ''],
+            'syslog_console_enable': True,
+            'syslog_console_level': ['informational'],
+            'syslog_buffer_enable': True,
+            'syslog_buffer_level': ['debugging'],
+            'syslog_buffer_size': ['8192']
+        }
+        config = ProtocolService.generate_config('syslog', form_data)
+
+        assert '! Syslog configuration' in config
+        assert 'logging host 10.0.0.50 514' in config
+        assert 'logging host 10.0.0.51' in config
+        assert 'logging console informational' in config
+        assert 'logging buffered 8192 debugging' in config
+
+    def test_generate_syslog_minimal(self):
+        """Test Syslog with minimal configuration."""
+        form_data = {
+            'syslog_server_ip': ['10.0.0.50']
+        }
+        config = ProtocolService.generate_config('syslog', form_data)
+
+        assert '! Syslog configuration' in config
+        assert 'logging host 10.0.0.50' in config
+
+    def test_generate_stp(self):
+        """Test STP configuration generation."""
+        form_data = {
+            'stp_mode': ['rapid-pvst'],
+            'stp_priority': ['4096']
+        }
+        config = ProtocolService.generate_config('stp', form_data)
+
+        assert '! Spanning Tree configuration' in config
+        assert 'spanning-tree mode rapid-pvst' in config
+        assert 'spanning-tree priority 4096' in config
+
+    def test_generate_stp_minimal(self):
+        """Test STP with mode only."""
+        form_data = {
+            'stp_mode': ['pvst']
+        }
+        config = ProtocolService.generate_config('stp', form_data)
+
+        assert '! Spanning Tree configuration' in config
+        assert 'spanning-tree mode pvst' in config
+
+    def test_generate_qos(self):
+        """Test QoS configuration generation."""
+        form_data = {
+            'qos_class_name': ['VOICE', 'VIDEO', 'DATA'],
+            'qos_bandwidth': ['', '2000', '1000'],
+            'qos_priority': ['yes', '', ''],
+            'qos_dscp': ['ef', 'af41', 'af21']
+        }
+        config = ProtocolService.generate_config('qos', form_data)
+
+        assert '! QoS configuration' in config
+        assert 'class-map match-any VOICE' in config
+        assert 'match dscp ef' in config
+        assert 'class-map match-any VIDEO' in config
+        assert 'match dscp af41' in config
+        assert 'policy-map QOS_POLICY' in config
+        assert 'class VOICE' in config
+        assert 'priority' in config
+        assert 'class VIDEO' in config
+        assert 'bandwidth 2000' in config
+        assert 'set dscp af41' in config
+
+    def test_generate_qos_minimal(self):
+        """Test QoS with minimal configuration."""
+        form_data = {
+            'qos_class_name': ['VOICE'],
+            'qos_dscp': ['ef']
+        }
+        config = ProtocolService.generate_config('qos', form_data)
+
+        assert '! QoS configuration' in config
+        assert 'class-map match-any VOICE' in config
+        assert 'match dscp ef' in config
+
+    def test_generate_vrf(self):
+        """Test VRF configuration generation."""
+        form_data = {
+            'vrf_name': ['CUSTOMER_A', 'CUSTOMER_B'],
+            'vrf_rd': ['100:1', '100:2'],
+            'vrf_rt': ['100:1', '100:2']
+        }
+        config = ProtocolService.generate_config('vrf', form_data)
+
+        assert '! VRF/MPLS configuration' in config
+        assert 'ip vrf CUSTOMER_A' in config
+        assert 'rd 100:1' in config
+        assert 'route-target both 100:1' in config
+        assert 'ip vrf CUSTOMER_B' in config
+        assert 'rd 100:2' in config
+        assert 'route-target both 100:2' in config
+
+    def test_generate_vrf_minimal(self):
+        """Test VRF with minimal configuration."""
+        form_data = {
+            'vrf_name': ['CUSTOMER_A']
+        }
+        config = ProtocolService.generate_config('vrf', form_data)
+
+        assert '! VRF/MPLS configuration' in config
+        assert 'ip vrf CUSTOMER_A' in config
+
 
 class TestTroubleshootUtils:
     """Tests for troubleshoot utilities."""
