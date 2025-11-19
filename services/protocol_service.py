@@ -163,6 +163,13 @@ class ProtocolService:
             return ProtocolService._generate_netflow(form_data, get_single)
         elif slug == 'gnoc':
             return ProtocolService._generate_gnoc(form_data, get_single)
+        # VPN & Tunnels
+        elif slug == 'gre':
+            return ProtocolService._generate_gre(form_data)
+        elif slug == 'ssl-vpn':
+            return ProtocolService._generate_ssl_vpn(form_data, get_single)
+        elif slug == 'anyconnect':
+            return ProtocolService._generate_anyconnect(form_data, get_single)
         else:
             return f"{slug}: configuration submitted"
 
@@ -1162,5 +1169,115 @@ class ProtocolService:
         # Document parameters as comments since specifics are unknown
         cli_lines.append(f'! param1: {p1}')
         cli_lines.append(f'! param2: {p2}')
+
+        return "\n".join(cli_lines)
+
+    # ========================================================================
+    # VPN & Tunnels
+    # ========================================================================
+
+    @staticmethod
+    def _generate_gre(form_data: Dict[str, Any]) -> str:
+        """Generate GRE (Generic Routing Encapsulation) tunnel configuration."""
+        ids = form_data.get('gre_tunnel_id', [])
+        srcs = form_data.get('gre_source', [])
+        dests = form_data.get('gre_destination', [])
+        ips = form_data.get('gre_tunnel_ip', [])
+
+        cli_lines = ['! GRE tunnel configuration']
+        max_len = max(len(ids), len(srcs), len(dests), len(ips))
+        added = False
+
+        for i in range(max_len):
+            t_id = ids[i] if i < len(ids) else ''
+            src = srcs[i] if i < len(srcs) else ''
+            dst = dests[i] if i < len(dests) else ''
+            ip = ips[i] if i < len(ips) else ''
+
+            if dst:
+                added = True
+                # Default tunnel number if not provided
+                tun_id = t_id if t_id else str(i)
+                cli_lines.append(f'interface Tunnel{tun_id}')
+
+                if ip:
+                    cli_lines.append(f' ip address {ip}')
+
+                if src:
+                    cli_lines.append(f' tunnel source {src}')
+
+                cli_lines.append(f' tunnel destination {dst}')
+                cli_lines.append(' exit')
+
+        if not added:
+            cli_lines.append('! no GRE tunnels provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_ssl_vpn(form_data: Dict[str, Any], get_single) -> str:
+        """Generate SSL VPN configuration (ASA style)."""
+        ip_addr = get_single('ssl_public_ip') or ''
+        port = get_single('ssl_port') or ''
+        tg = get_single('ssl_tunnel_group') or ''
+        auth = get_single('ssl_auth_method') or ''
+
+        cli_lines = ['! SSL VPN configuration']
+
+        # WebVPN port configuration
+        if port:
+            cli_lines.append('webvpn')
+            cli_lines.append(f' port {port}')
+            cli_lines.append(' exit')
+
+        # Tunnel-group configuration
+        if tg:
+            cli_lines.append(f'tunnel-group {tg} type remote-access')
+            cli_lines.append(f'tunnel-group {tg} general-attributes')
+            if auth:
+                cli_lines.append(f' authentication-server-group {auth}')
+            cli_lines.append(' exit')
+
+        # Public IP comment
+        if ip_addr:
+            cli_lines.append(f'! public IP for SSL VPN: {ip_addr}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no SSL VPN entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_anyconnect(form_data: Dict[str, Any], get_single) -> str:
+        """Generate AnyConnect VPN configuration (ASA style)."""
+        portal = get_single('anyconnect_portal_address') or ''
+        gp = get_single('anyconnect_group_policy') or ''
+        proto = get_single('anyconnect_protocol') or ''
+
+        cli_lines = ['! AnyConnect configuration']
+
+        # WebVPN portal and enable AnyConnect
+        if portal:
+            cli_lines.append('webvpn')
+            cli_lines.append(f' url-listen {portal}')
+            cli_lines.append(' anyconnect enable')
+            cli_lines.append(' exit')
+
+        # Group-policy configuration
+        if gp:
+            cli_lines.append(f'group-policy {gp} internal')
+            cli_lines.append(f'group-policy {gp} attributes')
+            if proto:
+                cli_lines.append(f' vpn-tunnel-protocol {proto}')
+            cli_lines.append(' exit')
+
+            # Tunnel-group using group policy
+            cli_lines.append(f'tunnel-group {gp} type remote-access')
+            cli_lines.append(f'tunnel-group {gp} general-attributes')
+            cli_lines.append(f' default-group-policy {gp}')
+            cli_lines.append(' exit')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no AnyConnect entries provided')
 
         return "\n".join(cli_lines)

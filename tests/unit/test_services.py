@@ -733,6 +733,98 @@ class TestProtocolService:
         assert '! param1:' in config
         assert '! param2:' in config
 
+    def test_generate_gre(self):
+        """Test GRE tunnel configuration generation."""
+        form_data = {
+            'gre_tunnel_id': ['1', '2'],
+            'gre_source': ['GigabitEthernet0/0', '10.0.0.1'],
+            'gre_destination': ['203.0.113.1', '203.0.113.2'],
+            'gre_tunnel_ip': ['192.168.1.1 255.255.255.252', '192.168.1.5 255.255.255.252']
+        }
+        config = ProtocolService.generate_config('gre', form_data)
+
+        assert '! GRE tunnel configuration' in config
+        assert 'interface Tunnel1' in config
+        assert 'ip address 192.168.1.1 255.255.255.252' in config
+        assert 'tunnel source GigabitEthernet0/0' in config
+        assert 'tunnel destination 203.0.113.1' in config
+        assert 'interface Tunnel2' in config
+        assert 'ip address 192.168.1.5 255.255.255.252' in config
+        assert 'tunnel source 10.0.0.1' in config
+        assert 'tunnel destination 203.0.113.2' in config
+
+    def test_generate_gre_minimal(self):
+        """Test GRE with minimal configuration."""
+        form_data = {
+            'gre_destination': ['203.0.113.1']
+        }
+        config = ProtocolService.generate_config('gre', form_data)
+
+        assert '! GRE tunnel configuration' in config
+        assert 'interface Tunnel0' in config
+        assert 'tunnel destination 203.0.113.1' in config
+
+    def test_generate_ssl_vpn(self):
+        """Test SSL VPN configuration generation."""
+        form_data = {
+            'ssl_public_ip': ['203.0.113.10'],
+            'ssl_port': ['443'],
+            'ssl_tunnel_group': ['SSL_VPN_GROUP'],
+            'ssl_auth_method': ['RADIUS']
+        }
+        config = ProtocolService.generate_config('ssl-vpn', form_data)
+
+        assert '! SSL VPN configuration' in config
+        assert 'webvpn' in config
+        assert 'port 443' in config
+        assert 'tunnel-group SSL_VPN_GROUP type remote-access' in config
+        assert 'tunnel-group SSL_VPN_GROUP general-attributes' in config
+        assert 'authentication-server-group RADIUS' in config
+        assert '! public IP for SSL VPN: 203.0.113.10' in config
+
+    def test_generate_ssl_vpn_minimal(self):
+        """Test SSL VPN with minimal configuration."""
+        form_data = {
+            'ssl_port': ['443']
+        }
+        config = ProtocolService.generate_config('ssl-vpn', form_data)
+
+        assert '! SSL VPN configuration' in config
+        assert 'webvpn' in config
+        assert 'port 443' in config
+
+    def test_generate_anyconnect(self):
+        """Test AnyConnect VPN configuration generation."""
+        form_data = {
+            'anyconnect_portal_address': ['vpn.example.com'],
+            'anyconnect_group_policy': ['ANYCONNECT_POLICY'],
+            'anyconnect_protocol': ['ssl-client']
+        }
+        config = ProtocolService.generate_config('anyconnect', form_data)
+
+        assert '! AnyConnect configuration' in config
+        assert 'webvpn' in config
+        assert 'url-listen vpn.example.com' in config
+        assert 'anyconnect enable' in config
+        assert 'group-policy ANYCONNECT_POLICY internal' in config
+        assert 'group-policy ANYCONNECT_POLICY attributes' in config
+        assert 'vpn-tunnel-protocol ssl-client' in config
+        assert 'tunnel-group ANYCONNECT_POLICY type remote-access' in config
+        assert 'tunnel-group ANYCONNECT_POLICY general-attributes' in config
+        assert 'default-group-policy ANYCONNECT_POLICY' in config
+
+    def test_generate_anyconnect_minimal(self):
+        """Test AnyConnect with minimal configuration."""
+        form_data = {
+            'anyconnect_portal_address': ['vpn.example.com']
+        }
+        config = ProtocolService.generate_config('anyconnect', form_data)
+
+        assert '! AnyConnect configuration' in config
+        assert 'webvpn' in config
+        assert 'url-listen vpn.example.com' in config
+        assert 'anyconnect enable' in config
+
 
 class TestTroubleshootUtils:
     """Tests for troubleshoot utilities."""
