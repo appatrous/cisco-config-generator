@@ -115,6 +115,21 @@ class ProtocolService:
             return ProtocolService._generate_fhrp(slug, form_data)
         elif slug == 'ntp-ptp':
             return ProtocolService._generate_ntp(form_data, get_single)
+        # Layer 2 Security & Management
+        elif slug == 'vtp':
+            return ProtocolService._generate_vtp(form_data, get_single)
+        elif slug == 'dhcp-snooping':
+            return ProtocolService._generate_dhcp_snooping(form_data, get_single)
+        elif slug == 'dynamic-arp-inspection':
+            return ProtocolService._generate_dai(form_data, get_single)
+        elif slug == 'ip-source-guard':
+            return ProtocolService._generate_ip_source_guard(form_data)
+        elif slug == 'igmp-snooping':
+            return ProtocolService._generate_igmp_snooping(form_data, get_single)
+        elif slug == 'private-vlan':
+            return ProtocolService._generate_private_vlan(form_data)
+        elif slug == 'voice-vlan':
+            return ProtocolService._generate_voice_vlan(form_data)
         else:
             return f"{slug}: configuration submitted"
 
@@ -325,5 +340,230 @@ class ProtocolService:
 
         if len(cli_lines) <= 1:
             cli_lines.append('! no NTP servers provided')
+
+        return "\n".join(cli_lines)
+
+    # ========================================================================
+    # Layer 2 Security & Management Protocols
+    # ========================================================================
+
+    @staticmethod
+    def _generate_vtp(form_data: Dict[str, Any], get_single) -> str:
+        """Generate VTP (VLAN Trunking Protocol) configuration."""
+        mode = get_single('vtp_mode') or ''
+        domain = get_single('vtp_domain') or ''
+        password = get_single('vtp_password') or ''
+        version = get_single('vtp_version') or ''
+
+        cli_lines = ['! VTP configuration']
+        if mode:
+            cli_lines.append(f'vtp mode {mode}')
+        if domain:
+            cli_lines.append(f'vtp domain {domain}')
+        if password:
+            cli_lines.append(f'vtp password {password}')
+        if version:
+            cli_lines.append(f'vtp version {version}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no VTP configuration provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_dhcp_snooping(form_data: Dict[str, Any], get_single) -> str:
+        """Generate DHCP Snooping configuration."""
+        vlans = get_single('dhcp_snoop_vlans') or ''
+        trusted = get_single('dhcp_snoop_trusted_interfaces') or ''
+        rate = get_single('dhcp_snoop_rate_limit') or ''
+        option82 = 'dhcp_snoop_option82' in form_data
+
+        cli_lines = ['! DHCP Snooping configuration']
+        cli_lines.append('ip dhcp snooping')
+
+        if vlans:
+            cli_lines.append(f'ip dhcp snooping vlan {vlans}')
+
+        if option82:
+            cli_lines.append('ip dhcp snooping information option')
+
+        if trusted:
+            for iface in [i.strip() for i in trusted.split(',') if i.strip()]:
+                cli_lines.append(f'interface {iface}')
+                cli_lines.append(' ip dhcp snooping trust')
+                cli_lines.append(' exit')
+
+        if rate:
+            cli_lines.append(f'ip dhcp snooping limit rate {rate}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no DHCP Snooping entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_dai(form_data: Dict[str, Any], get_single) -> str:
+        """Generate Dynamic ARP Inspection configuration."""
+        vlans = get_single('dai_vlans') or ''
+        trusted = get_single('dai_trusted_interfaces') or ''
+        rate = get_single('dai_rate_limit') or ''
+        validate = 'dai_validate' in form_data
+
+        cli_lines = ['! Dynamic ARP Inspection configuration']
+
+        if vlans:
+            cli_lines.append(f'ip arp inspection vlan {vlans}')
+
+        if validate:
+            cli_lines.append('ip arp inspection validate src-mac dst-mac ip')
+
+        if trusted:
+            for iface in [i.strip() for i in trusted.split(',') if i.strip()]:
+                cli_lines.append(f'interface {iface}')
+                cli_lines.append(' ip arp inspection trust')
+                cli_lines.append(' exit')
+
+        if rate:
+            cli_lines.append(f'ip arp inspection limit rate {rate}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no DAI entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_ip_source_guard(form_data: Dict[str, Any]) -> str:
+        """Generate IP Source Guard configuration."""
+        interfaces = form_data.get('ipsg_interface', [])
+        modes = form_data.get('ipsg_mode', [])
+
+        cli_lines = ['! IP Source Guard configuration']
+        max_len = max(len(interfaces), len(modes))
+
+        for i in range(max_len):
+            iface = interfaces[i] if i < len(interfaces) else ''
+            mode = modes[i] if i < len(modes) else ''
+
+            if iface:
+                cli_lines.append(f'interface {iface}')
+                # Determine verification based on mode
+                if mode == 'mac':
+                    cli_lines.append(' ip verify source port-security')
+                elif mode == 'ip-mac':
+                    cli_lines.append(' ip verify source port-security')
+                else:
+                    cli_lines.append(' ip verify source')
+                cli_lines.append(' exit')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no IP Source Guard entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_igmp_snooping(form_data: Dict[str, Any], get_single) -> str:
+        """Generate IGMP Snooping configuration."""
+        vlans = get_single('igmp_snoop_vlans') or ''
+        version = get_single('igmp_snoop_version') or ''
+        querier = 'igmp_snoop_querier' in form_data
+        fast_leave = 'igmp_snoop_fast_leave' in form_data
+
+        cli_lines = ['! IGMP Snooping configuration']
+        cli_lines.append('ip igmp snooping')
+
+        if vlans:
+            cli_lines.append(f'ip igmp snooping vlan {vlans}')
+
+            if querier:
+                cli_lines.append(f'ip igmp snooping vlan {vlans} querier')
+
+            if fast_leave:
+                cli_lines.append(f'ip igmp snooping vlan {vlans} immediate-leave')
+
+        if version:
+            cli_lines.append(f'ip igmp snooping version {version}')
+
+        # Best practice: set last-member query interval
+        cli_lines.append('ip igmp snooping last-member-query-interval 1000')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_private_vlan(form_data: Dict[str, Any]) -> str:
+        """Generate Private VLAN configuration."""
+        primaries = form_data.get('pvlan_primary', [])
+        secondaries = form_data.get('pvlan_secondary', [])
+        types = form_data.get('pvlan_type', [])
+
+        cli_lines = ['! Private VLAN configuration']
+
+        # Build a dictionary of primary VLAN to list of (secondary, type)
+        pvlan_dict = {}
+        max_len = max(len(primaries), len(secondaries), len(types))
+
+        for i in range(max_len):
+            prim = primaries[i] if i < len(primaries) else ''
+            sec = secondaries[i] if i < len(secondaries) else ''
+            pvlan_type = types[i] if i < len(types) else ''
+
+            if prim and sec:
+                pvlan_dict.setdefault(prim, []).append((sec, pvlan_type))
+
+        for prim, sec_list in pvlan_dict.items():
+            # Define primary VLAN
+            cli_lines.append(f'vlan {prim}')
+            cli_lines.append(' private-vlan primary')
+            cli_lines.append(' exit')
+
+            # Define each secondary VLAN and type
+            for sec, pvlan_type in sec_list:
+                cli_lines.append(f'vlan {sec}')
+                if pvlan_type and pvlan_type.lower() == 'community':
+                    cli_lines.append(' private-vlan community')
+                else:
+                    cli_lines.append(' private-vlan isolated')
+                cli_lines.append(' exit')
+
+            # Associate secondary VLANs with primary
+            cli_lines.append(f'vlan {prim}')
+            sec_ids = ','.join([sec for sec, _ in sec_list])
+            cli_lines.append(f' private-vlan association {sec_ids}')
+            cli_lines.append(' exit')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no Private VLANs provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_voice_vlan(form_data: Dict[str, Any]) -> str:
+        """Generate Voice VLAN configuration."""
+        interfaces = form_data.get('voice_interface', [])
+        vlans = form_data.get('voice_vlan_id', [])
+        qos = form_data.get('voice_qos_trust', [])
+
+        cli_lines = ['! Voice VLAN configuration']
+        max_len = max(len(interfaces), len(vlans), len(qos))
+
+        for i in range(max_len):
+            iface = interfaces[i] if i < len(interfaces) else ''
+            vlan_id = vlans[i] if i < len(vlans) else ''
+            qos_trust = qos[i] if i < len(qos) else ''
+
+            if iface and vlan_id:
+                cli_lines.append(f'interface {iface}')
+                cli_lines.append(' switchport mode access')
+                cli_lines.append(f' switchport voice vlan {vlan_id}')
+
+                # QoS trust if specified
+                if qos_trust:
+                    cli_lines.append(f' mls qos trust {qos_trust}')
+
+                # Auto QoS voice for best practice
+                cli_lines.append(' auto qos voip cisco-phone')
+                cli_lines.append(' exit')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no voice VLANs provided')
 
         return "\n".join(cli_lines)
