@@ -647,6 +647,92 @@ class TestProtocolService:
         assert '! Multicast Routing configuration' in config
         assert 'ip multicast-routing' in config
 
+    def test_generate_dhcp_server_relay(self):
+        """Test DHCP Server/Relay configuration generation."""
+        form_data = {
+            'dhcp_pool_name': ['POOL1', 'POOL2'],
+            'dhcp_pool_network': ['192.168.1.0 255.255.255.0', '192.168.2.0 255.255.255.0'],
+            'dhcp_pool_router': ['192.168.1.1', '192.168.2.1'],
+            'dhcp_pool_dns': ['8.8.8.8, 8.8.4.4', '1.1.1.1'],
+            'dhcp_exclude_start': ['192.168.1.1', '192.168.2.1'],
+            'dhcp_exclude_end': ['192.168.1.10', '192.168.2.10'],
+            'dhcp_relay_interface': ['GigabitEthernet0/1'],
+            'dhcp_relay_address': ['10.0.0.1']
+        }
+        config = ProtocolService.generate_config('dhcp-server-relay', form_data)
+
+        assert '! DHCP Server/Relay configuration' in config
+        assert 'ip dhcp excluded-address 192.168.1.1 192.168.1.10' in config
+        assert 'ip dhcp pool POOL1' in config
+        assert 'network 192.168.1.0 255.255.255.0' in config
+        assert 'default-router 192.168.1.1' in config
+        assert 'dns-server 8.8.8.8 8.8.4.4' in config
+        assert 'ip dhcp pool POOL2' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip helper-address 10.0.0.1' in config
+
+    def test_generate_dhcp_server_relay_minimal(self):
+        """Test DHCP with minimal pool configuration."""
+        form_data = {
+            'dhcp_pool_name': ['POOL1'],
+            'dhcp_pool_network': ['192.168.1.0 255.255.255.0']
+        }
+        config = ProtocolService.generate_config('dhcp-server-relay', form_data)
+
+        assert '! DHCP Server/Relay configuration' in config
+        assert 'ip dhcp pool POOL1' in config
+        assert 'network 192.168.1.0 255.255.255.0' in config
+
+    def test_generate_netflow(self):
+        """Test NetFlow configuration generation."""
+        form_data = {
+            'netflow_collector_ip': ['10.0.0.100', '10.0.0.101'],
+            'netflow_collector_port': ['9996', '9996'],
+            'netflow_version': ['9', '9'],
+            'netflow_interfaces': ['GigabitEthernet0/1, GigabitEthernet0/2']
+        }
+        config = ProtocolService.generate_config('netflow', form_data)
+
+        assert '! NetFlow configuration' in config
+        assert 'ip flow-export destination 10.0.0.100 9996' in config
+        assert 'ip flow-export version 9' in config
+        assert 'ip flow-export destination 10.0.0.101 9996' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip flow ingress' in config
+        assert 'interface GigabitEthernet0/2' in config
+
+    def test_generate_netflow_minimal(self):
+        """Test NetFlow with minimal configuration."""
+        form_data = {
+            'netflow_collector_ip': ['10.0.0.100'],
+            'netflow_collector_port': ['9996']
+        }
+        config = ProtocolService.generate_config('netflow', form_data)
+
+        assert '! NetFlow configuration' in config
+        assert 'ip flow-export destination 10.0.0.100 9996' in config
+
+    def test_generate_gnoc(self):
+        """Test GNOC configuration generation."""
+        form_data = {
+            'gnoc_param1': ['value1'],
+            'gnoc_param2': ['value2']
+        }
+        config = ProtocolService.generate_config('gnoc', form_data)
+
+        assert '! GNOC configuration' in config
+        assert '! param1: value1' in config
+        assert '! param2: value2' in config
+
+    def test_generate_gnoc_minimal(self):
+        """Test GNOC with no parameters."""
+        form_data = {}
+        config = ProtocolService.generate_config('gnoc', form_data)
+
+        assert '! GNOC configuration' in config
+        assert '! param1:' in config
+        assert '! param2:' in config
+
 
 class TestTroubleshootUtils:
     """Tests for troubleshoot utilities."""

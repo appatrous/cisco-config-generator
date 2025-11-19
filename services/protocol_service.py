@@ -156,6 +156,13 @@ class ProtocolService:
             return ProtocolService._generate_pim(form_data, get_single)
         elif slug == 'multicast-routing':
             return ProtocolService._generate_multicast_routing(form_data, get_single)
+        # Services - Network Management
+        elif slug == 'dhcp-server-relay':
+            return ProtocolService._generate_dhcp_server_relay(form_data, get_single)
+        elif slug == 'netflow':
+            return ProtocolService._generate_netflow(form_data, get_single)
+        elif slug == 'gnoc':
+            return ProtocolService._generate_gnoc(form_data, get_single)
         else:
             return f"{slug}: configuration submitted"
 
@@ -1040,5 +1047,120 @@ class ProtocolService:
 
         if len(cli_lines) <= 1:
             cli_lines.append('! no multicast routing entries provided')
+
+        return "\n".join(cli_lines)
+
+    # ========================================================================
+    # Services - Network Management
+    # ========================================================================
+
+    @staticmethod
+    def _generate_dhcp_server_relay(form_data: Dict[str, Any], get_single) -> str:
+        """Generate DHCP Server and Relay configuration."""
+        pool_names = form_data.get('dhcp_pool_name', [])
+        pool_networks = form_data.get('dhcp_pool_network', [])
+        pool_routers = form_data.get('dhcp_pool_router', [])
+        pool_dns = form_data.get('dhcp_pool_dns', [])
+        pool_excl_start = form_data.get('dhcp_exclude_start', [])
+        pool_excl_end = form_data.get('dhcp_exclude_end', [])
+        rel_ifaces = form_data.get('dhcp_relay_interface', [])
+        rel_addrs = form_data.get('dhcp_relay_address', [])
+
+        cli_lines = ['! DHCP Server/Relay configuration']
+
+        # DHCP Pools
+        max_len = max(len(pool_names), len(pool_networks), len(pool_routers),
+                      len(pool_dns), len(pool_excl_start), len(pool_excl_end))
+        pools_added = False
+
+        for i in range(max_len):
+            name = pool_names[i] if i < len(pool_names) else ''
+            net = pool_networks[i] if i < len(pool_networks) else ''
+            router = pool_routers[i] if i < len(pool_routers) else ''
+            dns = pool_dns[i] if i < len(pool_dns) else ''
+            excl_start = pool_excl_start[i] if i < len(pool_excl_start) else ''
+            excl_end = pool_excl_end[i] if i < len(pool_excl_end) else ''
+
+            if name and net:
+                pools_added = True
+                # Exclude addresses if provided
+                if excl_start and excl_end:
+                    cli_lines.append(f'ip dhcp excluded-address {excl_start} {excl_end}')
+
+                cli_lines.append(f'ip dhcp pool {name}')
+                cli_lines.append(f' network {net}')
+
+                if router:
+                    cli_lines.append(f' default-router {router}')
+
+                if dns:
+                    # DNS servers comma-separated; convert to space separated
+                    dns_list = " ".join([d.strip() for d in dns.split(',') if d.strip()])
+                    cli_lines.append(f' dns-server {dns_list}')
+
+                cli_lines.append(' exit')
+
+        # DHCP Relays
+        relays_added = False
+        for iface, addr in zip(rel_ifaces, rel_addrs):
+            if iface and addr:
+                relays_added = True
+                cli_lines.append(f'interface {iface}')
+                cli_lines.append(f' ip helper-address {addr}')
+                cli_lines.append(' exit')
+
+        if not pools_added and not relays_added:
+            cli_lines.append('! no DHCP pools or relays provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_netflow(form_data: Dict[str, Any], get_single) -> str:
+        """Generate NetFlow configuration."""
+        collector_ips = form_data.get('netflow_collector_ip', [])
+        collector_ports = form_data.get('netflow_collector_port', [])
+        versions = form_data.get('netflow_version', [])
+        interfaces = get_single('netflow_interfaces') or ''
+
+        cli_lines = ['! NetFlow configuration']
+        max_len = max(len(collector_ips), len(collector_ports), len(versions))
+        added = False
+
+        # NetFlow export destinations
+        for i in range(max_len):
+            ip = collector_ips[i] if i < len(collector_ips) else ''
+            port = collector_ports[i] if i < len(collector_ports) else ''
+            ver = versions[i] if i < len(versions) else ''
+
+            if ip:
+                added = True
+                cli_lines.append(f'ip flow-export destination {ip} {port}')
+                if ver:
+                    cli_lines.append(f'ip flow-export version {ver}')
+
+        # Enable NetFlow on interfaces
+        if interfaces:
+            added = True
+            # Interfaces may be comma-separated
+            for iface in [x.strip() for x in interfaces.split(',') if x.strip()]:
+                cli_lines.append(f'interface {iface}')
+                cli_lines.append(' ip flow ingress')
+                cli_lines.append(' exit')
+
+        if not added:
+            cli_lines.append('! no NetFlow entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_gnoc(form_data: Dict[str, Any], get_single) -> str:
+        """Generate GNOC (Generic Network Operations Center) configuration."""
+        p1 = get_single('gnoc_param1') or ''
+        p2 = get_single('gnoc_param2') or ''
+
+        cli_lines = ['! GNOC configuration']
+        # Document parameters as comments since specifics are unknown
+        cli_lines.append(f'! param1: {p1}')
+        cli_lines.append(f'! param2: {p2}')
 
         return "\n".join(cli_lines)
