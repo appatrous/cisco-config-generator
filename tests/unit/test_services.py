@@ -97,6 +97,206 @@ class TestProtocolService:
         assert 'ntp server time.google.com' in config
         assert 'ntp source Loopback0' in config
 
+    def test_generate_vtp(self):
+        """Test VTP configuration generation."""
+        form_data = {
+            'vtp_mode': ['server'],
+            'vtp_domain': ['CISCO'],
+            'vtp_password': ['cisco123'],
+            'vtp_version': ['2']
+        }
+        config = ProtocolService.generate_config('vtp', form_data)
+
+        assert '! VTP configuration' in config
+        assert 'vtp mode server' in config
+        assert 'vtp domain CISCO' in config
+        assert 'vtp password cisco123' in config
+        assert 'vtp version 2' in config
+
+    def test_generate_vtp_minimal(self):
+        """Test VTP with minimal configuration."""
+        form_data = {
+            'vtp_mode': ['client']
+        }
+        config = ProtocolService.generate_config('vtp', form_data)
+
+        assert '! VTP configuration' in config
+        assert 'vtp mode client' in config
+
+    def test_generate_dhcp_snooping(self):
+        """Test DHCP Snooping configuration generation."""
+        form_data = {
+            'dhcp_snoop_vlans': ['10,20,30'],
+            'dhcp_snoop_trusted_interfaces': ['GigabitEthernet0/1, GigabitEthernet0/2'],
+            'dhcp_snoop_rate_limit': ['100'],
+            'dhcp_snoop_option82': True
+        }
+        config = ProtocolService.generate_config('dhcp-snooping', form_data)
+
+        assert '! DHCP Snooping configuration' in config
+        assert 'ip dhcp snooping' in config
+        assert 'ip dhcp snooping vlan 10,20,30' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip dhcp snooping trust' in config
+        assert 'interface GigabitEthernet0/2' in config
+        assert 'ip dhcp snooping information option' in config
+        assert 'ip dhcp snooping limit rate 100' in config
+
+    def test_generate_dhcp_snooping_without_option82(self):
+        """Test DHCP Snooping without Option 82."""
+        form_data = {
+            'dhcp_snoop_vlans': ['10'],
+            'dhcp_snoop_trusted_interfaces': ['GigabitEthernet0/1']
+        }
+        config = ProtocolService.generate_config('dhcp-snooping', form_data)
+
+        assert '! DHCP Snooping configuration' in config
+        assert 'ip dhcp snooping' in config
+        assert 'ip dhcp snooping information option' not in config
+
+    def test_generate_dai(self):
+        """Test Dynamic ARP Inspection configuration generation."""
+        form_data = {
+            'dai_vlans': ['10,20'],
+            'dai_trusted_interfaces': ['GigabitEthernet0/1, GigabitEthernet0/2'],
+            'dai_rate_limit': ['15'],
+            'dai_validate': ['src-mac', 'dst-mac', 'ip']
+        }
+        config = ProtocolService.generate_config('dynamic-arp-inspection', form_data)
+
+        assert '! Dynamic ARP Inspection configuration' in config
+        assert 'ip arp inspection vlan 10,20' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip arp inspection trust' in config
+        assert 'interface GigabitEthernet0/2' in config
+        assert 'ip arp inspection limit rate 15' in config
+        assert 'ip arp inspection validate src-mac dst-mac ip' in config
+
+    def test_generate_dai_minimal(self):
+        """Test DAI with minimal configuration."""
+        form_data = {
+            'dai_vlans': ['10']
+        }
+        config = ProtocolService.generate_config('dynamic-arp-inspection', form_data)
+
+        assert '! Dynamic ARP Inspection configuration' in config
+        assert 'ip arp inspection vlan 10' in config
+
+    def test_generate_ip_source_guard(self):
+        """Test IP Source Guard configuration generation."""
+        form_data = {
+            'ipsg_interfaces': ['GigabitEthernet0/1', 'GigabitEthernet0/2'],
+            'ipsg_mode': ['ip-mac', 'ip']
+        }
+        config = ProtocolService.generate_config('ip-source-guard', form_data)
+
+        assert '! IP Source Guard configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip verify source port-security' in config
+        assert 'interface GigabitEthernet0/2' in config
+        assert 'ip verify source' in config
+
+    def test_generate_ip_source_guard_single_mode(self):
+        """Test IP Source Guard with single interface."""
+        form_data = {
+            'ipsg_interfaces': ['GigabitEthernet0/1'],
+            'ipsg_mode': ['ip']
+        }
+        config = ProtocolService.generate_config('ip-source-guard', form_data)
+
+        assert '! IP Source Guard configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'ip verify source' in config
+        assert 'port-security' not in config
+
+    def test_generate_igmp_snooping(self):
+        """Test IGMP Snooping configuration generation."""
+        form_data = {
+            'igmp_snoop_vlans': ['10,20'],
+            'igmp_snoop_version': ['2'],
+            'igmp_snoop_querier': ['querier'],
+            'igmp_snoop_fast_leave': True
+        }
+        config = ProtocolService.generate_config('igmp-snooping', form_data)
+
+        assert '! IGMP Snooping configuration' in config
+        assert 'ip igmp snooping' in config
+        assert 'ip igmp snooping vlan 10,20' in config
+        assert 'ip igmp snooping vlan 10,20 querier' in config
+        assert 'ip igmp snooping vlan 10,20 immediate-leave' in config
+
+    def test_generate_igmp_snooping_minimal(self):
+        """Test IGMP Snooping with minimal configuration."""
+        form_data = {}
+        config = ProtocolService.generate_config('igmp-snooping', form_data)
+
+        assert '! IGMP Snooping configuration' in config
+        assert 'ip igmp snooping' in config
+
+    def test_generate_private_vlan(self):
+        """Test Private VLAN configuration generation."""
+        form_data = {
+            'pvlan_primary': ['100', '100'],
+            'pvlan_secondary': ['101', '102'],
+            'pvlan_type': ['isolated', 'community']
+        }
+        config = ProtocolService.generate_config('private-vlan', form_data)
+
+        assert '! Private VLAN configuration' in config
+        assert 'vlan 100' in config
+        assert 'private-vlan primary' in config
+        assert 'vlan 101' in config
+        assert 'private-vlan isolated' in config
+        assert 'vlan 102' in config
+        assert 'private-vlan community' in config
+        assert 'private-vlan association 101,102' in config
+
+    def test_generate_private_vlan_single(self):
+        """Test Private VLAN with single secondary."""
+        form_data = {
+            'pvlan_primary': ['100'],
+            'pvlan_secondary': ['101'],
+            'pvlan_type': ['isolated']
+        }
+        config = ProtocolService.generate_config('private-vlan', form_data)
+
+        assert '! Private VLAN configuration' in config
+        assert 'vlan 100' in config
+        assert 'private-vlan primary' in config
+        assert 'vlan 101' in config
+        assert 'private-vlan isolated' in config
+        assert 'private-vlan association 101' in config
+
+    def test_generate_voice_vlan(self):
+        """Test Voice VLAN configuration generation."""
+        form_data = {
+            'voice_vlan_id': ['10'],
+            'voice_vlan_interfaces': ['GigabitEthernet0/1, GigabitEthernet0/2'],
+            'voice_vlan_qos_trust': ['cos'],
+            'voice_vlan_auto_qos': True
+        }
+        config = ProtocolService.generate_config('voice-vlan', form_data)
+
+        assert '! Voice VLAN configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'switchport voice vlan 10' in config
+        assert 'mls qos trust cos' in config
+        assert 'auto qos voip cisco-phone' in config
+        assert 'interface GigabitEthernet0/2' in config
+
+    def test_generate_voice_vlan_minimal(self):
+        """Test Voice VLAN with minimal configuration."""
+        form_data = {
+            'voice_vlan_id': ['20'],
+            'voice_vlan_interfaces': ['GigabitEthernet0/1']
+        }
+        config = ProtocolService.generate_config('voice-vlan', form_data)
+
+        assert '! Voice VLAN configuration' in config
+        assert 'interface GigabitEthernet0/1' in config
+        assert 'switchport voice vlan 20' in config
+        assert 'auto qos' not in config
+
 
 class TestTroubleshootUtils:
     """Tests for troubleshoot utilities."""
