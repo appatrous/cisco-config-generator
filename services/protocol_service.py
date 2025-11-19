@@ -130,6 +130,23 @@ class ProtocolService:
             return ProtocolService._generate_private_vlan(form_data)
         elif slug == 'voice-vlan':
             return ProtocolService._generate_voice_vlan(form_data)
+        # Phase 2 - High Priority Protocols
+        elif slug in ('bgp', 'bgp4-plus'):
+            return ProtocolService._generate_bgp(form_data, get_single)
+        elif slug == 'acl':
+            return ProtocolService._generate_acl(form_data)
+        elif slug == 'aaa':
+            return ProtocolService._generate_aaa(form_data, get_single)
+        elif slug == 'snmp':
+            return ProtocolService._generate_snmp(form_data, get_single)
+        elif slug == 'syslog':
+            return ProtocolService._generate_syslog(form_data, get_single)
+        elif slug in ('stp', 'pvst-plus'):
+            return ProtocolService._generate_stp(form_data, get_single)
+        elif slug == 'qos':
+            return ProtocolService._generate_qos(form_data)
+        elif slug in ('vrf', 'mpls'):
+            return ProtocolService._generate_vrf(form_data)
         else:
             return f"{slug}: configuration submitted"
 
@@ -565,5 +582,342 @@ class ProtocolService:
 
         if len(cli_lines) <= 1:
             cli_lines.append('! no voice VLANs provided')
+
+        return "\n".join(cli_lines)
+
+    # ========================================================================
+    # Phase 2 - High Priority Protocols
+    # ========================================================================
+
+    @staticmethod
+    def _generate_bgp(form_data: Dict[str, Any], get_single) -> str:
+        """Generate BGP (Border Gateway Protocol) configuration."""
+        as_number = get_single('bgp_as_number') or ''
+        router_id = get_single('bgp_router_id') or ''
+        neighbors = form_data.get('bgp_neighbor', [])
+        remote_as = form_data.get('bgp_remote_as', [])
+        networks = form_data.get('bgp_network', [])
+        masks = form_data.get('bgp_mask', [])
+
+        cli_lines = ['! BGP configuration']
+
+        if as_number:
+            cli_lines.append(f'router bgp {as_number}')
+
+            if router_id:
+                cli_lines.append(f' bgp router-id {router_id}')
+
+            # Add BGP neighbors
+            max_neighbors = max(len(neighbors), len(remote_as))
+            for i in range(max_neighbors):
+                neighbor = neighbors[i] if i < len(neighbors) else ''
+                r_as = remote_as[i] if i < len(remote_as) else ''
+                if neighbor and r_as:
+                    cli_lines.append(f' neighbor {neighbor} remote-as {r_as}')
+                    cli_lines.append(f' neighbor {neighbor} activate')
+
+            # Add BGP networks
+            max_networks = max(len(networks), len(masks))
+            for i in range(max_networks):
+                network = networks[i] if i < len(networks) else ''
+                mask = masks[i] if i < len(masks) else ''
+                if network and mask:
+                    cli_lines.append(f' network {network} mask {mask}')
+
+            cli_lines.append(' exit')
+        else:
+            cli_lines.append('! no BGP AS number provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_acl(form_data: Dict[str, Any]) -> str:
+        """Generate Access Control List configuration."""
+        actions = form_data.get('acl_action', [])
+        protocols = form_data.get('acl_protocol', [])
+        srcs = form_data.get('acl_src', [])
+        dsts = form_data.get('acl_dst', [])
+
+        cli_lines = ['! Access Control List']
+        cli_lines.append('ip access-list extended ACL_1')
+
+        seq = 10
+        added = False
+        max_len = max(len(actions), len(protocols), len(srcs), len(dsts))
+
+        for i in range(max_len):
+            act = actions[i] if i < len(actions) else ''
+            proto = protocols[i] if i < len(protocols) else ''
+            src = srcs[i] if i < len(srcs) else ''
+            dst = dsts[i] if i < len(dsts) else ''
+
+            if src and dst:
+                added = True
+                line = f' {seq} {act.lower()} {proto.lower()} '
+                line += f'{src} {dst}'
+                cli_lines.append(line)
+                seq += 10
+
+        cli_lines.append(' exit')
+
+        if not added:
+            cli_lines.append('! no ACL entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_aaa(form_data: Dict[str, Any], get_single) -> str:
+        """Generate AAA (Authentication, Authorization, Accounting) configuration."""
+        use_tacacs = 'aaa_use_tacacs' in form_data
+        tacacs_servers = [s for s in form_data.get('tacacs_server', []) if s]
+        use_radius = 'aaa_use_radius' in form_data
+        radius_servers = [s for s in form_data.get('radius_server', []) if s]
+        user_names = form_data.get('local_user_name', [])
+        user_pwds = form_data.get('local_user_password', [])
+        user_privs = form_data.get('local_user_priv', [])
+
+        cli_lines = ['! AAA configuration']
+
+        # Enable AAA if any method is configured
+        if use_tacacs or use_radius or any(u for u in user_names):
+            cli_lines.append('aaa new-model')
+
+        # TACACS+ servers and method list
+        if use_tacacs and tacacs_servers:
+            for ip in tacacs_servers:
+                cli_lines.append(f'tacacs-server host {ip}')
+            cli_lines.append('aaa authentication login default group tacacs+ local')
+
+        # RADIUS servers and method list
+        if use_radius and radius_servers:
+            for ip in radius_servers:
+                cli_lines.append(f'radius-server host {ip}')
+            cli_lines.append('aaa authentication login default group radius local')
+
+        # Local user accounts
+        max_len = max(len(user_names), len(user_pwds), len(user_privs))
+        for i in range(max_len):
+            name = user_names[i] if i < len(user_names) else ''
+            pwd = user_pwds[i] if i < len(user_pwds) else ''
+            priv = user_privs[i] if i < len(user_privs) else ''
+
+            if name and pwd:
+                priv_val = priv or '15'
+                cli_lines.append(f'username {name} privilege {priv_val} secret {pwd}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no AAA entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_snmp(form_data: Dict[str, Any], get_single) -> str:
+        """Generate SNMP (Simple Network Management Protocol) configuration."""
+        communities = form_data.get('snmp_community', [])
+        accesses = form_data.get('snmp_community_access', [])
+        acls = form_data.get('snmp_community_acl', [])
+        v3_users = form_data.get('snmp_v3_user', [])
+        v3_auths = form_data.get('snmp_v3_auth', [])
+        v3_auth_pwds = form_data.get('snmp_v3_auth_pwd', [])
+        v3_privs = form_data.get('snmp_v3_priv', [])
+        v3_priv_pwds = form_data.get('snmp_v3_priv_pwd', [])
+        location = get_single('snmp_location') or ''
+        contact = get_single('snmp_contact') or ''
+        traps = [t for t in form_data.get('snmp_trap_server', []) if t]
+
+        cli_lines = ['! SNMP configuration']
+
+        # SNMPv2 communities
+        max_len = max(len(communities), len(accesses), len(acls))
+        for i in range(max_len):
+            comm = communities[i] if i < len(communities) else ''
+            acc = accesses[i] if i < len(accesses) else ''
+            acl = acls[i] if i < len(acls) else ''
+
+            if comm:
+                line = f'snmp-server community {comm} {acc}' if acc else f'snmp-server community {comm}'
+                if acl:
+                    line += f' {acl}'
+                cli_lines.append(line)
+
+        # SNMPv3 users
+        if v3_users:
+            group_name = 'V3GROUP'
+            cli_lines.append(f'snmp-server group {group_name} v3 priv')
+
+            max_v3 = max(len(v3_users), len(v3_auths), len(v3_auth_pwds), len(v3_privs), len(v3_priv_pwds))
+            for i in range(max_v3):
+                usr = v3_users[i] if i < len(v3_users) else ''
+                auth = v3_auths[i] if i < len(v3_auths) else ''
+                authpwd = v3_auth_pwds[i] if i < len(v3_auth_pwds) else ''
+                priv = v3_privs[i] if i < len(v3_privs) else ''
+                privpwd = v3_priv_pwds[i] if i < len(v3_priv_pwds) else ''
+
+                if usr:
+                    user_line = f'snmp-server user {usr} {group_name} v3'
+                    if auth and authpwd:
+                        user_line += f' auth {auth} {authpwd}'
+                    if priv and privpwd:
+                        user_line += f' priv {priv} {privpwd}'
+                    cli_lines.append(user_line)
+
+        # Location and contact
+        if location:
+            cli_lines.append(f'snmp-server location {location}')
+        if contact:
+            cli_lines.append(f'snmp-server contact {contact}')
+
+        # Trap servers
+        for trap in traps:
+            cli_lines.append(f'snmp-server host {trap}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no SNMP entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_syslog(form_data: Dict[str, Any], get_single) -> str:
+        """Generate Syslog configuration."""
+        ips = form_data.get('syslog_server_ip', [])
+        ports = form_data.get('syslog_server_port', [])
+        console_enable = 'syslog_console_enable' in form_data
+        console_lvl = get_single('syslog_console_level') or ''
+        buffer_enable = 'syslog_buffer_enable' in form_data
+        buffer_lvl = get_single('syslog_buffer_level') or ''
+        buffer_size = get_single('syslog_buffer_size') or ''
+
+        cli_lines = ['! Syslog configuration']
+
+        # Syslog servers
+        max_len = max(len(ips), len(ports))
+        for i in range(max_len):
+            ip = ips[i] if i < len(ips) else ''
+            port = ports[i] if i < len(ports) else ''
+
+            if ip:
+                if port:
+                    cli_lines.append(f'logging host {ip} {port}')
+                else:
+                    cli_lines.append(f'logging host {ip}')
+
+        # Console logging
+        if console_enable:
+            if console_lvl:
+                cli_lines.append(f'logging console {console_lvl}')
+            else:
+                cli_lines.append('logging console')
+
+        # Buffered logging
+        if buffer_enable:
+            if buffer_lvl and buffer_size:
+                cli_lines.append(f'logging buffered {buffer_size} {buffer_lvl}')
+            elif buffer_lvl:
+                cli_lines.append(f'logging buffered {buffer_lvl}')
+            else:
+                cli_lines.append('logging buffered')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no Syslog entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_stp(form_data: Dict[str, Any], get_single) -> str:
+        """Generate STP (Spanning Tree Protocol) configuration."""
+        mode = get_single('stp_mode') or ''
+        priority = get_single('stp_priority') or ''
+
+        cli_lines = ['! Spanning Tree configuration']
+
+        if mode:
+            cli_lines.append(f'spanning-tree mode {mode}')
+
+        if priority:
+            cli_lines.append(f'spanning-tree priority {priority}')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no STP configuration provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_qos(form_data: Dict[str, Any]) -> str:
+        """Generate QoS (Quality of Service) configuration."""
+        class_names = form_data.get('qos_class_name', [])
+        bws = form_data.get('qos_bandwidth', [])
+        prios = form_data.get('qos_priority', [])
+        dscps = form_data.get('qos_dscp', [])
+
+        cli_lines = ['! QoS configuration']
+        policy_name = 'QOS_POLICY'
+        added = False
+
+        max_len = max(len(class_names), len(bws), len(prios), len(dscps))
+
+        # Create class-maps
+        for i in range(max_len):
+            cn = class_names[i] if i < len(class_names) else ''
+            dc = dscps[i] if i < len(dscps) else ''
+
+            if cn:
+                added = True
+                cli_lines.append(f'class-map match-any {cn}')
+                if dc:
+                    cli_lines.append(f' match dscp {dc}')
+                cli_lines.append(' exit')
+
+        # Create policy-map
+        if added:
+            cli_lines.append(f'policy-map {policy_name}')
+            for i in range(max_len):
+                cn = class_names[i] if i < len(class_names) else ''
+                bw = bws[i] if i < len(bws) else ''
+                pr = prios[i] if i < len(prios) else ''
+                dc = dscps[i] if i < len(dscps) else ''
+
+                if cn:
+                    cli_lines.append(f' class {cn}')
+                    if bw:
+                        cli_lines.append(f'  bandwidth {bw}')
+                    if pr:
+                        cli_lines.append('  priority')
+                    if dc:
+                        cli_lines.append(f'  set dscp {dc}')
+                    cli_lines.append(' exit')
+            cli_lines.append(' exit')
+
+        if not added:
+            cli_lines.append('! no QoS classes provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_vrf(form_data: Dict[str, Any]) -> str:
+        """Generate VRF (Virtual Routing and Forwarding) configuration."""
+        names = form_data.get('vrf_name', [])
+        rds = form_data.get('vrf_rd', [])
+        rts = form_data.get('vrf_rt', [])
+
+        cli_lines = ['! VRF/MPLS configuration']
+        max_len = max(len(names), len(rds), len(rts))
+        added = False
+
+        for i in range(max_len):
+            name = names[i] if i < len(names) else ''
+            rd = rds[i] if i < len(rds) else ''
+            rt = rts[i] if i < len(rts) else ''
+
+            if name:
+                added = True
+                cli_lines.append(f'ip vrf {name}')
+                if rd:
+                    cli_lines.append(f' rd {rd}')
+                if rt:
+                    cli_lines.append(f' route-target both {rt}')
+                cli_lines.append(' exit')
+
+        if not added:
+            cli_lines.append('! no VRFs provided')
 
         return "\n".join(cli_lines)
