@@ -8,15 +8,15 @@
     <p class="text-muted">Choose the type of Cisco device you want to configure.</p>
   </div>
   <div class="device-selection">
-    <a href="{{ url_for('switch_page') }}" class="device-card">
+    <a href="{{ url_for('devices.switch_page') }}" class="device-card">
       <img src="{{ url_for('static', filename='img/switch_icon.png') }}" alt="Switch icon">
       <h5 class="mt-2">Switch</h5>
     </a>
-    <a href="{{ url_for('router_page') }}" class="device-card">
+    <a href="{{ url_for('devices.router_page') }}" class="device-card">
       <img src="{{ url_for('static', filename='img/router_icon.png') }}" alt="Router icon">
       <h5 class="mt-2">Router</h5>
     </a>
-    <a href="{{ url_for('firewall_page') }}" class="device-card">
+    <a href="{{ url_for('devices.firewall_page') }}" class="device-card">
       <img src="{{ url_for('static', filename='img/firewall_icon.png') }}" alt="Firewall icon">
       <h5 class="mt-2">Firewall</h5>
     </a>

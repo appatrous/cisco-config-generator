@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}Internal Server Error{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-1 text-danger">500</h1>
+  <h2 class="mb-4">Internal Server Error</h2>
+  <p class="lead mb-4">
+    The server encountered an internal error and was unable to complete your request.
+  </p>
+  <p class="text-muted mb-4">
+    Either the server is overloaded or there is an error in the application.
+  </p>
+  <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+    <i class="bi bi-house"></i> Return to Home
+  </a>
+</div>
+{% endblock %}

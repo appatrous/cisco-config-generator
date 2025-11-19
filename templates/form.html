@@ -5,7 +5,7 @@
 {% block content %}
   <h1 class="mb-3">Generate Cisco Device Configurations</h1>
   <p class="lead">Fill in the form to create configuration files for IOS, NX‑OS or ASA devices.</p>
-  <form id="configForm" method="post" action="{{ url_for('generate') }}" novalidate>
+  <form id="configForm" method="post" action="{{ url_for('main.generate') }}" novalidate>
     <!-- Platform selection -->
     <div class="mb-4">
       <label for="platform" class="form-label"><strong>Device Platform</strong></label>
