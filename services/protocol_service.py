@@ -147,6 +147,17 @@ class ProtocolService:
             return ProtocolService._generate_qos(form_data)
         elif slug in ('vrf', 'mpls'):
             return ProtocolService._generate_vrf(form_data)
+        # Security - Advanced Firewall & Inspection
+        elif slug == 'object-groups':
+            return ProtocolService._generate_object_groups(form_data)
+        elif slug == 'zone-based-firewall':
+            return ProtocolService._generate_zone_based_firewall(form_data)
+        elif slug == 'ids-ips':
+            return ProtocolService._generate_ids_ips(form_data)
+        elif slug == 'ssl-tls-inspection':
+            return ProtocolService._generate_ssl_tls_inspection(form_data, get_single)
+        elif slug == 'asa-failover-clustering':
+            return ProtocolService._generate_asa_failover(form_data, get_single)
         # Layer 3 - Multicast & Routing Protocols
         elif slug == 'rip':
             return ProtocolService._generate_rip(form_data, get_single)
@@ -1279,5 +1290,172 @@ class ProtocolService:
 
         if len(cli_lines) <= 1:
             cli_lines.append('! no AnyConnect entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_object_groups(form_data: Dict[str, Any]) -> str:
+        """Generate Object Groups configuration."""
+        names = form_data.get('og_name', [])
+        types = form_data.get('og_type', [])
+        members = form_data.get('og_members', [])
+
+        cli_lines = ['! Object Groups configuration']
+        added = False
+        max_len = max(len(names), len(types), len(members))
+
+        for i in range(max_len):
+            name = names[i] if i < len(names) else ''
+            typ = types[i] if i < len(types) else ''
+            mem = members[i] if i < len(members) else ''
+
+            if name and mem:
+                added = True
+                # Determine type: network or service
+                typ_lower = typ.lower() if typ else 'network'
+
+                if typ_lower == 'network':
+                    cli_lines.append(f'object-group network {name}')
+                    # Members may be comma-separated or space-separated
+                    for m in [x.strip() for x in mem.split(',') if x.strip()]:
+                        cli_lines.append(f' network-object {m}')
+                    cli_lines.append(' exit')
+                elif typ_lower == 'service':
+                    cli_lines.append(f'object-group service {name}')
+                    # Without protocol we default to tcp
+                    for m in [x.strip() for x in mem.split(',') if x.strip()]:
+                        cli_lines.append(f' port-object {m}')
+                    cli_lines.append(' exit')
+                else:
+                    cli_lines.append(f'! unsupported object-group type {typ_lower}')
+
+        if not added:
+            cli_lines.append('! no object-groups provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_zone_based_firewall(form_data: Dict[str, Any]) -> str:
+        """Generate Zone-Based Firewall configuration."""
+        z_names = form_data.get('zbf_zone_name', [])
+        z_ifaces = form_data.get('zbf_zone_interfaces', [])
+        zp_src = form_data.get('zbf_source_zone', [])
+        zp_dst = form_data.get('zbf_destination_zone', [])
+        zp_act = form_data.get('zbf_action', [])
+
+        cli_lines = ['! Zone-Based Firewall configuration']
+
+        # Define zones and assign interfaces
+        max_zones = max(len(z_names), len(z_ifaces))
+        for i in range(max_zones):
+            name = z_names[i] if i < len(z_names) else ''
+            ifs = z_ifaces[i] if i < len(z_ifaces) else ''
+
+            if name:
+                cli_lines.append(f'zone security {name}')
+                if ifs:
+                    for iface in [x.strip() for x in ifs.split(',') if x.strip()]:
+                        cli_lines.append(f' zone-member interface {iface}')
+                cli_lines.append(' exit')
+
+        # Define zone pairs and policies
+        max_len = max(len(zp_src), len(zp_dst), len(zp_act))
+        for i in range(max_len):
+            s = zp_src[i] if i < len(zp_src) else ''
+            d = zp_dst[i] if i < len(zp_dst) else ''
+            a = zp_act[i] if i < len(zp_act) else ''
+
+            if s and d:
+                # Create class-map and policy-map names based on zones
+                class_name = f'CLASS_{s}_TO_{d}'.replace('-', '_')
+                policy_name = f'POLICY_{s}_TO_{d}'.replace('-', '_')
+                zonepair_name = f'{s}_to_{d}'.replace(' ', '_')
+
+                # Class-map for matching all IP traffic
+                cli_lines.append(f'class-map type inspect match-any {class_name}')
+                cli_lines.append(' match protocol ip')
+                cli_lines.append(' exit')
+
+                # Policy-map to apply inspect or drop
+                cli_lines.append(f'policy-map type inspect {policy_name}')
+                cli_lines.append(f' class type inspect {class_name}')
+                if a and a.lower() in ('deny', 'drop'):
+                    cli_lines.append('  drop')
+                else:
+                    # Default action is inspect
+                    cli_lines.append('  inspect')
+                cli_lines.append(' exit')
+
+                # Zone-pair linking source/destination zones with service-policy
+                cli_lines.append(f'zone-pair security {zonepair_name} source {s} destination {d}')
+                cli_lines.append(f' service-policy type inspect {policy_name}')
+                cli_lines.append(' exit')
+
+        if len(cli_lines) <= 1:
+            cli_lines.append('! no zone-based firewall entries provided')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_ids_ips(form_data: Dict[str, Any]) -> str:
+        """Generate IDS/IPS configuration."""
+        enabled = 'ids_enable' in form_data
+        updates = 'ids_sigs_update' in form_data
+
+        cli_lines = ['! IDS/IPS configuration']
+
+        if enabled:
+            # Placeholder for enabling IDS/IPS; actual configuration may vary by platform
+            cli_lines.append('ip ips notify log')
+            if updates:
+                cli_lines.append('! signature updates enabled')
+        else:
+            cli_lines.append('! IDS/IPS disabled')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_ssl_tls_inspection(form_data: Dict[str, Any], get_single) -> str:
+        """Generate SSL/TLS Inspection configuration."""
+        enabled = 'ssli_enable' in form_data
+        cert = get_single('ssli_certificate') or ''
+
+        cli_lines = ['! SSL/TLS Inspection configuration']
+
+        if enabled:
+            if cert:
+                cli_lines.append(f'ssl trustpoint {cert}')
+            # Define a simple policy-map for SSL inspection
+            cli_lines.append('policy-map type inspect ssl SSL_POLICY')
+            cli_lines.append(' class type inspect ssl')
+            cli_lines.append('  inspect ssl')
+            cli_lines.append(' exit')
+        else:
+            cli_lines.append('! SSL/TLS inspection disabled')
+
+        return "\n".join(cli_lines)
+
+    @staticmethod
+    def _generate_asa_failover(form_data: Dict[str, Any], get_single) -> str:
+        """Generate ASA Failover/Clustering configuration."""
+        mode = get_single('failover_mode') or ''
+        iface = get_single('failover_interface') or ''
+        key_val = get_single('failover_key') or ''
+        prim = get_single('failover_primary_ip') or ''
+        sec = get_single('failover_secondary_ip') or ''
+        mask = get_single('failover_netmask') or ''
+
+        cli_lines = ['! ASA Failover configuration']
+        cli_lines.append('failover')
+
+        if mode:
+            # Use simplified mode declaration; user must adjust
+            cli_lines.append(f'failover mode {mode}')
+
+        if iface and prim and sec and mask:
+            cli_lines.append(f'failover interface {iface} {prim} {sec} {mask}')
+
+        if key_val:
+            cli_lines.append(f'failover key {key_val}')
 
         return "\n".join(cli_lines)

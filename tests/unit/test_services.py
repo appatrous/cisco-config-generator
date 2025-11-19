@@ -825,6 +825,147 @@ class TestProtocolService:
         assert 'url-listen vpn.example.com' in config
         assert 'anyconnect enable' in config
 
+    def test_generate_object_groups(self):
+        """Test Object Groups configuration generation."""
+        form_data = {
+            'og_name': ['WEB_SERVERS', 'DB_SERVERS', 'HTTP_PORTS'],
+            'og_type': ['network', 'network', 'service'],
+            'og_members': ['10.1.1.0/24,10.1.2.0/24', '192.168.1.10,192.168.1.11', '80,443,8080']
+        }
+        config = ProtocolService.generate_config('object-groups', form_data)
+
+        assert '! Object Groups configuration' in config
+        assert 'object-group network WEB_SERVERS' in config
+        assert 'network-object 10.1.1.0/24' in config
+        assert 'network-object 10.1.2.0/24' in config
+        assert 'object-group network DB_SERVERS' in config
+        assert 'network-object 192.168.1.10' in config
+        assert 'object-group service HTTP_PORTS' in config
+        assert 'port-object 80' in config
+        assert 'port-object 443' in config
+
+    def test_generate_object_groups_minimal(self):
+        """Test Object Groups with minimal configuration."""
+        form_data = {
+            'og_name': ['SERVERS'],
+            'og_type': ['network'],
+            'og_members': ['10.0.0.0/8']
+        }
+        config = ProtocolService.generate_config('object-groups', form_data)
+
+        assert '! Object Groups configuration' in config
+        assert 'object-group network SERVERS' in config
+        assert 'network-object 10.0.0.0/8' in config
+
+    def test_generate_zone_based_firewall(self):
+        """Test Zone-Based Firewall configuration generation."""
+        form_data = {
+            'zbf_zone_name': ['INSIDE', 'OUTSIDE', 'DMZ'],
+            'zbf_zone_interfaces': ['GigabitEthernet0/0', 'GigabitEthernet0/1', 'GigabitEthernet0/2'],
+            'zbf_source_zone': ['INSIDE', 'DMZ'],
+            'zbf_destination_zone': ['OUTSIDE', 'OUTSIDE'],
+            'zbf_action': ['inspect', 'inspect']
+        }
+        config = ProtocolService.generate_config('zone-based-firewall', form_data)
+
+        assert '! Zone-Based Firewall configuration' in config
+        assert 'zone security INSIDE' in config
+        assert 'zone-member interface GigabitEthernet0/0' in config
+        assert 'zone security OUTSIDE' in config
+        assert 'zone security DMZ' in config
+        assert 'class-map type inspect match-any CLASS_INSIDE_TO_OUTSIDE' in config
+        assert 'match protocol ip' in config
+        assert 'policy-map type inspect POLICY_INSIDE_TO_OUTSIDE' in config
+        assert 'inspect' in config
+        assert 'zone-pair security INSIDE_to_OUTSIDE source INSIDE destination OUTSIDE' in config
+        assert 'service-policy type inspect POLICY_INSIDE_TO_OUTSIDE' in config
+
+    def test_generate_zone_based_firewall_minimal(self):
+        """Test Zone-Based Firewall with minimal configuration."""
+        form_data = {
+            'zbf_zone_name': ['TRUST'],
+            'zbf_zone_interfaces': ['GigabitEthernet0/0'],
+            'zbf_source_zone': [],
+            'zbf_destination_zone': [],
+            'zbf_action': []
+        }
+        config = ProtocolService.generate_config('zone-based-firewall', form_data)
+
+        assert '! Zone-Based Firewall configuration' in config
+        assert 'zone security TRUST' in config
+        assert 'zone-member interface GigabitEthernet0/0' in config
+
+    def test_generate_ids_ips_enabled(self):
+        """Test IDS/IPS with enabled configuration."""
+        form_data = {
+            'ids_enable': ['on'],
+            'ids_sigs_update': ['on']
+        }
+        config = ProtocolService.generate_config('ids-ips', form_data)
+
+        assert '! IDS/IPS configuration' in config
+        assert 'ip ips notify log' in config
+        assert 'signature updates enabled' in config
+
+    def test_generate_ids_ips_disabled(self):
+        """Test IDS/IPS with disabled configuration."""
+        form_data = {}
+        config = ProtocolService.generate_config('ids-ips', form_data)
+
+        assert '! IDS/IPS configuration' in config
+        assert 'IDS/IPS disabled' in config
+
+    def test_generate_ssl_tls_inspection_enabled(self):
+        """Test SSL/TLS Inspection with enabled configuration."""
+        form_data = {
+            'ssli_enable': ['on'],
+            'ssli_certificate': ['MY_CERT']
+        }
+        config = ProtocolService.generate_config('ssl-tls-inspection', form_data)
+
+        assert '! SSL/TLS Inspection configuration' in config
+        assert 'ssl trustpoint MY_CERT' in config
+        assert 'policy-map type inspect ssl SSL_POLICY' in config
+        assert 'class type inspect ssl' in config
+        assert 'inspect ssl' in config
+
+    def test_generate_ssl_tls_inspection_disabled(self):
+        """Test SSL/TLS Inspection with disabled configuration."""
+        form_data = {}
+        config = ProtocolService.generate_config('ssl-tls-inspection', form_data)
+
+        assert '! SSL/TLS Inspection configuration' in config
+        assert 'SSL/TLS inspection disabled' in config
+
+    def test_generate_asa_failover(self):
+        """Test ASA Failover/Clustering configuration generation."""
+        form_data = {
+            'failover_mode': ['active-standby'],
+            'failover_interface': ['GigabitEthernet0/2'],
+            'failover_key': ['my_secret_key'],
+            'failover_primary_ip': ['192.168.100.1'],
+            'failover_secondary_ip': ['192.168.100.2'],
+            'failover_netmask': ['255.255.255.0']
+        }
+        config = ProtocolService.generate_config('asa-failover-clustering', form_data)
+
+        assert '! ASA Failover configuration' in config
+        assert 'failover' in config
+        assert 'failover mode active-standby' in config
+        assert 'failover interface GigabitEthernet0/2 192.168.100.1 192.168.100.2 255.255.255.0' in config
+        assert 'failover key my_secret_key' in config
+
+    def test_generate_asa_failover_minimal(self):
+        """Test ASA Failover with minimal configuration."""
+        form_data = {
+            'failover_mode': ['active-active']
+        }
+        config = ProtocolService.generate_config('asa-failover-clustering', form_data)
+
+        assert '! ASA Failover configuration' in config
+        assert 'failover' in config
+        assert 'failover mode active-active' in config
+
 
 class TestTroubleshootUtils:
     """Tests for troubleshoot utilities."""
